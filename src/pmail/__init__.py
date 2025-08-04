@@ -1,2 +1,8 @@
-def main() -> None:
-    print("Hello from pmail!")
+"""pmail - Smart Email Processing for Mutt"""
+
+__version__ = "0.1.0"
+
+# Set up logging for the package
+import logging
+
+logging.getLogger(__name__).addHandler(logging.NullHandler())

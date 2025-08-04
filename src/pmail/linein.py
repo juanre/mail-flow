@@ -68,7 +68,7 @@ class LineInput:
             #! from jro.config import get_config
             #! config = get_config()
             #! history_dir = str(config.get_linein_history_dir())
-            history_dir = "~/pmail"
+            history_dir = os.path.expanduser("~/.pmail/history")
             if not os.path.exists(history_dir):
                 os.makedirs(history_dir)
             self.history_file = os.path.join(
