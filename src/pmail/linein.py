@@ -1,0 +1,194 @@
+# -*- coding: utf-8 -*-
+
+import os
+from datetime import datetime
+import gnureadline as readline
+
+readline.read_init_file(os.path.expanduser("~/.inputrc"))
+readline.set_completer_delims(" ")
+
+
+def validate_float(v):
+    try:
+        return float(v)
+    except ValueError:
+        print("** Expecting float, got " + str(v))
+        return None
+
+
+def validate_date(v):
+    v = v.strip()
+    if len(v) == len("2021-10-20"):
+        ymd = v.split("-")
+        if len(ymd) != 3:
+            print("** %s does not look like a date, not 3 values" % v)
+            return None
+    elif len(v) == len("20211020"):
+        ymd = v[:4], v[4:6], v[6:]
+    else:
+        print(
+            ("** %s does not look like a date, " "not like 2021-10-20 or 20211020") % v
+        )
+        return None
+
+    try:
+        y, m, d = [int(v) for v in ymd]
+    except ValueError:
+        print("** %s does not look like a date, not 3 ints" % v)
+        return None
+
+    min_year, max_year = 2021, datetime.today().year
+    if not min_year <= y <= max_year:
+        print("** Year %d not between %d and %d" % (y, min_year, max_year))
+        return None
+
+    try:
+        datetime(y, m, d)
+    except ValueError as e:
+        print("** %s not correct: %s" % (v, str(e)))
+        return None
+
+    return "-".join(ymd)
+
+
+class LineInput:
+    def __init__(
+        self, prompt, typical=None, only_typical=None, validator=None, with_history=True
+    ):
+        self.prompt = prompt
+        self.typical = typical if typical else []
+        self.only_typical = (
+            only_typical if only_typical is not None else (len(self.typical) > 0)
+        )
+        self.validator = validator
+        self.with_history = with_history
+        self.matches = []
+
+        if with_history:
+            #! from jro.config import get_config
+            #! config = get_config()
+            #! history_dir = str(config.get_linein_history_dir())
+            history_dir = "~/pmail"
+            if not os.path.exists(history_dir):
+                os.makedirs(history_dir)
+            self.history_file = os.path.join(
+                history_dir, "history-" + prompt.lower().replace(" ", "-")
+            )
+
+            # When typical is not set we initialize it with the history
+            if not typical:
+                if os.path.exists(self.history_file):
+                    readline.read_history_file(self.history_file)
+                    for i in range(readline.get_current_history_length()):
+                        v = readline.get_history_item(i + 1)
+                        if v not in self.typical:
+                            self.typical.append(v)
+        readline.clear_history()
+
+    def complete(self, text, state):
+        """It will be called with increasing numbers in state until it returns
+        None
+        """
+        return (sorted([t for t in self.typical if t.startswith(text)]) + [None])[state]
+
+    def maybe_history_back(self):
+        if self.with_history:
+            readline.replace_history_item(readline.get_current_history_length() - 1, "")
+            # readline.write_history_file(self.history_file)
+
+    def ask(self, default=None):
+        readline.set_completer(self.complete)
+        readline.clear_history()
+        if self.with_history:
+            if os.path.exists(self.history_file):
+                readline.read_history_file(self.history_file)
+        try:
+            if default is not None:
+                v = input("%s [default: %s]: " % (self.prompt, default))
+                if v == "":
+                    v = default
+            else:
+                v = input("%s: " % (self.prompt))
+
+            if self.validator is not None:
+                v = self.validator(v)
+                if v is None:
+                    self.maybe_history_back()
+                    return self.ask(default)
+
+            if v not in self.typical:
+                if self.only_typical:
+                    print(
+                        "** Valid values are %s not %s" % (", ".join(self.typical), v)
+                    )
+                    self.maybe_history_back()
+                    return self.ask(default)
+                self.typical.append(str(v))
+            return v
+        finally:
+            if self.with_history:
+                readline.write_history_file(self.history_file)
+
+    def _ask(self):
+        readline.set_completer(self.complete)
+        readline.clear_history()
+        if self.with_history:
+            if os.path.exists(self.history_file):
+                readline.read_history_file(self.history_file)
+
+        try:
+            v = input("%s: " % (self.prompt))
+            if self.validator is not None:
+                v = self.validator(v)
+                if v is None:
+                    self.maybe_history_back()
+                    return self.ask()
+
+            if v not in self.typical:
+                if self.only_typical:
+                    print(
+                        "** Valid values are %s not %s" % (", ".join(self.typical), v)
+                    )
+                    self.maybe_history_back()
+                    return self.ask()
+                self.typical.append(str(v))
+            return v
+        finally:
+            if self.with_history:
+                readline.write_history_file(self.history_file)
+
+
+class FloatInput(LineInput):
+    def __init__(self, prompt):
+        super().__init__(
+            prompt,
+            typical=None,
+            only_typical=False,
+            validator=validate_float,
+            with_history=False,
+        )
+
+
+class DateInput(LineInput):
+    def __init__(self, prompt, typical=None):
+        if typical is None:
+            typical = [datetime.today().strftime("%Y-%m-%d")]
+        super().__init__(
+            prompt,
+            typical=typical,
+            only_typical=False,
+            validator=validate_date,
+            with_history=True,
+        )
+
+
+if __name__ == "__main__":
+    in_ent = LineInput("Entity", ["gsk", "gsm"])
+    in_cur = LineInput("Currency", ["eur", "gbp", "usd"])
+    in_date = DateInput("Date")
+    in_amount = FloatInput("Amount")
+    for _ in range(10):
+        print(in_ent.ask())
+        print(in_cur.ask())
+        print(in_amount.ask())
+        print(in_date.ask())

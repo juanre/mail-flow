@@ -1,0 +1,70 @@
+#!/usr/bin/env python
+
+import email
+import sys
+import subprocess
+import urllib.parse
+
+from pmail.linein import LineInput
+
+
+def extract(messg):
+    b = email.message_from_string(messg)
+    out = {
+        "from": b["from"].strip(),
+        "to": b["to"].strip(),
+        "subject": b["subject"].strip(),
+        "body": "",
+        "message-id": b["message-id"].strip()[1:-1],
+    }
+
+    if b.is_multipart():
+        for part in b.walk():
+            ctype = part.get_content_type()
+            cdispo = str(part.get("Content-Disposition"))
+            # skip any text/plain (txt) attachments
+            if ctype == "text/plain" and "attachment" not in cdispo:
+                out["body"] = part.get_payload()
+                break
+    # not multipart - i.e. plain text, no attachments, keeping fingers crossed
+    else:
+        # print b.get_content_type()
+        if b.get_content_type() == "text/html":
+            try:
+                from html2org import html2text
+
+                out["body"] = html2text(
+                    b.get_payload().decode("utf-8", "ignore").encode("latin1", "ignore")
+                )
+            except:
+                out["body"] = b.get_payload()
+        else:
+            out["body"] = b.get_payload()
+
+    out["subject"] = (
+        out["subject"].replace("/", "-").replace("[", "(").replace("]", ")")
+    )
+    out["body"] = out["body"].replace("/", "-")
+    return out
+
+
+def process(messg):
+    mail = extract(messg)
+    from pprint import pprint
+
+    pprint(mail)
+
+    dest = LineInput("Dest", ["ignore", "invoice", "trip"]).ask()
+    print(dest)
+
+
+def main():
+    if len(sys.argv) == 2:
+        with open(sys.argv[1]) as message:
+            process(message.read())
+    else:
+        process(sys.stdin.read())
+
+
+if __name__ == "__main__":
+    main()

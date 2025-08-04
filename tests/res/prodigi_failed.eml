@@ -1,0 +1,75 @@
+Delivered-To: juan@greaterskies.com
+Received: by 2002:ab0:2698:0:b0:864:28aa:44c9 with SMTP id t24csp253983uao;
+        Mon, 17 Feb 2025 09:11:10 -0800 (PST)
+X-Google-Smtp-Source: AGHT+IGdMC0dBHqUqjefP9X4rUI6xoziNnjb3nhDMkDYbjeEhiXburYmDNb4XapAH69YpCX8t36S
+X-Received: by 2002:a05:6102:2acd:b0:4af:c519:4e86 with SMTP id ada2fe7eead31-4bd3fbcc335mr5147259137.1.1739812270080;
+        Mon, 17 Feb 2025 09:11:10 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1739812270; cv=none;
+        d=google.com; s=arc-20240605;
+        b=AHcFfxbxY73oQDkPntOH4XKCv8TaC702ceWBcUh7iyNxJyXueGSXSUY1RUePxBt0ka
+         S7fI+deV/g5578EpvlfyOwlAInT5Ecp+zH6FSb2ZukjpS4w2CnqjIwEPM2d1JZrFmaR7
+         felNChYzNQyJ3yo9f1aCZi25Axtk1QFt6bVgb800gA1oCBkCSkhGu2tXc38hqQzLKku/
+         7AoOJyDtMnV+o/FNP2qn95OchHPgq9JicpVbejKwZmCH5Ld3n/HBaNr5HX0zJh5ydxXo
+         krJfIqMIs8bdHnx4LSjoRNQRZGqMD28Sc7LpND0dBbyAE+Fz1Y85wzplR2/PQDuS8pbS
+         ap6A==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=feedback-id:date:message-id:content-transfer-encoding:mime-version
+         :subject:to:from:dkim-signature:dkim-signature;
+        bh=FuXIjFFKnzbZW2XNVwjP9FZr3DbdO1Diun17LIuezsk=;
+        fh=AX00z8g7tUotPc3XDOewVot1P0BmYUL3o9t50ylU6WE=;
+        b=Prn41P031dhtZJ+//R7rYVlHb2Wlnbibh4VQsoJ4Mz0+ncdfyWFyVCAJgDBN7ZGr/t
+         16DX6sZpueaXLynWh40i4LhTA1xm4HuTvEW5GXgXiVKGIwWAOptHatrPmcG+/QgQYXf4
+         kRuBciq58w9+WedFo+5Uq6xEKNEO6Oig18AZC/yGMU3yXTnuuihwzahdp0J4NMbVkkoX
+         Sj3j7V0c3o6UrG5uVnVOpTzUP9CuHzJsCTFc6QQqJUma7MKLqtr7plp55eKXg4CGenoJ
+         +Q/JPx7hYsZlQVnI0WQl3yOVvFYrQ/JVZ7d6SwhY1Scdns59ApMxJcyevpenVWD1x20J
+         RFMw==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@greaterskies.com header.s=a7omji4gqclwnxdigrqfr2t73yptmydk header.b=twsZnAOH;
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=c9DCsiLw;
+       spf=pass (google.com: domain of 0100019514e46de4-009d2baf-aa6b-421d-b680-20619171a971-000000@amazonses.com designates 54.240.8.81 as permitted sender) smtp.mailfrom=0100019514e46de4-009d2baf-aa6b-421d-b680-20619171a971-000000@amazonses.com
+Return-Path: <0100019514e46de4-009d2baf-aa6b-421d-b680-20619171a971-000000@amazonses.com>
+Received: from a8-81.smtp-out.amazonses.com (a8-81.smtp-out.amazonses.com. [54.240.8.81])
+        by mx.google.com with ESMTPS id ada2fe7eead31-4bdd6fcf319si891553137.451.2025.02.17.09.11.09
+        for <juan@greaterskies.com>
+        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
+        Mon, 17 Feb 2025 09:11:10 -0800 (PST)
+Received-SPF: pass (google.com: domain of 0100019514e46de4-009d2baf-aa6b-421d-b680-20619171a971-000000@amazonses.com designates 54.240.8.81 as permitted sender) client-ip=54.240.8.81;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@greaterskies.com header.s=a7omji4gqclwnxdigrqfr2t73yptmydk header.b=twsZnAOH;
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=c9DCsiLw;
+       spf=pass (google.com: domain of 0100019514e46de4-009d2baf-aa6b-421d-b680-20619171a971-000000@amazonses.com designates 54.240.8.81 as permitted sender) smtp.mailfrom=0100019514e46de4-009d2baf-aa6b-421d-b680-20619171a971-000000@amazonses.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=a7omji4gqclwnxdigrqfr2t73yptmydk; d=greaterskies.com;
+	t=1739812269;
+	h=From:To:Subject:MIME-Version:Content-Type:Content-Transfer-Encoding:Message-ID:Date;
+	bh=FuXIjFFKnzbZW2XNVwjP9FZr3DbdO1Diun17LIuezsk=;
+	b=twsZnAOHfHt2aZUJvYhmJoV+DQOFwgJ5I9VaPrlwKDDHtmdXv5ORl1H5A8q06WHK
+	Lp8WyY6oRSYs1yF5IvNKNp1nBt0kt89TOBXuhw9V6zpfSrloK3Tr+CzTQgW4G6zN16U
+	n8o6PPwHZPQwg5YQGiJh6wro7YMkURlF407b/GpM=
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1739812269;
+	h=From:To:Subject:MIME-Version:Content-Type:Content-Transfer-Encoding:Message-ID:Date:Feedback-ID;
+	bh=FuXIjFFKnzbZW2XNVwjP9FZr3DbdO1Diun17LIuezsk=;
+	b=c9DCsiLwGkDpbY4gQ+7n8PxKWoh/n5AeSlpPAdw0z2IFt5LCCf/RMfEcv5Rvx7cU
+	KGFiWQYOTK8Njjod2rqpvdbAYum6VXa0GQXLaJQpdmikEbNYXrjHB7iOeWEMNj9NRF9
+	r1X05xk3DvazWHY4MuTV6ts3Ew3eLEslwfAXONPE=
+From: greaterskies@greaterskies.com
+To: juan@greaterskies.com
+Subject: *** Prodigi submission failed
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
+Message-ID: <0100019514e46de4-009d2baf-aa6b-421d-b680-20619171a971-000000@email.amazonses.com>
+Date: Mon, 17 Feb 2025 17:11:09 +0000
+Feedback-ID: ::1.us-east-1.wFSGZczsVdCtxaMbw0lbvpxJTZAIF2f6MgTtKK29m0A=:AmazonSES
+X-SES-Outgoing: 2025.02.17-54.240.8.81
+X-TUID: l4WqmCXGkuwj
+
+Successful:
+
+
+
+Failed:
+
+** failed 1a6b3cfbabf30ad7033bf699c52f0b46 b'{"outcome":"ValidationFailed","failures":{"recipient.address.postalOrZipCode":[{"code":"MustBeAValidUSZipCodeFormat","providedValue":"T8V 1V8"}]},"traceParent":"00-3aac108bddc59fdabb951a76553f5e8c-c2b505879b512c3b-00"}'

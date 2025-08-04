@@ -1,0 +1,172 @@
+Delivered-To: juan@greaterskies.com
+Received: by 2002:ab0:1e07:0:b0:864:28aa:44c9 with SMTP id m7csp2133553uak;
+        Sat, 1 Mar 2025 22:43:18 -0800 (PST)
+X-Google-Smtp-Source: AGHT+IEMKnFUfvG8Bsxs/opoYFmTonledjsVRiDyPNzsb8A+LI/jc2kqBtv7EF0vP/ggPNRdNZv6
+X-Received: by 2002:a05:620a:3189:b0:7c0:b7ca:70e9 with SMTP id af79cd13be357-7c39c64d74bmr1508779385a.56.1740897798712;
+        Sat, 01 Mar 2025 22:43:18 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1740897798; cv=none;
+        d=google.com; s=arc-20240605;
+        b=UEcW3tjL3my8sSsOvr8lqTxr2FU7kzotU2M8/eQbFhv7ncuRiKm1b81yysEd8gTn+0
+         UhtsNIF7bXzgQG7VovP2W6LMs8Ii7Rq4us3+afV7/NOuYxdPqc70Qw8o5cXKnp77VS0e
+         B3wusODEB4HXsCpIgNefz2nxBR++Tl9nYC1oKNyomxyPdqBE+ITVDHDobXVuJVYjSUS/
+         UnYfMaBgu4FOjrE5wdB+1wy8UVZ+nWtNedwbXggxYiiamoe9IJLAQcurRYfk06tMPKOw
+         BZwKgTZfR/kSCdoowTLbR/X6y/M0/Sd5o9R8KafRzObRIzLFmhUHChubaTvnIOgZpsQF
+         i9sg==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=feedback-id:bounces-to:mime-version:subject:message-id:to:from:date
+         :dkim-signature:dkim-signature;
+        bh=7sB2xX5n/rCg29WftIahNDVjai2ozTXPpUpqtqCes3Y=;
+        fh=AX00z8g7tUotPc3XDOewVot1P0BmYUL3o9t50ylU6WE=;
+        b=Lb3tJdZ4NIJMpGqstIYYpWS43jHZx7yJp8NQRYnt+71JKVMzFStd01WcHP6TR/T0qS
+         P4dIz9kHvNaISQWlJAO2ebIOiJxDmuk+I0jRP1WWm3vRD7F9tFljBN1uBiQ2Yb+2L4lT
+         aOCAfW9ZsOdSj7m5AJQQyDRhp1j19uFfA0TwVBz/oXltbb5L28XEC1Afxq/5ZkY6djCO
+         RklcqlpoVWiCIpLguLdVXttBRFR8g5LcAtbLce4pBMoB7m3MEpPRYuD7doqU0g1gjm0P
+         UhOmETTrOnnYtTUBv3oaewFmIgDBF3GefI/J16r9c+e4EN0julVM4jHCvbmurMMsGNbi
+         DoYA==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@amazon.com header.s=eaxkvsyelrnxjh4cicqyjjmtjpetuwjx header.b=JZFTxT1c;
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=PHZuSV6W;
+       spf=pass (google.com: domain of 20250302064318850a0420f3ee490d9ac282cc3df0p0na-c1vg9r6jyr26yp@bounces.amazon.com designates 54.240.13.57 as permitted sender) smtp.mailfrom=20250302064318850a0420f3ee490d9ac282cc3df0p0na-C1VG9R6JYR26YP@bounces.amazon.com;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=amazon.com
+Return-Path: <20250302064318850a0420f3ee490d9ac282cc3df0p0na-C1VG9R6JYR26YP@bounces.amazon.com>
+Received: from a13-57.smtp-out.amazonses.com (a13-57.smtp-out.amazonses.com. [54.240.13.57])
+        by mx.google.com with ESMTPS id af79cd13be357-7c36fee866asi631675185a.84.2025.03.01.22.43.18
+        for <juan@greaterskies.com>
+        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
+        Sat, 01 Mar 2025 22:43:18 -0800 (PST)
+Received-SPF: pass (google.com: domain of 20250302064318850a0420f3ee490d9ac282cc3df0p0na-c1vg9r6jyr26yp@bounces.amazon.com designates 54.240.13.57 as permitted sender) client-ip=54.240.13.57;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@amazon.com header.s=eaxkvsyelrnxjh4cicqyjjmtjpetuwjx header.b=JZFTxT1c;
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=PHZuSV6W;
+       spf=pass (google.com: domain of 20250302064318850a0420f3ee490d9ac282cc3df0p0na-c1vg9r6jyr26yp@bounces.amazon.com designates 54.240.13.57 as permitted sender) smtp.mailfrom=20250302064318850a0420f3ee490d9ac282cc3df0p0na-C1VG9R6JYR26YP@bounces.amazon.com;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=amazon.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=eaxkvsyelrnxjh4cicqyjjmtjpetuwjx; d=amazon.com; t=1740897798;
+	h=Date:From:To:Message-ID:Subject:MIME-Version:Content-Type;
+	bh=h5ZgFaiRBBiILL0Sv/ZG5xSwue1lYAfSk+ES3ykkeT0=;
+	b=JZFTxT1cRgbzFIeNOLXK+dQUrHdBpP6t5b5Eelbsex0dDxOgcIavN0l/XI9UARsZ
+	zPs1QgQ6nub5ZlU8SZqyRT12NeMFBALLwaav58q/TOi1B9VkKLi4H9TDiPuDeWTriAs
+	kjRRmIRK65UfNhiOyAvYoIuylqWY3TPfvayAJzfo=
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1740897798;
+	h=Date:From:To:Message-ID:Subject:MIME-Version:Content-Type:Feedback-ID;
+	bh=h5ZgFaiRBBiILL0Sv/ZG5xSwue1lYAfSk+ES3ykkeT0=;
+	b=PHZuSV6WyxHs9g9dGp6J0zOwOlREGqrI+mSsh0+/OGT7JVWSeoTkxrCoYBcA4OLU
+	ru2b46IJUH3bYyXZKqmHaq0DsDw8m/V+WJ6rZWbKK9MGjLuHFvnI02PD66hwotxRN0a
+	8Slv2sGRsgzQfeg7nT4C8+czol+U4d2bDjkm0GbM=
+Date: Sun, 2 Mar 2025 06:43:18 +0000
+From: Amazon Web Services <no-reply-aws@amazon.com>
+To: juan@greaterskies.com
+Message-ID: <0100019555984835-3c0dc8c0-229e-454b-afb0-93b730890839-000000@email.amazonses.com>
+Subject: Amazon Web Services Billing Statement Available [Account:
+ 552631597088]
+MIME-Version: 1.0
+Content-Type: multipart/alternative; 
+	boundary="----=_Part_4429315_1778060418.1740897798194"
+X-AMAZON-MAIL-RELAY-TYPE: notification
+Bounces-to: 20250302064318850a0420f3ee490d9ac282cc3df0p0na-C1VG9R6JYR26YP@bounces.amazon.com
+X-AMAZON-METADATA: CA=C1VG9R6JYR26YP-CU=A12PLG58Y77SBE
+X-Original-MessageID: <urn.rtn.msg.20250302064318850a0420f3ee490d9ac282cc3df0p0na@1740897798194.>
+Feedback-ID: 628730110::1.us-east-1.ZHcGJK6s+x+i9lRHKog4RW3tECwWIf1xzTYCZyUaiec=:AmazonSES
+X-SES-Outgoing: 2025.03.02-54.240.13.57
+X-TUID: nDLpXmtzx/18
+
+------=_Part_4429315_1778060418.1740897798194
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+
+Greetings from Amazon Web Services,
+
+
+This e-mail confirms that your latest billing statement, for the account ending in ****7088, is available on the AWS web site. Your account will be charged the following:
+
+Total in EUR: 545,35*
+
+The credit card ending in 6545 is currently your default payment method for your AWS charges. We will automatically charge the total amount due shown above to your default credit card unless your bank requires additional verification from you. Please visit the Payment History page in your Billing and Cost Management Console https://console.aws.amazon.com/billing/home#/paymenthistory to review the invoice status and complete any required payments to avoid service disruptions.
+
+You can see a complete break down of all charges on the Billing & Cost Management page located here:
+
+https://console.aws.amazon.com/billing/home#/bills?year=2025&month=2
+
+To protect your privacy, we can only communicate account information to the e-mail address on file for your account.
+
+Thank you for using Amazon Web Services.
+
+
+Sincerely,
+Amazon Web Services
+
+
+To learn more about managing your AWS costs with Cost Allocation and Tagging, visit http://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/cost-alloc-tags.html
+
+Amazon Web Services EMEA SARL is a subsidiary of Amazon.com, Inc. Amazon.com is a registered trademark of Amazon.com, Inc. This message was produced and distributed by Amazon Web Services EMEA SARL, 38 avenue John F. Kennedy, L-1855 Luxembourg.
+
+AWS will not be bound by, and specifically objects to, any term, condition or other provision which is different from or in addition to the provisions of the AWS Customer Agreement or AWS Enterprise Agreement between AWS and you (whether or not it would materially alter such AWS Customer Agreement or AWS Enterprise Agreement) and which is submitted in any order, receipt acceptance, confirmation, correspondence or otherwise, unless AWS specifically agrees to such provision in a written instrument signed by AWS.
+
+Your use of Amazon Web Services products and services is governed by the AWS Customer Agreement linked below unless you purchase these products and services from an AWS Value Added Reseller.
+
+The current AWS Customer Agreement is available at https://aws.amazon.com/agreement/. You can see more information about these changes at https://aws.amazon.com/agreement/recent-changes/.
+
+* You have asked for this invoice to be processed in EUR. For more information visit https://aws.amazon.com/billing/faqs/#payment_currency
+
+Would you like to pay in another supported currency? Change your payment settings at https://console.aws.amazon.com/billing/home?#/account
+
+
+------=_Part_4429315_1778060418.1740897798194
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 7bit
+
+<img width="1" height="1" src="https://www.amazon.com/gp/r.html?C=2RIU9CC5EF1IP&K=3M4B7NI0XTTYQ&M=urn:rtn:msg:20250302064318850a0420f3ee490d9ac282cc3df0p0na&R=28NOTBNLJAQ1O&T=O&U=https%3A%2F%2Fimages-na.ssl-images-amazon.com%2Fimages%2FG%2F01%2Fnav%2Ftransp.gif&H=GGT7HY4PDTRHTIZSEMDXUXLAM1EA&ref_=pe_3639060_628730110_opens" /><div style="padding-right:20px; padding-left:20px; padding-bottom:20px; width:80%; padding-top:20px; font-family:Verdana;">
+
+    <p><img src="https://media.amazonwebservices.com/aws-email-logo.png" border="0" alt="Amazon Logo"/></p>
+    <p><span style="font-family: calibri, sans-serif;">&nbsp;</span></p>
+    
+    <p><span style="font-family: calibri, sans-serif;">Greetings from Amazon Web Services,</span></p>
+    <p><span style="font-family: calibri, sans-serif;">&nbsp;</span></p>
+    
+    
+        <p><span style="font-family: calibri, sans-serif;">This e-mail confirms that your latest billing statement, for the account ending in ****7088, is available on the AWS web site. Your account will be charged the following:</span></p>
+        <p><span style="font-family: calibri, sans-serif;">&nbsp;</span></p>
+    
+        <p><span style="font-family: calibri, sans-serif;">Total in EUR: 545,35*</span></p>
+        <p><span style="font-family: calibri, sans-serif;">&nbsp;</span></p>
+    
+        <p><span style="font-family: calibri, sans-serif;">The credit card ending in 6545 is currently your default payment method for your AWS charges. We will automatically charge the total amount due shown above to your default credit card unless your bank requires additional verification from you. Please visit the Payment History page in your Billing and Cost Management Console https://console.aws.amazon.com/billing/home#/paymenthistory to review the invoice status and complete any required payments to avoid service disruptions.</span></p>
+        <p><span style="font-family: calibri, sans-serif;">&nbsp;</span></p>
+    
+        <p><span style="font-family: calibri, sans-serif;">You can see a complete break down of all charges on the Billing & Cost Management page located here:</span></p>
+        <p><span style="font-family: calibri, sans-serif;">&nbsp;</span></p>
+    
+        <p><span style="font-family: calibri, sans-serif;">https://console.aws.amazon.com/billing/home#/bills?year=2025&month=2</span></p>
+        <p><span style="font-family: calibri, sans-serif;">&nbsp;</span></p>
+    
+        <p><span style="font-family: calibri, sans-serif;">To protect your privacy, we can only communicate account information to the e-mail address on file for your account.</span></p>
+        <p><span style="font-family: calibri, sans-serif;">&nbsp;</span></p>
+    
+        <p><span style="font-family: calibri, sans-serif;">Thank you for using Amazon Web Services.</span></p>
+        <p><span style="font-family: calibri, sans-serif;">&nbsp;</span></p>
+    
+    
+    <p><span style="font-family: calibri, sans-serif;">Sincerely,</span></p>
+    <p><span style="font-family: calibri, sans-serif;">Amazon Web Services</span></p>
+    <p><span style="font-family: calibri, sans-serif;">&nbsp;</span></p>
+    
+    
+        <p><span style="font-size: 8pt; font-family: calibri, sans-serif;">To learn more about managing your AWS costs with Cost Allocation and Tagging, visit http://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/cost-alloc-tags.html</span></p>
+    
+        <p><span style="font-size: 8pt; font-family: calibri, sans-serif;">Amazon Web Services EMEA SARL is a subsidiary of Amazon.com, Inc. Amazon.com is a registered trademark of Amazon.com, Inc. This message was produced and distributed by Amazon Web Services EMEA SARL, 38 avenue John F. Kennedy, L-1855 Luxembourg.</span></p>
+    
+        <p><span style="font-size: 8pt; font-family: calibri, sans-serif;">AWS will not be bound by, and specifically objects to, any term, condition or other provision which is different from or in addition to the provisions of the AWS Customer Agreement or AWS Enterprise Agreement between AWS and you (whether or not it would materially alter such AWS Customer Agreement or AWS Enterprise Agreement) and which is submitted in any order, receipt acceptance, confirmation, correspondence or otherwise, unless AWS specifically agrees to such provision in a written instrument signed by AWS.</span></p>
+    
+        <p><span style="font-size: 8pt; font-family: calibri, sans-serif;">Your use of Amazon Web Services products and services is governed by the AWS Customer Agreement linked below unless you purchase these products and services from an AWS Value Added Reseller.</span></p>
+    
+        <p><span style="font-size: 8pt; font-family: calibri, sans-serif;">The current AWS Customer Agreement is available at https://aws.amazon.com/agreement/. You can see more information about these changes at https://aws.amazon.com/agreement/recent-changes/.</span></p>
+    
+        <p><span style="font-size: 8pt; font-family: calibri, sans-serif;">* You have asked for this invoice to be processed in EUR. For more information visit https://aws.amazon.com/billing/faqs/#payment_currency</span></p>
+    
+        <p><span style="font-size: 8pt; font-family: calibri, sans-serif;">Would you like to pay in another supported currency? Change your payment settings at https://console.aws.amazon.com/billing/home?#/account</span></p>
+    
+
+</div><img width="1" height="1" src="https://www.amazon.com/gp/r.html?C=2RIU9CC5EF1IP&K=3M4B7NI0XTTYQ&M=urn:rtn:msg:20250302064318850a0420f3ee490d9ac282cc3df0p0na&R=2DSII4Q8D87BJ&T=E&U=https%3A%2F%2Fimages-na.ssl-images-amazon.com%2Fimages%2FG%2F01%2Fnav%2Ftransp.gif&H=KOGBJNBUNC543SQXUF5WAGN5JG4A&ref_=pe_3639060_628730110_open" />
+------=_Part_4429315_1778060418.1740897798194--

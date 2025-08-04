@@ -1,0 +1,7 @@
+# Add this to your .muttrc file:
+
+# Process email with pmail (Ctrl-P)
+macro index,pager \cp "<pipe-message>pmail<enter>" "Process email with pmail"
+
+# Process tagged emails with pmail
+macro index \cP "<tag-prefix><pipe-message>pmail<enter>" "Process tagged emails with pmail"

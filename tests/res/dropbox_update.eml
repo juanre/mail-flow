@@ -1,0 +1,175 @@
+Delivered-To: juan@greaterskies.com
+Received: by 2002:ab0:1e07:0:b0:864:28aa:44c9 with SMTP id m7csp1484103uak;
+        Fri, 28 Feb 2025 16:12:38 -0800 (PST)
+X-Google-Smtp-Source: AGHT+IESbc00wQ6lVKE6MzRjTcc+3I9+fBsd3Pz35xy4SpH2eng4Ece5cIdLvExeMhzftkpqDqha
+X-Received: by 2002:a17:903:244d:b0:223:325c:89f6 with SMTP id d9443c01a7336-22368f6a614mr89353105ad.10.1740787958029;
+        Fri, 28 Feb 2025 16:12:38 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1740787958; cv=none;
+        d=google.com; s=arc-20240605;
+        b=I2xMJy+FyaetZ0NgyN8NyUSttXc7jKMLw+i1HabDmxYjOt8lClPa1xTngZi6VRwr93
+         UXkqwMK6Hbttbu7vCTaTP4Ny4AAQXoAFVlThaxUn0/6E1U6xktX+pBDuJkDUsMq77/YA
+         tZuf8FbC03/gW7niJOnCpf48AB9qJKDFVBtMXOfadDL8i1CFiB+B57dDAX/onZpx+Eul
+         4ZF40wNfrBYDubFddMkUT6ir0KViNZ1vfec8KXs6KKnjNbFjZYzez+Ojm2TGlC4QHmWJ
+         6z/kKp7OhI166v2EFh/cQartp4tEnhRaRSWZNrOHXuK+zmviKNGtIGCJPA69kchR9HLm
+         ENhw==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=feedback-id:message-id:date:subject:cc:to:from:mime-version
+         :dkim-signature:dkim-signature;
+        bh=RxaFQJcootrdMpidmb/WSZsgBmKVHrXdS65B4kUkAtA=;
+        fh=wIrjqzI/zCxFVBbJHeKFEFn2nrxNrUlNKb0i0ZUhono=;
+        b=XX4BEfoONsYqUyFV1t3MlTYGwA44HsdfxE3HoDrlNXTTmrzTxy2lgJ5dISCbeiN3qc
+         kxIluPExdhtKIyssS0Nby066a0ho16OrFWAq4vh6FZC+i5Hpho/WIEEx3CXJSmA5zA7P
+         3F39mqFXvSFpRgyqx7wtS2JcRB0SCuhxVShr9XPQ+HAsRkf4z3T0KkOY6yCim8CraRud
+         pLvFnDFEL6H9HdPOw6JL6sv3h+Vh+JAR+rjudBU+3Viw9ryfSzCGIEW2HmZ29RbMC/cE
+         mQemVoN6ewxLomPMYs78Ul5sowrU6mSr2t4jv1xuhnv57o51uKQd41WSGJpDkTkQZCaS
+         w/lg==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@dropbox.com header.s=fwekda4pbtfzhnrtrrriuun7z25zrizq header.b=sTfLDB3X;
+       dkim=pass header.i=@amazonses.com header.s=7v7vs6w47njt4pimodk5mmttbegzsi6n header.b=a9Ogo608;
+       spf=pass (google.com: domain of 010101954f0c3d51-aa9d6c92-bb3e-4f48-9714-a8ddb18fea97-000000@email.dropbox.com designates 54.240.60.143 as permitted sender) smtp.mailfrom=010101954f0c3d51-aa9d6c92-bb3e-4f48-9714-a8ddb18fea97-000000@email.dropbox.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=dropbox.com
+Return-Path: <010101954f0c3d51-aa9d6c92-bb3e-4f48-9714-a8ddb18fea97-000000@email.dropbox.com>
+Received: from a60-143.smtp-out.us-west-2.amazonses.com (a60-143.smtp-out.us-west-2.amazonses.com. [54.240.60.143])
+        by mx.google.com with ESMTPS id d9443c01a7336-22384f9f213si6394845ad.27.2025.02.28.16.12.37
+        for <juan@greaterskies.com>
+        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
+        Fri, 28 Feb 2025 16:12:38 -0800 (PST)
+Received-SPF: pass (google.com: domain of 010101954f0c3d51-aa9d6c92-bb3e-4f48-9714-a8ddb18fea97-000000@email.dropbox.com designates 54.240.60.143 as permitted sender) client-ip=54.240.60.143;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@dropbox.com header.s=fwekda4pbtfzhnrtrrriuun7z25zrizq header.b=sTfLDB3X;
+       dkim=pass header.i=@amazonses.com header.s=7v7vs6w47njt4pimodk5mmttbegzsi6n header.b=a9Ogo608;
+       spf=pass (google.com: domain of 010101954f0c3d51-aa9d6c92-bb3e-4f48-9714-a8ddb18fea97-000000@email.dropbox.com designates 54.240.60.143 as permitted sender) smtp.mailfrom=010101954f0c3d51-aa9d6c92-bb3e-4f48-9714-a8ddb18fea97-000000@email.dropbox.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=dropbox.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=fwekda4pbtfzhnrtrrriuun7z25zrizq; d=dropbox.com; t=1740787957;
+	h=Content-Type:MIME-Version:From:To:CC:Subject:Date:Message-ID;
+	bh=pKJ1oojcugO8BB6apQPM2i2lPymtdMz5mb1huDcCv+I=;
+	b=sTfLDB3XNsEMFhE4T9C6efgndnIbGBjo2UDBdwzUSLGr/Nk+WonYmV/zuyRhw6pd
+	WqqJlOYVLgl/Uok2IrHA/FluSdugiWgomPcniSPVEpPhY+bRMOCmw6wlsBgth1I2xO3
+	L2i+7pMnxP5+rZRPcOralr3yoMwluV7AhyB2dAi8=
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=7v7vs6w47njt4pimodk5mmttbegzsi6n; d=amazonses.com; t=1740787957;
+	h=Content-Type:MIME-Version:From:To:CC:Subject:Date:Message-ID:Feedback-ID;
+	bh=pKJ1oojcugO8BB6apQPM2i2lPymtdMz5mb1huDcCv+I=;
+	b=a9Ogo608jI8TFuTqy8cULNs6Va1a5FhFL3uPcmLU+Mh9mGyh6bToXeXqXiwEYIvN
+	av3g/vKXVC+NkdLQGt2Z/3Xa5sJwx0F9qfSy8nw3DyI/oqwT15qKaIJMbJ49yd/I11+
+	PiJEA05XZYvAry+2At4hbRWg1uhkT32ge2PJ1bAk=
+Content-Type: multipart/alternative; boundary="===============5051177040390079213=="
+MIME-Version: 1.0
+From: Dropbox <no-reply@dropbox.com>
+To: juan@greaterskies.com
+CC: 
+Subject: =?utf-8?q?Dropbox_Business_account_renewed?=
+Date: Sat, 1 Mar 2025 00:12:37 +0000
+Message-ID: <010101954f0c3d51-aa9d6c92-bb3e-4f48-9714-a8ddb18fea97-000000@us-west-2.amazonses.com>
+X-Dropbox-Message-ID: 1768686152606421937
+x-cid: 6798
+Feedback-ID: 6798::1.us-west-2.C1J9pRCK9rJULWC8wBKFbk8/mhlW6tSneJoML9ymcSA=:AmazonSES
+X-SES-Outgoing: 2025.03.01-54.240.60.143
+X-TUID: AKIEDnK9ZnaY
+
+--===============5051177040390079213==
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: quoted-printable
+
+Hi Juan,
+
+Thanks for renewing your Dropbox Business account! This email serves as you=
+r receipt.
+
+Team: GreaterSkies
+Transaction ID: GGTJZVBK59VY
+Amount: $67.20
+Licenses: 4
+Account space: 5120 GB
+
+A detailed summary of your account's transactions with Dropbox can be found=
+ on your billing page[1] .
+
+If you have any questions, please let us know. You can find our contact inf=
+ormation in your admin help page[2] .
+
+Regards,
+- The Dropbox Team
+
+[1]: https://www.dropbox.com/l/AACHzNSb5k4J3-aAkbJ-JXZBB7Rw6vmVIaQ
+[2]: https://www.dropbox.com/l/AACyXdx4F8ANqenzitkMRV7rPSj9O4CCap8/team/adm=
+in/help
+--===============5051177040390079213==
+Content-Type: text/html; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w=
+3.org/TR/REC-html40/loose.dtd">
+<html xmlns=3D"http://www.w3.org/1999/xhtml">
+<head>
+<meta content=3D"text/html; charset=3Dutf-8" http-equiv=3D"Content-Type">
+<style>
+        @font-face {
+            font-family: "proxima_nova";
+            src: url("https://www.dropbox.com/static/fonts/proximanova/prox=
+ima-nova-regular.otf") format("opentype");
+            font-weight: normal;
+            font-style: normal;
+        }
+        =20
+        a {
+            color: #007ee6;
+            text-decoration: none;
+        }
+        </style>
+</head> <body marginheight=3D"0" marginwidth=3D"0" style=3D"padding: 0; wid=
+th: 100% !important; -webkit-text-size-adjust: 100%; margin: 0; -ms-text-si=
+ze-adjust: 100%;"><center><table border=3D"0" cellpadding=3D"8" cellspacing=
+=3D"0" style=3D"*width: 540px; padding: 0; width: 100% !important; backgrou=
+nd: #ffffff; margin: 0; background-color: #ffffff;"><tr><td valign=3D"top">
+<table align=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" st=
+yle=3D"border-radius: 4px; -webkit-border-radius: 4px; border: 1px #dceaf5 =
+solid; -moz-border-radius: 4px;">
+<tr><td colspan=3D"3" height=3D"6"></td></tr>
+<tr style=3D"line-height: 0px;"><td align=3D"center" height=3D"1" style=3D"=
+font-size: 0px;" width=3D"100%"><img alt=3D"" catalogid=3D"logo_glyph_34_2x=
+_png" src=3D"https://cfl.dropboxstatic.com/static/metaserver/static/images/=
+emails/logo_glyph_34_m1%402x.png" style=3D"max-height: 73px; width: 40px; *=
+width: 40px; *height: 73px;" width=3D"40px"></td></tr> <tr><td><table align=
+=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" style=3D"line-=
+height: 25px;">
+<tr><td colspan=3D"3" height=3D"30"></td></tr>
+<tr>
+<td width=3D"36"></td>
+<td align=3D"left" style=3D"color: #444444; border-collapse: collapse; font=
+-size: 11pt; font-family: proxima_nova, 'Open Sans', 'Lucida Grande', 'Sego=
+e UI', Arial, Verdana, 'Lucida Sans Unicode', Tahoma, 'Sans Serif'; max-wid=
+th: 454px;" valign=3D"top" width=3D"454">Hi Juan,<br><br>Thanks for renewin=
+g your Dropbox Business account! This email serves as your receipt.<br><br>=
+Team: GreaterSkies<br>Transaction ID: GGTJZVBK59VY<br>Amount: $67.20<br>Lic=
+enses: 4<br>Account space: 5120 GB<br><br>A detailed summary of your accoun=
+t's transactions with Dropbox can be found on <a href=3D"https://www.dropbo=
+x.com/l/AACk_9IxzFFihj3UDPgwQ8sNieyLoU4i8tA">your billing page</a>.<br><br>=
+If you have any questions, please let us know. You can find our contact inf=
+ormation in your <a href=3D"https://www.dropbox.com/l/AADV15Q_lGIXMbiyb0H1E=
+3g4-qV5Qm2iHdA/team/admin/help">admin help page</a>.<br><br>Regards,<br>- T=
+he Dropbox Team</td>
+<td width=3D"36"></td>
+</tr>
+<tr><td colspan=3D"3" height=3D"36"></td></tr>
+</table></td></tr>
+</table>
+<table align=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=3D"0">
+<tr><td height=3D"10"></td></tr>
+<tr><td style=3D"padding: 0; border-collapse: collapse;"><table align=3D"ce=
+nter" border=3D"0" cellpadding=3D"0" cellspacing=3D"0"><tr style=3D"color: =
+#a8b9c6; font-size: 11px; font-family: proxima_nova, 'Open Sans', 'Lucida G=
+rande', 'Segoe UI', Arial, Verdana, 'Lucida Sans Unicode', Tahoma, 'Sans Se=
+rif'; -webkit-text-size-adjust: none;">
+<td align=3D"left" width=3D"400"></td>
+<td align=3D"right" width=3D"128">=C2=A9 2025 Dropbox</td>
+</tr></table></td></tr>
+</table>
+</td></tr></table></center></body>
+</html><img height=3D"1" src=3D"https://www.dropbox.com/l/AABHfC3BIZ7JpmHCp=
+MXpSS36FPqKbzLszIQ" width=3D"1" />
+--===============5051177040390079213==--

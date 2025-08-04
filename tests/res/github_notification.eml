@@ -1,0 +1,940 @@
+Delivered-To: juan@greaterskies.com
+Received: by 2002:ab0:1e07:0:b0:864:28aa:44c9 with SMTP id m7csp1333938uak;
+        Fri, 28 Feb 2025 11:04:40 -0800 (PST)
+X-Received: by 2002:a05:620a:244a:b0:7c0:c214:f2d with SMTP id af79cd13be357-7c39c4c70fbmr631148485a.31.1740769480240;
+        Fri, 28 Feb 2025 11:04:40 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1740769480; cv=none;
+        d=google.com; s=arc-20240605;
+        b=HMvcySwesRQ4o6khz4NVJlvew3VjI0E2rdnZAGyPai/fzCHNYpWNu4ns2EbFUCbojT
+         ffZqk3BV32rdvyTqgTK4YqJ9goNEtb0QsgmDl58nZJ0IzHrB7sxX2SeWrZnybEsXFdnk
+         41giXaekxlaJE3RskRXHAKZjrbMCJXL6AJIX5/siQJlY6IkAtxCwF66IlF07xQDzR8Aj
+         wias83CYa/qj3R60tO3VUPEE5RgaqaRAcpEE7S5UcEHjZ1zLocXrva/QBTzttSWor1e6
+         ejG7L74rZipT8r6GeVXg40z08ZMGXjix+cuaHFaDLNEHojDGXGBDB+U0iLog1kY5nRHJ
+         c8sQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=to:from:subject:message-id:feedback-id:reply-to:date:mime-version
+         :dkim-signature;
+        bh=uS02+wLOmYljGQIJrBiIFFIthr74AxAzFmdGtHd4CHE=;
+        fh=AX00z8g7tUotPc3XDOewVot1P0BmYUL3o9t50ylU6WE=;
+        b=NC/c/NTdfPWd3ZJSA8zhOvZsbSDhcQKSEErGK01fndgKYXB5Wql+mhp26Li3J+R+UM
+         M6gFEZrZStkBJ2nhNlAJIx4+Lr6eSwsv/UtMTcna+XHKsKBy/59YFnyBvcIh9SoIPvHu
+         P/Iwk4xMcR3okQ6SIkzvDYESuoUex7L3366yAeGCtEoJMl642F5N4wlCeo0dSeaLu12U
+         HmwyKFEFAfMZivegMEc8CTIkcoYlkeC+iDyqOILW0urF5Jt4wRcUb7iAcidAWmICS8Sw
+         vEb1XKgYwWIHXzspw706NKb5iJxEvqovAbUsB/ecIT+W1rvTGWPT//hik2sjTEx2aJhd
+         FDwA==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@google.com header.s=20230601 header.b=E6eeRllU;
+       spf=pass (google.com: domain of 3xwjczxukbcyonqwf1ncvhqto-pqtgrnaiqqing.eqolwcpitgcvgtumkgu.eqo@scoutcamp.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3xwjCZxUKBCYoNQWF1NCVHQTO-PQTGRNaIQQING.EQOLWCPITGCVGTUMKGU.EQO@scoutcamp.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com;
+       dara=pass header.i=@greaterskies.com
+Return-Path: <3xwjCZxUKBCYoNQWF1NCVHQTO-PQTGRNaIQQING.EQOLWCPITGCVGTUMKGU.EQO@scoutcamp.bounces.google.com>
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id 6a1803df08f44-6e8976a940bsor33393196d6.5.2025.02.28.11.04.40
+        for <juan@greaterskies.com>
+        (Google Transport Security);
+        Fri, 28 Feb 2025 11:04:40 -0800 (PST)
+Received-SPF: pass (google.com: domain of 3xwjczxukbcyonqwf1ncvhqto-pqtgrnaiqqing.eqolwcpitgcvgtumkgu.eqo@scoutcamp.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@google.com header.s=20230601 header.b=E6eeRllU;
+       spf=pass (google.com: domain of 3xwjczxukbcyonqwf1ncvhqto-pqtgrnaiqqing.eqolwcpitgcvgtumkgu.eqo@scoutcamp.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3xwjCZxUKBCYoNQWF1NCVHQTO-PQTGRNaIQQING.EQOLWCPITGCVGTUMKGU.EQO@scoutcamp.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com;
+       dara=pass header.i=@greaterskies.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20230601; t=1740769480; x=1741374280; darn=greaterskies.com;
+        h=to:from:subject:message-id:feedback-id:reply-to:date:mime-version
+         :from:to:cc:subject:date:message-id:reply-to;
+        bh=uS02+wLOmYljGQIJrBiIFFIthr74AxAzFmdGtHd4CHE=;
+        b=E6eeRllUv9dlT2kqlOhSZ5XjofvkMEiDlJtDA9MJhRr2A6r4Xfs9/5BYEEolJeRBYZ
+         Z7wGpJa7Ih/em2XFu+jrWilz6P3JJszXvWEJTsKG2rBAGIeBnptnbS36wazFQjbs6LWX
+         WTyennLr9NgqtAMsmEH/Hj2YyJ27lD95j4+uj2l9kPAEY6S86lm+vi8glkPmjc0GLpZG
+         6RsfkuM+7bM2SzAhOdlWfouEvNPYTg4QhMejy9/2jlUFJVV+HvvU8P+EUYqu6CF6imnf
+         mhwQ4Miwihp18Lspy7/4sPdGaKPGHOjP/2qN5/y8UWxLWLKsGAt/eU3QGSfON0ni/nQr
+         FsDg==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20230601; t=1740769480; x=1741374280;
+        h=to:from:subject:message-id:feedback-id:reply-to:date:mime-version
+         :x-gm-message-state:from:to:cc:subject:date:message-id:reply-to;
+        bh=uS02+wLOmYljGQIJrBiIFFIthr74AxAzFmdGtHd4CHE=;
+        b=jGL8P5tiCS+VDpf2Z5EMwUXPVAZ/OIvQRDKLpOZOsIMJFpqKfKPRXU3WUXhk+g18Nv
+         1nsHnr1GToj+fwLfrtZyQIKDli/XUO2IhfT0t7MpARgG2asmMmQnEOU2ulDPPDWnuXY6
+         7rR4vdcDIfj8TzOG5hMEKRctSPNxLCQlJM4QxGVTI/pG1yV7lcS/hR+FGBZ6JPOKidyk
+         TjnmcBhkgYzPoctxq9Q964I3DYVQ5nQULb/pCPZTdiyq+Lo070w2f//vGemdFbIVJBYC
+         VFeslfTfR2qk8+d60MX3DsOTLm6HT5rm6m5xXK1hQjWlZSZ5QhJkDPlbtKz+D6MupS+s
+         HR8g==
+X-Gm-Message-State: AOJu0YyraOWBuTZD+1IgtiwYHhKcm97axoMA3EbCgrco7UbGugSewny9
+	n434OHqh9lWIAyONwGEiLo+v3KaWJ0YaeXb/eiyrSrCzdOgIb+1xzkX1
+X-Google-Smtp-Source: AGHT+IGvsEGDC0E1k31X61sYkIMjyUldGxToHKcpma8ffjfTaSUhVaAd4DN+WhNnV3PH0OxcOSuZamo=
+MIME-Version: 1.0
+X-Received: by 2002:a05:6214:21cf:b0:6e6:6713:3ea8 with SMTP id
+ 6a1803df08f44-6e8a0d4e20emr69080336d6.23.1740769479990; Fri, 28 Feb 2025
+ 11:04:39 -0800 (PST)
+Date: Fri, 28 Feb 2025 11:04:39 -0800
+Reply-To: Google Cloud <CloudPlatform-noreply@google.com>
+X-Google-Id: 4366558
+Feedback-ID: P-43-0:C20349874:M110929447-en-GB:gamma
+X-Notifications: f71f7ef985320000
+X-Notifications-Bounce-Info: AXul_mJGw888_J_5ihVecGpxIjmS8MUp1_m6y-ZbCntzP8XAC8Ijo4WM8q8Dg_UR0ClTvYMbpvFnS09sMvOXaMNNTygZv_EX7LV67vZ0oiiz-kixvUdt_h6wm6M1uM9dIHagPKooc1q2z1r8Wi7GlK3Nxlvefu3x58AUgEE0hdgB39GFQkvLBqv011L9uPAEIMYj7e5bloszD-4TlaEz6j20_5ZSUt9oII_VsGRBo5Za2cdOpra6C5FrchnRtaoDj5CxN9An-dK7TUtv7MHhNmpFz3Qo88En61uoErrILUUjYKda39jRzqlbwT34nFp3OwPO7Sh7wLPKMKJdFR_kpP_RQIxCdxmY-1FhXtjbhuhp-pLYJFcBXaMYLi1EeCyELdwWX0XRvvX10ZbEGcTP4rgDnk9p1nqAcAXzg1v_6UoRC4wGZ3jVmFIgHDNorsQjtObbqMZ04MBDz7qKbUj_N09TWk-MegWx5fFvRiqJYulqg1IigElFppgNjAwNjA0MDQxNTM1NTk2OTMzMg
+Message-ID: <fbd52b3ce3b9d4ec24b60208ad62aebc23c3920d-20349874-111637716@google.com>
+Subject: [Action Required] Migrate your App Engine applications to Artifact Registry
+From: Google Cloud <CloudPlatform-noreply@google.com>
+To: juan@greaterskies.com
+Content-Type: multipart/alternative; boundary="0000000000007da79e062f387acd"
+X-TUID: RqYtX7TzIhH5
+
+--0000000000007da79e062f387acd
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+Content-Transfer-Encoding: base64
+
+Q29udGFpbmVyIFJlZ2lzdHJ5IHdpbGwgYmUgc2h1dCBkb3duIGFmdGVyIE1hcmNoIDE4LCAyMDI1
+Lg0KDQoNCg0KDQpNWSBDT05TT0xFDQoNCg0KDQoNCkhlbGxvIEp1YW4sDQoNCldlJ3JlIHdyaXRp
+bmcgdG8gaW5mb3JtIHlvdSBhYm91dCBhbiBpbXBvcnRhbnQgY2hhbmdlIHRoYXQgd2lsbCBpbXBh
+Y3QgeW91ciAgDQpBcHAgRW5naW5lIGFwcC4gVGhlIG9sZGVyIEFwcCBFbmdpbmUgcHJvamVjdHMg
+Y291bGQgYmUgdXNpbmcgR29vZ2xlICANCkNvbnRhaW5lciBSZWdpc3RyeSB0byBzdG9yZSBjb250
+YWluZXIgaW1hZ2VzIGNyZWF0ZWQgZnJvbSB0aGUgZGVwbG95ZWQgIA0Kc291cmNlIGNvZGUuDQoN
+Ckdvb2dsZSBDb250YWluZXIgUmVnaXN0cnkgaXMgYmVpbmcgZGlzY29udGludWVkIGFuZCB3aWxs
+IGJlIHJlcGxhY2VkIGJ5ICANCkFydGlmYWN0IFJlZ2lzdHJ5LiBUaGlzIG1lYW5zIGlmIHlvdSBo
+YXZlIGNvbnRlbnQgaW4gR29vZ2xlIENvbnRhaW5lciAgDQpSZWdpc3RyeSwgeW91IG5lZWQgdG8g
+Zm9sbG93IHRoZSBpbnN0cnVjdGlvbnMgYmVsb3cgdG8gYWxsb3cgQXBwIEVuZ2luZSB0byAgDQph
+dXRvbWF0aWNhbGx5IG1pZ3JhdGUgeW91ciBkZXBsb3ltZW50IGZsb3dzLg0KDQpXZSd2ZSBwcm92
+aWRlZCBhZGRpdGlvbmFsIGluZm9ybWF0aW9uIGJlbG93IHRvIGd1aWRlIHlvdSB0aHJvdWdoIHRo
+aXMgIA0KY2hhbmdlLg0KDQpXaGF0IHlvdSBuZWVkIHRvIGtub3cNCg0KV2hlbiBkZXBsb3lpbmcg
+QXBwIEVuZ2luZSwgQ2xvdWQgQnVpbGQgdHJhbnNmb3JtcyBzb3VyY2UgY29kZSBpbnRvICANCmNv
+bnRhaW5lciBpbWFnZXMgd2hpY2ggbWF5IGJlIHN0b3JlZCBpbiBHb29nbGUgQ29udGFpbmVyIFJl
+Z2lzdHJ5Lg0KDQpBcnRpZmFjdCBSZWdpc3RyeSBpcyB0aGUgbmV4dC1nZW5lcmF0aW9uIHNlcnZp
+Y2UgZm9yIHN0b3JpbmcgY29udGFpbmVyICANCmltYWdlcywgb2ZmZXJpbmcgaW1wcm92ZWQgcmVn
+aW9uYWxpemVkIHN0b3JhZ2UgYW5kIHNlY3VyaXR5IGZlYXR1cmVzLiBHb2luZyAgDQpmb3J3YXJk
+LCBBcnRpZmFjdCBSZWdpc3RyeSB3aWxsIGJlIHRoZSBjb250YWluZXIgcmVwb3NpdG9yeSB1c2Vk
+IGJ5IEFwcCAgDQpFbmdpbmUuDQoNCkFmdGVyIGEgc3VjY2Vzc2Z1bCBBcHAgRW5naW5lIGFwcGxp
+Y2F0aW9uIGRlcGxveW1lbnQ6DQoNCg0KVGhlIEFwcCBFbmdpbmUgc3RhbmRhcmQgZW52aXJvbm1l
+bnQgZG9lc24ndCByZXF1aXJlIHB1bGxpbmcgZnJvbSB0aGUgIA0KY29udGFpbmVyIHJlcG9zaXRv
+cnkNClRoZSBBcHAgRW5naW5lIGZsZXhpYmxlIGVudmlyb25tZW50IHB1bGxzIGZyb20gdGhlIGNv
+bnRhaW5lciByZXBvc2l0b3J5IG9uICANCmVhY2ggaW5zdGFuY2Ugc3RhcnR1cA0KDQpVcGNvbWlu
+ZyBjaGFuZ2VzOg0KDQpTdGFydGluZyBNYXJjaCA1LCAyMDI1Og0KDQoNCk5ldyBkZXBsb3ltZW50
+cyB3aWxsIHN0YXJ0IHVzaW5nIEFydGlmYWN0IFJlZ2lzdHJ5IGluc3RlYWQgb2YgR29vZ2xlICAN
+CkNvbnRhaW5lciBSZWdpc3RyeSBmb3Igc3RvcmluZyBhcHBsaWNhdGlvbiBpbWFnZXMuDQoNCkFm
+dGVyIE1hcmNoIDE4LCAyMDI1Og0KDQoNCkdvb2dsZSBDb250YWluZXIgUmVnaXN0cnkgd2lsbCBi
+ZWdpbiBzaHV0IGRvd24sIHByZXZlbnRpbmcgQXBwIEVuZ2luZSAgDQpmbGV4aWJsZSBlbnZpcm9u
+bWVudCBpbnN0YW5jZXMgZnJvbSBzdGFydGluZy4NCg0KV2hhdCB5b3UgbmVlZCB0byBkbw0KDQpJ
+ZiB5b3VyIHByb2plY3QgYWxyZWFkeSB1c2VzIEFydGlmYWN0IFJlZ2lzdHJ5IGZvciBnY3IuaW8g
+dXJscywgZWl0aGVyICANCmJlY2F1c2UgeW91IGhhdmUgcnVuIHRoZSBhdXRvbWF0ZWQgbWlncmF0
+aW9uIHRvb2xpbmcsIG9yIGJlY2F1c2UgaXQgd2FzICANCmNyZWF0ZWQgYWZ0ZXIgTWF5IDIwMjQs
+IHlvdSBjYW4gaWdub3JlIHRoZSBmb2xsb3dpbmcgaW5zdHJ1Y3Rpb25zIGZvciB0aGF0ICANCnBy
+b2plY3QuDQoNCkZvciBwcm9qZWN0cyB3aGljaCBhcmUgbm90IHlldCBtaWdyYXRlZCB5b3Ugd2ls
+bCBuZWVkIHRvIGZvbGxvdyB0aGVzZSBzdGVwcyAgDQp0byBlbmFibGUgQXBwIEVuZ2luZSB0byBh
+dXRvbWF0aWNhbGx5IG1pZ3JhdGUgeW91ciBkZXBsb3ltZW50IGZsb3dzLg0KDQpBcHAgRW5naW5l
+IHN0YW5kYXJkIGVudmlyb25tZW50IHVzZXJzOg0KDQoNCkZvciBzdGFuZGFyZCBkZXBsb3ltZW50
+cyB0byB3b3JrIGNvcnJlY3RseSB3aXRoIEFydGlmYWN0IFJlZ2lzdHJ5Og0KDQpUaGUgc2Vydmlj
+ZSBhY2NvdW50IGFzc29jaWF0ZWQgd2l0aCBkZXBsb3ltZW50cyAodHlwaWNhbGx5IHRoaXMgd2ls
+bCBiZSB0aGUgIA0KQXBwIEVuZ2luZSBkZWZhdWx0IHNlcnZpY2UgYWNjb3VudCwgcHJvamVjdC1p
+ZEBhcHBzcG90LmdzZXJ2aWNlYWNjb3VudC5jb20sICANCm9yIHlvdXIgY3VzdG9tIHNlcnZpY2Ug
+YWNjb3VudCkgY29tbWFuZCBzaG91bGQgaGF2ZSBhIHJvbGUgdGhhdCBncmFudHMgdGhlICANCmV4
+cGxpY2l0IEFydGlmYWN0IFJlZ2lzdHJ5IHBlcm1pc3Npb24gIA0KYXJ0aWZhY3RyZWdpc3RyeS5y
+ZXBvc2l0b3JpZXMudXBsb2FkQXJ0aWZhY3RzIChmb3Igd3JpdGUpLiBZb3UgY2FuIGZpbmQgIA0K
+dGhpcyBpbmZvcm1hdGlvbiBieSB2aWV3aW5nIHRoZSByb2xlcyBvZiB0aGUgc2VydmljZSBhY2Nv
+dW50Lg0KDQoNCg0KTmV3IGRlcGxveW1lbnRzIHdpbGwgYmUgYWJsZSB0byB1c2UgQXJ0aWZhY3Qg
+UmVnaXN0cnksIGlmIGFueSBvZiB0aGUgIA0KZm9sbG93aW5nIHJvbGVzIGFyZSBwcmVzZW50IGlu
+IHRoZSBzZXJ2aWNlIGFjY291bnQgYXNzb2NpYXRlZCB3aXRoICANCmRlcGxveW1lbnRzOg0KDQpF
+ZGl0b3Igcm9sZQ0KUHJlLWRlZmluZWQgQXJ0aWZhY3QgUmVnaXN0cnkgcm9sZSB3aXRoIHdyaXRl
+IGFjY2VzcyAobGlrZSBBcnRpZmFjdCAgDQpSZWdpc3RyeSBXcml0ZXIpLg0KQ3VzdG9tIHJvbGUg
+dGhhdCBncmFudHMgYXJ0aWZhY3RyZWdpc3RyeS5yZXBvc2l0b3JpZXMudXBsb2FkQXJ0aWZhY3Rz
+ICANCnBlcm1pc3Npb24uIEl0IGNhbiBiZSB2ZXJpZmllZCBmcm9tIHRoZSBDb25zb2xlIG9yIHRo
+cm91Z2ggdGhlIGdjbG91ZCBpYW0gIA0Kcm9sZXMgZGVzY3JpYmUgY29tbWFuZC4NCg0KDQpJZiBu
+b25lIG9mIHRoZXNlIHJvbGVzIGFyZSBwcmVzZW50LCBncmFudCB0aGUgQXJ0aWZhY3QgUmVnaXN0
+cnkgV3JpdGVyIHJvbGUgIA0KKCByb2xlcy9hcnRpZmFjdHJlZ2lzdHJ5LndyaXRlciApIHRvIHlv
+dXIgZGVwbG95aW5nIHNlcnZpY2UgYWNjb3VudC4NCg0KUG90ZW50aWFsIEltcGFjdDogSWYgdGhl
+IHByZWNlZGluZyBzdGVwcyBhcmVuJ3QgY29tcGxldGVkIGJlZm9yZSB0aGUgR29vZ2xlICANCkNv
+bnRhaW5lciBSZWdpc3RyeSBzaHV0cyBkb3duLCB5b3Ugd29uJ3QgYmUgYWJsZSB0byBkZXBsb3kg
+bmV3IHZlcnNpb25zIG9mICANCnlvdXIgQXBwIEVuZ2luZSBzdGFuZGFyZCBhcHBsaWNhdGlvbi4g
+RXhpc3RpbmcgQXBwIEVuZ2luZSBzdGFuZGFyZCAgDQphcHBsaWNhdGlvbnMgd2lsbCBjb250aW51
+ZSB0byBydW4uDQoNCkFwcCBFbmdpbmUgZmxleGlibGUgZW52aXJvbm1lbnQgdXNlcnM6DQoNCkZv
+ciBmbGV4aWJsZSBkZXBsb3ltZW50cyB0byBBcnRpZmFjdCBSZWdpc3RyeSB0byB3b3JrIGNvcnJl
+Y3RseToNCg0KDQpUaGUgc2VydmljZSBhY2NvdW50IGFzc29jaWF0ZWQgd2l0aCBkZXBsb3ltZW50
+cyAodHlwaWNhbGx5LCB0aGlzIHdpbGwgYmUgIA0KdGhlIEFwcCBFbmdpbmUgZGVmYXVsdCBzZXJ2
+aWNlIGFjY291bnQsICANCnByb2plY3QtaWRAYXBwc3BvdC5nc2VydmljZWFjY291bnQuY29tLCBv
+ciB5b3VyIGN1c3RvbSBzZXJ2aWNlIGFjY291bnQpICANCnNob3VsZCBoYXZlIGEgcm9sZSB0aGF0
+IGdyYW50cyB0aGUgZXhwbGljaXQgQXJ0aWZhY3QgUmVnaXN0cnkgcGVybWlzc2lvbnM6ICANCmFy
+dGlmYWN0cmVnaXN0cnkucmVwb3NpdG9yaWVzLmRvd25sb2FkQXJ0aWZhY3RzIChmb3IgcmVhZCkg
+YW5kICANCmFydGlmYWN0cmVnaXN0cnkucmVwb3NpdG9yaWVzLnVwbG9hZEFydGlmYWN0cyAoZm9y
+IHdyaXRlKS4gWW91IGNhbiBmaW5kICANCnRoaXMgaW5mb3JtYXRpb24gYnkgdmlld2luZyB0aGUg
+cm9sZXMgb2YgdGhlIHNlcnZpY2UgYWNjb3VudC4NCg0KDQpOZXcgZGVwbG95bWVudHMgd2lsbCBn
+byB0byB0aGUgQXJ0aWZhY3QgUmVnaXN0cnkgaWYgYW55IG9mIHRoZSBmb2xsb3dpbmcgIA0Kcm9s
+ZXMgYXJlIHByZXNlbnQgaW4gdGhlIHNlcnZpY2UgYWNjb3VudCBhc3NvY2lhdGVkIHdpdGggZGVw
+bG95bWVudHM6DQoNCkVkaXRvciByb2xlDQpQcmUtZGVmaW5lZCBBcnRpZmFjdCBSZWdpc3RyeSBy
+b2xlIHdpdGggcmVhZCBhbmQgd3JpdGUgYWNjZXNzIChsaWtlICANCkFydGlmYWN0IFJlZ2lzdHJ5
+IFdyaXRlcikuDQpDdXN0b20gcm9sZSB0aGF0IGdyYW50cyBhcnRpZmFjdHJlZ2lzdHJ5LnJlcG9z
+aXRvcmllcy5kb3dubG9hZEFydGlmYWN0cyBhbmQgIA0KYXJ0aWZhY3RyZWdpc3RyeS5yZXBvc2l0
+b3JpZXMudXBsb2FkQXJ0aWZhY3RzIHBlcm1pc3Npb25zLiBUaGVzZSBjYW4gYmUgIA0KdmVyaWZp
+ZWQgZnJvbSB0aGUgQ29uc29sZSBvciB0aHJvdWdoIHRoZSBnY2xvdWQgaWFtIHJvbGVzIGRlc2Ny
+aWJlIGNvbW1hbmQuDQpJZiBub25lIG9mIHRoZXNlIHJvbGVzIGFyZSBwcmVzZW50LCBncmFudCB0
+aGUgQXJ0aWZhY3QgUmVnaXN0cnkgUmVwb3NpdG9yeSAgDQpBZG1pbmlzdHJhdG9yIHJvbGUgKCBy
+b2xlcy9hcnRpZmFjdHJlZ2lzdHJ5LnJlcG9BZG1pbiApIHRvIHlvdXIgZGVwbG95aW5nICANCnNl
+cnZpY2UgYWNjb3VudC4NCg0KDQoNCllvdSBjYW4gbWlncmF0ZSBtYW51YWxseSBidWlsdCBjb250
+YWluZXIgaW1hZ2VzIHRvIEFydGlmYWN0IFJlZ2lzdHJ5IG9ubHkgIA0KYnkgcnVubmluZyB0aGUg
+YXV0b21hdGVkIG1pZ3JhdGlvbiB1dGlsaXR5IGZvciB5b3VyIHByb2plY3QuDQoNClBvdGVudGlh
+bCBJbXBhY3Q6IElmIHRoZSBwcmVjZWRpbmcgYWN0aW9ucyBhcmUgbm90IGNvbXBsZXRlZCBiZWZv
+cmUgdGhlICANCkdvb2dsZSBDb250YWluZXIgUmVnaXN0cnkgc2h1dGRvd24sIGRlcGxveWluZyBB
+cHAgRW5naW5lIGZsZXhpYmxlICANCmFwcGxpY2F0aW9ucywgc2NhbGluZyBpbnN0YW5jZXMsIGFu
+ZCByZXN0YXJ0aW5nIGluc3RhbmNlcyB3aWxsIGZhaWwuDQoNCldlJ3JlIGhlcmUgdG8gaGVscA0K
+DQpJZiB5b3UgaGF2ZSBhbnkgcXVlc3Rpb25zIG9yIHJlcXVpcmUgYXNzaXN0YW5jZSwgcGxlYXNl
+IGNvbnRhY3QgR29vZ2xlICANCkNsb3VkIFN1cHBvcnQuDQoNClRoYW5rcyBmb3IgY2hvb3Npbmcg
+QXBwIEVuZ2luZS4NCg0KDQoNCg0KDQrigJQgVGhlIEdvb2dsZSBDbG91ZCBUZWFtDQoNCg0KDQoN
+Cg0KRE9DVU1FTlRBVElPTg0KDQoNCg0KU1VQUE9SVA0KDQoNCg0KDQpXYXMgdGhpcyBpbmZvcm1h
+dGlvbiBoZWxwZnVsPw0KDQpZZXMgTmV1dHJhbCBObw0KDQoNCsKpIDIwMjUgR29vZ2xlIExMQyAx
+NjAwIEFtcGhpdGhlYXRyZSBQYXJrd2F5LCBNb3VudGFpbiBWaWV3LCBDQSA5NDA0Mw0KDQpZb3Ug
+aGF2ZSByZWNlaXZlZCB0aGlzIG1hbmRhdG9yeSBzZXJ2aWNlIGFubm91bmNlbWVudCB0byB1cGRh
+dGUgeW91IGFib3V0ICANCmltcG9ydGFudCBjaGFuZ2VzIHRvIEdvb2dsZSBDbG91ZCBQbGF0Zm9y
+bSBvciB5b3VyIGFjY291bnQuDQoNCg0KDQpWaXNpdCBHb29nbGUgQ2xvdWQgYmxvZyBWaXNpdCBH
+Q1Agb24gR2l0SHViIFZpc2l0IEdvb2dsZSBDbG91ZCBvbiBMaW5rZWRJbiAgDQpWaXNpdCBHb29n
+bGUgQ2xvdWQgb24gVHdpdHRlcg0KDQoNCg0KDQo=
+--0000000000007da79e062f387acd
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<!doctype html public "- / / w3c / / dtd html 4.01 transitional / / en" "ht=
+tp: / / www.w3.org / tr / html4 / loose.dtd">
+<html>
+<head>
+<meta http-equiv=3DContent-Type content=3D"text/html; charset=3DUTF-8">
+<meta name=3Dviewport content=3Dwidth=3Ddevice-width,initial-scale=3D1,user=
+-scalable=3Dyes>
+<title>Mandatory Service Announcement from Google Cloud</title>
+<html lang=3Den>
+<style>
+.appleLinksWhite a {
+  color: #898989 !important;
+  text-decoration: none !important;
+  cursor: default !important;
+  pointer-events: none !important;
+}
+
+a {
+  color:#2979ff;
+  font-family:Roboto, arial;
+  font-size:14px;
+  text-decoration:none;
+}
+
+@media only screen and (min-width : 0px) and (max-width : 480px) {
+  .flexible{ width: 100% !important; min-width: 100% !important; max-width:=
+ 100% !important;  }
+  .logo_holder, .logo_holder_td, .logo_right_holder, .logo_right_holder_td{=
+width: 100% !important;}
+  .logo_right_holder_inner_td  {text-align:right !important;}
+  .logo_holder_td{padding-left: 16px;}
+  .logo_right_holder_td{padding-left: 16px !important; padding-top: 5px !im=
+portant; padding-bottom: 15px !important;}
+  .tbl_banner{padding-left : 10px !important; padding-right: 10px !importan=
+t; }
+  .banner_text_1{padding: 0 20px 15px 20px !important;}
+  .banner_container {background-position:top !important; background-color: =
+#227cdf !important; height:auto !important;}
+  .banner_btn{padding-bottom:20px !important;}
+  .banner_text_2{128px 20px 13px 20px !important; font-size:26px !important=
+;line-height:30px !important;}
+  .bottom_link_container_td{padding:10px 40px !important;}
+  .bottom_link_container_inner{padding:10px 0 !important;}
+  .bottom_link_text_mbl{padding:10px 0 !important;}
+  .outer_wrapper_td{padding:0 5px !important;}
+}
+
+@media only screen and (min-width : 0px) and (max-width : 320px) {
+  .flexible{ width: 100% !important; min-width: 100% !important; max-width:=
+ 100% !important;  }
+  .logo_holder, .logo_holder_td, .logo_right_holder, .logo_right_holder_td{=
+width: 100% !important;}
+  .banner_text_2{128px 20px 13px 20px !important; font-size:26px !important=
+;line-height:30px !important;}
+  .logo_right_holder_td{padding-left: 16px !important; padding-top: 5px !im=
+portant; padding-bottom: 15px !important;}
+  .logo_right_holder_inner_td  {text-align:right !important;}
+  .logo_holder_td{padding-left: 0 !important;}
+  .banner_text_1{padding: 0 20px 15px 20px !important;}
+  .banner_container {background-position:top !important; background-color: =
+#227cdf !important; height:auto !important;}
+  .banner_btn{padding-bottom:20px !important;}
+  .bottom_link_container_td{padding:10px 40px !important;}
+  .bottom_link_text_mbl{padding:10px 0 !important;}
+  .outer_wrapper_td{padding:0 5px !important;}
+  .bottom_link_container_inner{padding:10px 0 !important;}
+  .social_icons_container_inner{width:210px !important;}
+  .tbl_banner{padding-left : 10px !important; padding-right: 10px !importan=
+t; }
+}
+</style>
+</head>
+<body style=3D"-ms-text-size-adjust:100%; -webkit-text-size-adjust:100%; ba=
+ckground:#fafafa; font-family:Arial; font-weight:normal; margin:0; padding:=
+0; width:100%" width=3D100%>
+
+
+  <!-- START PREHEADER TEXT -->
+  <!-- Displayed in the inbox preview, but does not appear in the message b=
+ody. -->
+ =20
+    <div style=3D"height:0px; font-size:0px; max-height:0px; min-height: 0p=
+x; line-height:0px; width: 100%; color: #fff; display:none;">Container Regi=
+stry will be shut down after March 18, 2025.
+
+</div>
+ =20
+  <!-- END PRE-HEADER TEXT -->
+
+
+<table role=3Dpresentation class=3D"outer_wrapper flexible" width=3D100% al=
+ign=3Dcenter cellspacing=3D0 cellpadding=3D0 border=3D0 style=3D"-premailer=
+-cellpadding:0; -premailer-cellspacing:0; background:#fafafa; border-collap=
+se:collapse; font-family:Arial, sans-serif; font-weight:normal; margin:0; m=
+so-table-lspace:0; mso-table-rspace:0; padding:0; width:100%">
+<tr>
+<td class=3Douter_wrapper_td style=3Dborder-collapse:collapse><table class=
+=3D"inner_wrapper flexible" align=3Dcenter width=3D600 cellspacing=3D0 cell=
+padding=3D0 border=3D0 style=3D"-premailer-cellpadding:0; -premailer-cellsp=
+acing:0; border-collapse:collapse; font-family:Arial, sans-serif; font-weig=
+ht:normal; margin:0 auto; max-width:600px; min-width:600px; mso-table-lspac=
+e:0; mso-table-rspace:0; width:600px">
+<tr>
+<td>
+<table width=3D600 class=3D"header_wrapper flexible" align=3Dcenter cellspa=
+cing=3D0 cellpadding=3D0 border=3D0 style=3D"-premailer-cellpadding:0; -pre=
+mailer-cellspacing:0; border-collapse:collapse; font-family:Arial, sans-ser=
+if; font-weight:normal; margin:0 auto; mso-table-lspace:0; mso-table-rspace=
+:0; width:600px">
+<tr>
+<td class=3D"header_wrapper_td " style=3D"border-collapse:collapse; padding=
+:0 5px">
+<table width=3Dauto class=3D"logo_holder flexible" align=3Dleft cellspacing=
+=3D0 cellpadding=3D0 border=3D0 style=3D"-premailer-cellpadding:0; -premail=
+er-cellspacing:0; border-collapse:collapse; font-family:roboto, arial; font=
+-weight:500; mso-table-lspace:0; mso-table-rspace:0; width:auto">
+<tr>
+<td class=3Dlogo_holder_td style=3D"border-collapse:collapse; padding-botto=
+m:30px; padding-top:32px">
+<img src=3Dhttps://services.google.com/fh/files/emails/new_logo.png width=
+=3D261 alt=3D"" style=3D"-ms-interpolation-mode:bicubic; outline:none; text=
+-decoration:none">
+</td>
+</tr>
+</table>
+<table role=3Dpresentation width=3Dauto class=3D"logo_right_holder flexible=
+" align=3Dright cellspacing=3D0 cellpadding=3D0 border=3D0 style=3D"-premai=
+ler-cellpadding:0; -premailer-cellspacing:0; border-collapse:collapse; font=
+-family:roboto, arial; font-weight:500; mso-table-lspace:0; mso-table-rspac=
+e:0; width:auto">
+<tr>
+<td class=3D"logo_right_holder_td flexible" style=3D"border-collapse:collap=
+se; padding-right:0; padding-top:41px">
+<table class=3D"logo_right_holder_inner flexible" cellspacing=3D0 cellpaddi=
+ng=3D0 border=3D0 style=3D"-premailer-cellpadding:0; -premailer-cellspacing=
+:0; border-collapse:collapse; font-family:roboto, arial; font-weight:500; m=
+so-table-lspace:0; mso-table-rspace:0; width:auto" width=3Dauto>
+<tr>
+<td class=3Dlogo_right_holder_inner_td style=3D"border-collapse:collapse; c=
+olor:#90a4ae; font-family:Roboto, arial; font-size:16px; font-weight:bold; =
+line-height:16px">
+
+
+  <!-- START MY CONSOLE LINK -->
+    <a href=3Dhttps://notifications.google.com/g/p/ANiao5pm_IlYjEQzQP2_0stU=
+nIHqufqps-jmLimL5ELlAwFOGcPFeylsvLkpo5uByglz-tkNCdjPVwNmZJgjAc2MHs34zxkh9Y8=
+IiiZw8h93Pvk_ogf_mTEnJZih9_wErrU style=3D"color:#1a73e8; font-family:Roboto=
+, arial; font-size:16px; font-weight:500; line-height:16px; text-decoration=
+:none" target=3D_blank>MY CONSOLE</a>
+  <!-- END MY CONSOLE LINK -->
+
+
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td></tr>
+<tr>
+<td style=3Dborder-collapse:collapse>
+<table width=3D598 class=3D"content_wrapper flexible" align=3Dcenter cellsp=
+acing=3D0 cellpadding=3D0 border=3D0 style=3D"-premailer-cellpadding:0; -pr=
+emailer-cellspacing:0; background:#ffffff; border-collapse:collapse; border=
+-left:1px solid #e0e0e0; border-right:1px solid #e0e0e0; border-top:1px sol=
+id #e0e0e0; font-family:Arial, sans-serif; font-weight:normal; mso-table-ls=
+pace:0; mso-table-rspace:0; width:598px; -moz-border-radius:5px 5px 0 0;  -=
+webkit-border-radius: 5px 5px 0 0; -khtml-border-radius: 5px 5px 0 0; borde=
+r-radius: 5px 5px 0 0;">
+<tr>
+<td class=3D"text_wrapper flexible" style=3D"padding:30px 40px 0 40px; padd=
+ing-top:35px; width:518px" width=3D518>
+<table align=3Dcenter style=3D"-premailer-cellpadding:0; -premailer-cellspa=
+cing:0; border-collapse:collapse; font-family:Arial, sans-serif; font-weigh=
+t:normal; margin:auto; max-width:598px; mso-table-lspace:0; mso-table-rspac=
+e:0; width:518px" class=3D"holder_wrap_inner flexible" cellspacing=3D0 cell=
+padding=3D0 border=3D0 width=3D518>
+
+
+  <!-- START TITLE TEXT -->
+  <!-- Comment this section out if not used. -->
+    <!--<tr>
+      <td class=3D"text_wrapper_inner_td flexible" style=3D"border-collapse=
+:collapse; color:#455a64; font-family:Roboto, arial; font-size:24px; line-h=
+eight:24px; padding-bottom:17px">
+      </td>
+    </tr>-->
+  <!-- END TITLE TEXT -->
+
+
+<tr>
+<td class=3D"text_wrapper_inner_td flexible" style=3D"border-collapse:colla=
+pse; color:#455a64; font-family:Roboto, arial; font-size:14px; line-height:=
+24px; padding-bottom:17px">
+
+
+  <!-- START MESSAGE BODY TEXT -->
+
+  <!-- translation notice non-incident 5 locales -->
+=C2=A0
+  <!-- translation notice non-incident 28 locales -->
+  <!--#include '/gkmsid/7062538'-->
+
+  <!-- translation notice incident 28 locales -->
+  <!--#include '/gkmsid/9712060'-->
+
+<!--SNAPPY SUMMARY START -->
+             =20
+             =20
+              <!--SNAPPY SUMMARY END -->
+
+
+  <!-- START MESSAGE BODY TEXT for EN w/ TN -->
+
+<p><a rel=3Dnofollow. style=3D"text-decoration:none; color:#455A64">Hello J=
+uan</a>,</p>
+
+<p>We=E2=80=99re writing to inform you about an important change that will =
+impact your <strong>App Engine</strong> app. The older App Engine projects =
+could be using <strong>Google Container Registry</strong> to store containe=
+r images created from the deployed source code.</p>
+
+<p>Google Container Registry is being <a style=3D"color:#1a73e8; font-famil=
+y:Roboto, arial; font-size:14px; text-decoration:none" target=3D_blank href=
+=3Dhttps://notifications.google.com/g/p/ANiao5q3jIIGinLbWTF4MHoTQafI59FBjb7=
+y4yVRYPdv3I6mlKu3m67GEVjXjV0y6r_nDvgQgUHZSyeZLSYbWQA1i0iL5pbi4pu9SehFEn8xwP=
+3b_YHNpOYm0HdKZyne2wPaDNkY9wZn-1noWhb-a-97Ba0-u_gBcJwX4gK9k_bNT7ZgqpZwWRayf=
+HeOlUc>discontinued</a> and will be replaced by <strong>Artifact Registry</=
+strong>. This means if you have content in Google Container Registry, you n=
+eed to follow the instructions below to allow App Engine to automatically m=
+igrate your deployment flows.</p>
+
+<p>We=E2=80=99ve provided additional information below to guide you through=
+ this change.</p>
+
+<h3>What you need to know</h3>
+
+<p>When deploying App Engine, Cloud Build transforms source code into conta=
+iner images which may be stored in Google Container Registry.</p>
+
+<p>Artifact Registry is the next-generation service for storing container i=
+mages, offering improved regionalized storage and security features. Going =
+forward, Artifact Registry will be the container repository used by App Eng=
+ine.</p>
+
+<p>After a successful App Engine application deployment:</p>
+
+<ul>
+  <li>The App Engine standard environment doesn=E2=80=99t require pulling f=
+rom the container repository</li>
+  <li>The App Engine flexible environment pulls from the container reposito=
+ry on each instance startup</li>
+</ul>
+
+<p><strong>Upcoming changes:</strong></p>
+
+<p>Starting <strong>March 5, 2025</strong>:</p>
+
+<ul>
+  <li>New deployments will start using Artifact Registry instead of Google =
+Container Registry for storing application images.</li>
+</ul>
+
+<p>After <strong>March 18, 2025</strong>:</p>
+
+<ul>
+  <li>Google Container Registry will begin shut down, preventing App Engine=
+ flexible environment instances from starting.</li>
+</ul>
+
+<h3>What you need to do</h3>
+
+<p>If your project already uses Artifact Registry for <a rel=3Dnofollow sty=
+le=3D"text-decoration:none; color:#455A64">gcr.io</a> urls, either because =
+you have run the <a href=3Dhttps://notifications.google.com/g/p/ANiao5pKTax=
+yk7HWaGYBbNMRTLgqrlF5Bo9q19gfKTODo9gj1HVerHHNEEurQZgmdeM0KLruEQdB4eQlG41DPH=
+-qZ7hAClb5QbJGtkbhWCIiN6R1Jm634sJ-7IwNdEP1eOYizP-8QBfvOmYgcQIC3gC-y3ReRP0uS=
+i4wc9CgESspMNZVwnSNCve4AUb7FGY style=3D"color:#1a73e8; font-family:Roboto, =
+arial; font-size:14px; text-decoration:none" target=3D_blank>automated migr=
+ation tooling</a>, or because it was created after May 2024, you can ignore=
+ the following instructions for that project.</p>
+
+<p>For projects which are not yet migrated you will need to follow these st=
+eps to enable App Engine to automatically migrate your deployment flows.</p=
+>
+
+<p><strong>App Engine standard environment users:</strong></p>
+
+<ul>
+  <li>For standard deployments to work correctly with Artifact Registry:
+    <ul>
+      <li>The service account associated with deployments (typically this w=
+ill be the <a href=3Dhttps://notifications.google.com/g/p/ANiao5oXmiCAku1MT=
+0SXptdEUGVCoPZDJw-hH6f0zQVYoFlEKjw-jEZWCMw19N8zCVkja1gF_YKJT6cTO2Cwfnz8xY31=
+AJLQ9mtbQ5exG8dkoOIKI3TGGzg946UR7zMJtc14lGcjgFViSfjFTzwlv9Uiu-64IAJ2C35Otpd=
+Bc7Y style=3D"color:#1a73e8; font-family:Roboto, arial; font-size:14px; tex=
+t-decoration:none" target=3D_blank>App Engine default service account</a>, =
+<a rel=3Dnofollow style=3D"text-decoration:none; color:#455A64">project-id@=
+appspot.gserviceaccount.com</a>, or <a href=3Dhttps://notifications.google.=
+com/g/p/ANiao5oeal1oVuAfHmeRfuq6QeafPh2UGlU6LWUUXLp4b4hVs69ULNCAxcZeL_cKwZt=
+4V_g3OnRz557Ff6a-345Q9DXuEKb7keYnwLFKWz1rd4UHipCOsl5UnBVCJBX8Yd5rUydk8g6LsJ=
+Wov9N907fif90er0qa1rooFHYty3ZopIBILTLs5t426Ns style=3D"color:#1a73e8; font-=
+family:Roboto, arial; font-size:14px; text-decoration:none" target=3D_blank=
+>your custom service account</a>) command should have a role that grants th=
+e explicit Artifact Registry permission <code style=3D"=E2=80=9Dcolor:#8989=
+89=E2=80=9D">artifactregistry.repositories.uploadArtifacts</code> (for writ=
+e). You can find this information by <a href=3Dhttps://notifications.google=
+.com/g/p/ANiao5rFz8MIRgN3vbUyXQN2wuUg8WB_0uOD39YAUa2332nA4NDjUQKEDkxTuQD8h1=
+zswE5M_4pSeMHma2DnymL3u8qNTQFR7X2WiNLzAOItPVO38vOzAzHGVWlRiwNzBll15WMgHSmip=
+JYO7FLdii2pMgf1ho4anIsJvC1rzVFKrQnPx63nfZOAp4J8 style=3D"color:#1a73e8; fon=
+t-family:Roboto, arial; font-size:14px; text-decoration:none" target=3D_bla=
+nk>viewing the roles</a> of the service account.</li>
+    </ul>
+  </li>
+</ul>
+
+<ul>
+  <li>New deployments will be able to use Artifact Registry, if any of the =
+following roles are present in the service account associated with deployme=
+nts:
+    <ul>
+      <li><a href=3Dhttps://notifications.google.com/g/p/ANiao5qDQXgjkoNmTK=
+W60fbBjuRKTqtw-H6DLfX1q8x8Fi-M2LwcFzM_acogLecPhGJIAXrz_8qiS65GakIgt_l_E41mk=
+jPQaw19nqU2gyxLJUu7yI-hb1PY2k4QKjkxjv_617c_EAntecOQL6kgl0YX2gwfyIyIFmQBAOWU=
+JgZPkWo style=3D"color:#1a73e8; font-family:Roboto, arial; font-size:14px; =
+text-decoration:none" target=3D_blank>Editor role</a></li>
+      <li><a href=3Dhttps://notifications.google.com/g/p/ANiao5pEFEA6bkAAiF=
+iDhczFZxHm0yaQIgdsB41ht8B5c7_xSML8wd_MiA5oScoFS5CzWvAr1SsALdYCaHgCMlwFbihvK=
+ARHX78D9SWTVD_r3nuniAS-_Q04qK2DcGwnD4wHWn_rLtT7bg5vYFHGqFy22CuiLCowRykc1tvW=
+yvBhD_ggbg style=3D"color:#1a73e8; font-family:Roboto, arial; font-size:14p=
+x; text-decoration:none" target=3D_blank>Pre-defined Artifact Registry role=
+</a> with write access (like Artifact Registry Writer).</li>
+      <li>Custom role that grants <code style=3D"=E2=80=9Dcolor:#898989=E2=
+=80=9D">artifactregistry.repositories.uploadArtifacts</code> permission. It=
+ can be <a href=3Dhttps://notifications.google.com/g/p/ANiao5omFvbUBmlDyWqc=
+CqB9fH_kRKvl4WdJ4AeJXeVoMlXAB5ndx8ymQ_Oxj3gUK5wa4ib3gbwxgIHpqnsifFbSpm4lClD=
+-UoWyOS8Px1FxIkCyZQe9vweN5U3AKQusO-Zsz4fK90db_4ABnA76KGoeX8GtfXIsTwoQjODcYu=
+FK-jZKDg style=3D"color:#1a73e8; font-family:Roboto, arial; font-size:14px;=
+ text-decoration:none" target=3D_blank>verified from the Console</a> or thr=
+ough the <a href=3Dhttps://notifications.google.com/g/p/ANiao5oUQIAdLMzRo0F=
+FHvjQPkibvRFLpPMpmQiQehPIrKdZaG4EuJ-nkYOsvHEHienQEWot9-aBKyDx87CuQ8thZxgRv2=
+vLixgEzODE1-ZPVEBhtuaTDRqIUxsjY4G5ayVq8D1srSWR7YkoY2rtPhflvqu5rgGfKlHm1nK19=
+Q8C style=3D"color:#1a73e8; font-family:Roboto, arial; font-size:14px; text=
+-decoration:none" target=3D_blank>gcloud iam roles describe</a> command.</l=
+i>
+    </ul>
+  </li>
+</ul>
+
+<p>If none of these roles are present, <a href=3Dhttps://notifications.goog=
+le.com/g/p/ANiao5qI755QgkGX07SIXqSJKPAG3OLlg-V97J1QwBfyu-4WaVltU_RNEVe5yeV1=
+KaWGYL9AGGz4UXT2xVsl30x_WADIqiNSKdonxI2f5CPjxgc_gvpxKvgGIAFPta2KtvcZVD5a-CU=
+e5FbbnEVozpbFR5DdHxeS5OgmCcEYWFPQy25sgIJdThZLKERCSaVnWmty style=3D"color:#1=
+a73e8; font-family:Roboto, arial; font-size:14px; text-decoration:none" tar=
+get=3D_blank>grant</a> the <a href=3Dhttps://notifications.google.com/g/p/A=
+Niao5pEFEA6bkAAiFiDhczFZxHm0yaQIgdsB41ht8B5c7_xSML8wd_MiA5oScoFS5CzWvAr1SsA=
+LdYCaHgCMlwFbihvKARHX78D9SWTVD_r3nuniAS-_Q04qK2DcGwnD4wHWn_rLtT7bg5vYFHGqFy=
+22CuiLCowRykc1tvWyvBhD_ggbg style=3D"color:#1a73e8; font-family:Roboto, ari=
+al; font-size:14px; text-decoration:none" target=3D_blank>Artifact Registry=
+ Writer</a> role (<code style=3D"=E2=80=9Dcolor:#898989=E2=80=9D">roles/art=
+ifactregistry.writer</code>) to your deploying service account.</p>
+
+<p><strong>Potential Impact:</strong> If the preceding steps aren&#39;t com=
+pleted before the Google Container Registry shuts down, you won&#39;t be ab=
+le to deploy new versions of your App Engine standard application. Existing=
+ App Engine standard applications will continue to run.</p>
+
+<p><strong>App Engine flexible environment users:</strong></p>
+
+<p>For flexible deployments to Artifact Registry to work correctly:</p>
+
+<ul>
+  <li>The service account associated with deployments (typically, this will=
+ be the <a href=3Dhttps://notifications.google.com/g/p/ANiao5oXmiCAku1MT0SX=
+ptdEUGVCoPZDJw-hH6f0zQVYoFlEKjw-jEZWCMw19N8zCVkja1gF_YKJT6cTO2Cwfnz8xY31AJL=
+Q9mtbQ5exG8dkoOIKI3TGGzg946UR7zMJtc14lGcjgFViSfjFTzwlv9Uiu-64IAJ2C35OtpdBc7=
+Y style=3D"color:#1a73e8; font-family:Roboto, arial; font-size:14px; text-d=
+ecoration:none" target=3D_blank>App Engine default service account</a>, <a =
+rel=3Dnofollow style=3D"text-decoration:none; color:#455A64">project-id@app=
+spot.gserviceaccount.com</a>, or <a href=3Dhttps://notifications.google.com=
+/g/p/ANiao5pwmdyuwwPnWy_gFYrzhlhqkk8ab6KuEvLQRzpxJSwooYWIpNgFVWjyAs9F7lnL7R=
+SVu9JB3FA7bSjZ8_bYUjMjlQIrjkg3eDacusFzd40Eekd2x9foLZZ-SpK21NtgI3engrhYXLOz7=
+4DG3EeRhRgsPGI3-QoFJ7d3tqCF6VSxXmgb1gMKLS4 style=3D"color:#1a73e8; font-fam=
+ily:Roboto, arial; font-size:14px; text-decoration:none" target=3D_blank>yo=
+ur custom service account</a>) should have a role that grants the explicit =
+Artifact Registry permissions: <code style=3D"=E2=80=9Dcolor:#898989=E2=80=
+=9D">artifactregistry.repositories.downloadArtifacts</code> (for read) and =
+<code style=3D"=E2=80=9Dcolor:#898989=E2=80=9D">artifactregistry.repositori=
+es.uploadArtifacts</code> (for write). You can find this information by <a =
+href=3Dhttps://notifications.google.com/g/p/ANiao5rFz8MIRgN3vbUyXQN2wuUg8WB=
+_0uOD39YAUa2332nA4NDjUQKEDkxTuQD8h1zswE5M_4pSeMHma2DnymL3u8qNTQFR7X2WiNLzAO=
+ItPVO38vOzAzHGVWlRiwNzBll15WMgHSmipJYO7FLdii2pMgf1ho4anIsJvC1rzVFKrQnPx63nf=
+ZOAp4J8 style=3D"color:#1a73e8; font-family:Roboto, arial; font-size:14px; =
+text-decoration:none" target=3D_blank>viewing the roles</a> of the service =
+account.</li>
+</ul>
+
+<ul>
+  <li>New deployments will go to the Artifact Registry if any of the follow=
+ing roles are present in the service account associated with deployments:
+    <ul>
+      <li><a href=3Dhttps://notifications.google.com/g/p/ANiao5qGT6RdYfmZxf=
+bYqFiBn8FExPtPVRODn_-W4x7WNPQGgu2JIgL3RlpUq3_Tuxti4MSyBpHCYQDXgPGiCcC9dEuIN=
+NW22_o_wyEsgIlJjd1yIKPieDQNyWX7orV6tcM9IEK8BtRuEa05QPV_GDRwN_Fy-HVlgHOJZ3xs=
+We8GOtc style=3D"color:#1a73e8; font-family:Roboto, arial; font-size:14px; =
+text-decoration:none" target=3D_blank>Editor role</a></li>
+      <li><a href=3Dhttps://notifications.google.com/g/p/ANiao5pEFEA6bkAAiF=
+iDhczFZxHm0yaQIgdsB41ht8B5c7_xSML8wd_MiA5oScoFS5CzWvAr1SsALdYCaHgCMlwFbihvK=
+ARHX78D9SWTVD_r3nuniAS-_Q04qK2DcGwnD4wHWn_rLtT7bg5vYFHGqFy22CuiLCowRykc1tvW=
+yvBhD_ggbg style=3D"color:#1a73e8; font-family:Roboto, arial; font-size:14p=
+x; text-decoration:none" target=3D_blank>Pre-defined Artifact Registry role=
+</a> with read and write access (like Artifact Registry Writer).</li>
+      <li>Custom role that grants <code style=3D"=E2=80=9Dcolor:#898989=E2=
+=80=9D">artifactregistry.repositories.downloadArtifacts</code> and <code st=
+yle=3D"=E2=80=9Dcolor:#898989=E2=80=9D">artifactregistry.repositories.uploa=
+dArtifacts</code> permissions. These can be <a href=3Dhttps://notifications=
+.google.com/g/p/ANiao5omFvbUBmlDyWqcCqB9fH_kRKvl4WdJ4AeJXeVoMlXAB5ndx8ymQ_O=
+xj3gUK5wa4ib3gbwxgIHpqnsifFbSpm4lClD-UoWyOS8Px1FxIkCyZQe9vweN5U3AKQusO-Zsz4=
+fK90db_4ABnA76KGoeX8GtfXIsTwoQjODcYuFK-jZKDg style=3D"color:#1a73e8; font-f=
+amily:Roboto, arial; font-size:14px; text-decoration:none" target=3D_blank>=
+verified from the Console</a> or through the <a href=3Dhttps://notification=
+s.google.com/g/p/ANiao5oUQIAdLMzRo0FFHvjQPkibvRFLpPMpmQiQehPIrKdZaG4EuJ-nkY=
+OsvHEHienQEWot9-aBKyDx87CuQ8thZxgRv2vLixgEzODE1-ZPVEBhtuaTDRqIUxsjY4G5ayVq8=
+D1srSWR7YkoY2rtPhflvqu5rgGfKlHm1nK19Q8C style=3D"color:#1a73e8; font-family=
+:Roboto, arial; font-size:14px; text-decoration:none" target=3D_blank>gclou=
+d iam roles describe</a> command.</li>
+      <li>If none of these roles are present, <a href=3Dhttps://notificatio=
+ns.google.com/g/p/ANiao5qI755QgkGX07SIXqSJKPAG3OLlg-V97J1QwBfyu-4WaVltU_RNE=
+Ve5yeV1KaWGYL9AGGz4UXT2xVsl30x_WADIqiNSKdonxI2f5CPjxgc_gvpxKvgGIAFPta2KtvcZ=
+VD5a-CUe5FbbnEVozpbFR5DdHxeS5OgmCcEYWFPQy25sgIJdThZLKERCSaVnWmty style=3D"c=
+olor:#1a73e8; font-family:Roboto, arial; font-size:14px; text-decoration:no=
+ne" target=3D_blank>grant</a> the <a href=3Dhttps://notifications.google.co=
+m/g/p/ANiao5pEFEA6bkAAiFiDhczFZxHm0yaQIgdsB41ht8B5c7_xSML8wd_MiA5oScoFS5CzW=
+vAr1SsALdYCaHgCMlwFbihvKARHX78D9SWTVD_r3nuniAS-_Q04qK2DcGwnD4wHWn_rLtT7bg5v=
+YFHGqFy22CuiLCowRykc1tvWyvBhD_ggbg style=3D"color:#1a73e8; font-family:Robo=
+to, arial; font-size:14px; text-decoration:none" target=3D_blank>Artifact R=
+egistry Repository Administrator</a> role (<code style=3D"=E2=80=9Dcolor:#8=
+98989=E2=80=9D">roles/artifactregistry.repoAdmin</code>) to your deploying =
+service account.</li>
+    </ul>
+  </li>
+</ul>
+
+<ul>
+  <li>You can migrate <a href=3Dhttps://notifications.google.com/g/p/ANiao5=
+rlk2FjtDteRvGZh5ZsDsxYiYRIPJlEWUGubPBj9L0gE0KqqeSRbIwMCA6tLesGOxetU82WRGswU=
+ADjk0Uq1Pzmpyu-7dZgkmtfDJiVQLnS3E_lyjoByYZmY-9-CfprvYDhIoUhXc5V4BY2tMxBHKYm=
+iDp0OPepOSFzxShQX60MNstFN-qtNY1Mzkh8TkGUR1omVtzkQyocHQGMitPSADCsDyKvvQWG36y=
+xC-5HOQ style=3D"color:#1a73e8; font-family:Roboto, arial; font-size:14px; =
+text-decoration:none" target=3D_blank>manually built container images</a> t=
+o Artifact Registry only by running the <a href=3Dhttps://notifications.goo=
+gle.com/g/p/ANiao5pKTaxyk7HWaGYBbNMRTLgqrlF5Bo9q19gfKTODo9gj1HVerHHNEEurQZg=
+mdeM0KLruEQdB4eQlG41DPH-qZ7hAClb5QbJGtkbhWCIiN6R1Jm634sJ-7IwNdEP1eOYizP-8QB=
+fvOmYgcQIC3gC-y3ReRP0uSi4wc9CgESspMNZVwnSNCve4AUb7FGY style=3D"color:#1a73e=
+8; font-family:Roboto, arial; font-size:14px; text-decoration:none" target=
+=3D_blank>automated migration utility</a> for your project.</li>
+</ul>
+
+<p><strong>Potential Impact:</strong> If the preceding actions are not comp=
+leted before the Google Container Registry shutdown, deploying App Engine f=
+lexible applications, scaling instances, and restarting instances will fail=
+.</p>
+
+<h3>We=E2=80=99re here to help</h3>
+
+<p>If you have any questions or require assistance, please contact <a href=
+=3Dhttps://notifications.google.com/g/p/ANiao5pvAY_rGTLYXX313UnobW0TN2uQEpU=
+LNKKfIQN2QZrexCFiLg3WpdIQNmruLOt4AhhIFxiChmxMurFbzkAbQuTvRNpX7DxLmB-bXyELPV=
+Fq0ciOqaVDz4YyqYbMdCUj7Zt8 style=3D"color:#1a73e8; font-family:Roboto, aria=
+l; font-size:14px; text-decoration:none" target=3D_blank>Google Cloud Suppo=
+rt</a>.</p>
+
+<p>Thanks for choosing App Engine.</p>
+
+  <!-- END MESSAGE BODY TEXT for EN w/ TN-->
+
+
+
+</td>
+</tr>
+<tr>
+<td class=3D"banner_btn grey_line" style=3D"border-bottom:2px #eef1f2 solid=
+; border-collapse:collapse; padding-bottom:26px; padding-top:9px">
+<div>
+
+
+=20
+
+
+</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td class=3Dtext_wrapper style=3D"padding:30px 40px 20px 40px; width:518px"=
+ width=3D518>
+
+
+  <!-- Please make a copy of the snippet template '13677366' and follow the=
+ steps on our internal site for EN w/ TN-->   =20
+
+<table>
+  <tbody>
+    <tr>
+      <td style=3D"border-collapse:collapse; color:#455a64; font-family:Rob=
+oto, arial; font-size:16px; line-height:24px; padding-bottom:12px; font-wei=
+ght:500;">=E2=80=94 The Google Cloud Team</td>
+    </tr>
+  </tbody>
+</table>
+
+  <!-- END VALEDICTION for EN w/ TN-->
+
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td class=3D"text_wrapper_inner_td  flexible" style=3D"color:#455a64; font-=
+family:Roboto, arial; font-size:14px; line-height:24px; padding-bottom:17px=
+">
+<table class=3D"inner_wrapper bottom_link_container flexible" cellspacing=
+=3D0 cellpadding=3D0 border=3D0 style=3D"-premailer-cellpadding:0; -premail=
+er-cellspacing:0; background:#ffffff; border-bottom:1px solid #e0e0e0; bord=
+er-collapse:collapse; border-left:1px solid #e0e0e0; border-right:1px solid=
+ #e0e0e0; border-top:2px solid #eef1f2; font-family:Arial, sans-serif; font=
+-weight:normal; margin:0 auto; max-width:600px; min-width:600px; mso-table-=
+lspace:0; mso-table-rspace:0; width:598px;  -moz-border-radius: 0 0 5px 5px=
+; -webkit-border-radius: 0 0 5px 5px; -khtml-border-radius: 0 0 5px 5px; bo=
+rder-radius: 0 0 5px 5px;" width=3D598 align=3Dcenter>
+<tr><td class=3D"bottom_link_container_td flexible" style=3D"border-collaps=
+e:collapse; padding:25px 40px 27px 40px">
+<table class=3D"bottom_text_1 flexible" cellspacing=3D0 cellpadding=3D0 bor=
+der=3D0 width=3D172 align=3Dleft style=3D"-premailer-cellpadding:0; -premai=
+ler-cellspacing:0; border-collapse:collapse; font-family:Arial, sans-serif;=
+ font-weight:normal; mso-table-lspace:0; mso-table-rspace:0">
+<tr>
+<td width=3D22 valign=3Dtop class=3Dbottom_link_container_inner style=3D"bo=
+rder-collapse:collapse; color:#1a73e8; font-family:Roboto, arial; font-size=
+:14px; line-height:21px; vertical-align:top">
+<img src=3Dhttp://services.google.com/fh/files/emails/gcp_free_trail_decs_n=
+ew.png width=3D12 alt=3D"" style=3D"-ms-interpolation-mode:bicubic; border:=
+none; outline:none; text-decoration:none;vertical-align:middle;">
+</td>
+<td width=3D128 class=3Dbottom_link_container_inner valign=3Dmiddle style=
+=3D"border-collapse:collapse; color:#1a73e8; font-family:Roboto, arial; fon=
+t-size:14px; line-height:21px; vertical-align:middle">
+
+
+  <!-- START DOCUMENTATION LINK -->
+ =20
+  <a style=3D"color:#b0bec5; font-family:Roboto, arial; font-size:14px; tex=
+t-decoration:none" href=3Dhttps://notifications.google.com/g/p/ANiao5pHzeYS=
+uOVVd0YdpKsml1nZvKCAX9yIW2RuEwFlocbfacSc8B5GTDUVSHmrITPzshlxRADOU11xXXg5h75=
+Vjy9pdrFRXZcgeeo7-crWQgji_n9RvXnqgW6mUkS623-RFY_XcPFnhWhf9p-tkBirtiMWNcUcVH=
+9khFWzJcNH16LGKGFfG_PnDVO7sfkfbi4 target=3D_blank>DOCUMENTATION</a>
+ =20
+  <!-- END DOCUMENTATION LINK -->
+
+
+</tr>
+</table>
+<table class=3D"bottom_text_1 flexible" align=3Dleft width=3D226 cellspacin=
+g=3D0 cellpadding=3D0 border=3D0 style=3D"-premailer-cellpadding:0; -premai=
+ler-cellspacing:0; border-collapse:collapse; font-family:Arial, sans-serif;=
+ font-weight:normal; mso-table-lspace:0; mso-table-rspace:0">
+<tr>
+<td width=3D26 class=3Dbottom_link_container_inner valign=3Dmiddle style=3D=
+"border-collapse:collapse; color:#1a73e8; font-family:Roboto, arial; font-s=
+ize:14px; line-height:21px; vertical-align:middle">
+<img src=3Dhttp://services.google.com/fh/files/emails/gcp_free_trail_forum_=
+new.png width=3D16 alt=3D"" style=3D"-ms-interpolation-mode:bicubic; border=
+:none; outline:none; text-decoration:none;vertical-align:middle;">
+</td>
+<td width=3D200 class=3Dbottom_link_container_inner valign=3Dmiddle style=
+=3D"border-collapse:collapse; color:#1a73e8; font-family:Roboto, arial; fon=
+t-size:14px; line-height:21px; vertical-align:middle;">
+
+
+  <!-- START CONTACT SUPPORT LINK -->
+   =20
+    <a href=3Dhttps://notifications.google.com/g/p/ANiao5pvAY_rGTLYXX313Uno=
+bW0TN2uQEpULNKKfIQN2QZrexCFiLg3WpdIQNmruLOt4AhhIFxiChmxMurFbzkAbQuTvRNpX7Dx=
+LmB-bXyELPVFq0ciOqaVDz4YyqYbMdCUj7Zt8 target=3D_blank style=3D"color:#b0bec=
+5; font-family:Roboto, arial; font-size:14px; text-decoration:none" class=
+=3Dbottom_link_text_mbl>SUPPORT</a>
+   =20
+  <!-- END CONTACT SUPPORT LINK -->
+
+
+</td>
+</tr>
+</table>
+</td></tr>
+</table>
+</td>
+</tr>
+</table></td></tr>
+<tr>
+<td class=3D"outer_wrapper_td footer_text">
+<table width=3D600 class=3D"inner_wrapper flexible" align=3Dcenter cellspac=
+ing=3D0 cellpadding=3D0 border=3D0 style=3D"-premailer-cellpadding:0; -prem=
+ailer-cellspacing:0; border-collapse:collapse; font-family:Arial, sans-seri=
+f; font-weight:normal; margin:0 auto; max-width:600px; min-width:600px; mso=
+-table-lspace:0; mso-table-rspace:0; width:600px">
+<tr>
+<td class=3Dfooter_wrapper_td style=3D"border-collapse:collapse; color:#757=
+575; font-family:Roboto, arial; font-size:12px; line-height:16px; padding:2=
+7px 40px 0 40px; text-align:center" align=3Dcenter>
+<img src=3Dhttp://services.google.com/fh/files/emails/gcp_newsletter_email_=
+cloud_footer_logo.png alt=3D"" style=3D"-ms-interpolation-mode:bicubic; out=
+line:none; text-decoration:none">
+</td>
+</tr>
+<tr>
+
+
+<!-- START SURVEY FORMS LINK -->
+
+<p style=3D"text-align:center; font-size:14px; font-family:Roboto, arial;fo=
+nt-family:Roboto, arial; color:#757575;"><strong>Was this information helpf=
+ul?</strong>
+<br><br>
+
+<a href=3Dhttps://notifications.google.com/g/p/ANiao5pMfb7XhT7vHIPRi05X7fyf=
+tRDLrXu3HzGL4Y3WVT_5uQeLZnzq-VAqfZhozWQ0fB98a259q7FqO_GvA7uqAjnVcTg4oXaHzQf=
+FznaaMEkq7PJIG5wDHq2indmCDl-qxFJzTRoxLRtF6N2dNFrVA-1-Nm50mH3t2QWxflUK-Qm7Ir=
+J1yrju3pvNmjTzhbS9Y3WuXJM_7OJ0dev1ljC60r4msnJY5PNZFqs-JoLjCESWxwbxs23OLCcSn=
+52RcvMJ5A target=3D_blank style=3D"color:#1a73e8; font-family:Roboto, arial=
+; font-size:14px; text-decoration:none"><img src=3Dhttps://services.google.=
+com/fh/files/emails/happy_emojis.png alt=3DYes width=3D40 style=3D"-ms-inte=
+rpolation-mode:bicubic; border:none; outline:none; text-decoration:none"></=
+a>
+=C2=A0=C2=A0=C2=A0
+
+<a href=3Dhttps://notifications.google.com/g/p/ANiao5q4G1Tq2_kQ2Vi2wBHuH8qC=
+xbs66mmQRxHA7laIyDzMZ9rA0bYIRM9clQt8A09Pshda0Y1WzQtGOohnQu3B50GpEDbi7HWrWqw=
+zSZhrf1NK5QabbtpuucYYgz4kUiaYJ3BWEbeJJaIE8K-kMkhdhYitA2Lkie-YLo75_-iF-8KKi_=
+MVM3Qrs1zU6db0ElSBcV8asRjLGcVNUDL9mhLsKdeMLNyE_2yDSQO5Oozt5S8W1AbHWAkET5a6P=
+akamaUCW6orZ1I target=3D_blank style=3D"color:#1a73e8; font-family:Roboto, =
+arial; font-size:14px; text-decoration:none"><img src=3Dhttps://services.go=
+ogle.com/fh/files/emails/neutral_emojis.png alt=3DNeutral width=3D40 style=
+=3D"-ms-interpolation-mode:bicubic; border:none; outline:none; text-decorat=
+ion:none"></a>
+=C2=A0=C2=A0=C2=A0
+
+<a href=3Dhttps://notifications.google.com/g/p/ANiao5qwNhq3uF8QGeBgCV8ByVwS=
+Z_g17RSY3_gXVbf_I4OwswZB3nGxVFn3JHzcvUXha9ivDffAGP0_R_McnSuSIGZ3gx0B5RIO4cC=
+kj0UFhkpAdQCxgqbVcLEXaIgl7fzianuvy71zXYA__40tJG825iCXmGcDnOX2VHd_u1kuZR3GCS=
+IqL1m-jWtUhcWVq_B-AJCh68cZwC0AVekl3Y2wdNMsmMac1icKhUXyGQ9kETAOwdvipgTvqiWPa=
+Gzo6My9 target=3D_blank style=3D"color:#1a73e8; font-family:Roboto, arial; =
+font-size:14px; text-decoration:none"><img src=3Dhttps://services.google.co=
+m/fh/files/emails/sad_emojis.png alt=3DNo width=3D40 style=3D"-ms-interpola=
+tion-mode:bicubic; border:none; outline:none; text-decoration:none"></a>
+</p>
+
+<!-- END SURVEY FORMS LINK -->
+
+
+</tr>
+<tr>
+
+<td class=3Dfooter_wrapper_td style=3D"border-collapse:collapse; color:#757=
+575; font-family:Roboto, arial; font-size:12px; line-height:16px; padding:2=
+7px 40px 20px 40px; padding-top:10px; text-align:center" align=3Dcenter>
+=C2=A9 2025 Google LLC 1600 Amphitheatre Parkway, Mountain View, CA 94043
+<br><br>
+You have received this mandatory service announcement to update you about i=
+mportant changes to Google Cloud Platform or your account.
+</td>
+</tr>
+<tr>
+<td class=3D"social_icons_container flexible" style=3D"border-collapse:coll=
+apse; padding:15px 0 22px 0">
+<table class=3Dsocial_icons_container_inner cellspacing=3D0 cellpadding=3D0=
+ border=3D0 width=3D229 align=3Dcenter style=3D"-premailer-cellpadding:0; -=
+premailer-cellspacing:0; border-collapse:collapse; font-family:Arial, sans-=
+serif; font-weight:normal; margin:0 auto; mso-table-lspace:0; mso-table-rsp=
+ace:0">
+<tr>
+
+<td width=3D33 class=3Dsocial_icons_container_inner style=3D"border-collaps=
+e:collapse; margin:0 auto"><a href=3Dhttps://notifications.google.com/g/p/A=
+Niao5rnuxuGngCH7AxddZgB-89Wk_tnlB5qKWKW26fvSFdl-yoFNsnwIA6VX8NbizniKKTrrsUD=
+LmkmbWLZ2xcaF9yulkxLd5oa4zqW6LsiaYie26GTnKfDQFIYuiYg0Xl3ckA target=3D_blank=
+><img src=3Dhttp://services.google.com/fh/files/emails/gcp_newsletter_email=
+_blogger.png alt=3D"Visit Google Cloud blog" width=3D33 style=3D"-ms-interp=
+olation-mode:bicubic; border:none; outline:none; text-decoration:none"></a>=
+</td>
+<td width=3D16 style=3Dborder-collapse:collapse>=C2=A0 =C2=A0</td>
+<td width=3D33 class=3Dsocial_icons_container_inner style=3D"border-collaps=
+e:collapse; margin:0 auto"><a href=3Dhttps://notifications.google.com/g/p/A=
+Niao5rMcmaUSb1pqAEN86_AG-sHV0zBHEjiYBCnG97XXpkQE-ru3biEwkN4C6yyWhl9ss_J2kcT=
+qNNPT6oNA_WVo-t2fyP2nFBgZL6vyCaUY-xvEzPXbbTUaDrEV7-pXTjPdUDalPE1CB2PN-vC ta=
+rget=3D_blank><img src=3Dhttps://services.google.com/fh/files/emails/gcp_ne=
+wsletter_email_github.png alt=3D"Visit GCP on GitHub" width=3D33 style=3D"-=
+ms-interpolation-mode:bicubic; border:none; outline:none; text-decoration:n=
+one"></a></td>
+<td width=3D16 style=3Dborder-collapse:collapse>=C2=A0 =C2=A0</td>
+<td width=3D33 class=3Dsocial_icons_container_inner style=3D"border-collaps=
+e:collapse; margin:0 auto"><a href=3Dhttps://notifications.google.com/g/p/A=
+Niao5r70ED_sfL8M6WJiQpftIXjCwgf6J3OdYoBlR6SSfR6vQMYuBNUZN3-2L6XovSprK_9AzFs=
+5GiHxt9jreQbox_2ZZ0zjRUZGwBv-89tlJyazwFdq8foAZ3DyKC3A9RBXyOpggUtYoV-FEISnur=
+c5YE target=3D_blank><img src=3Dhttp://services.google.com/fh/files/emails/=
+gcp_newsletter_email_linkedin.png alt=3D"Visit Google Cloud on LinkedIn" wi=
+dth=3D33 style=3D"-ms-interpolation-mode:bicubic; border:none; outline:none=
+; text-decoration:none"></a></td>
+<td width=3D16 style=3Dborder-collapse:collapse>=C2=A0 =C2=A0</td>
+<td width=3D33 class=3Dsocial_icons_container_inner style=3D"border-collaps=
+e:collapse; margin:0 auto"><a href=3Dhttps://notifications.google.com/g/p/A=
+Niao5pmOMbNzweG9qPdtSTQevIu4bPtLZT1BbPrPKYPNNkNMWHO78wM0rYEKXEHfRs_Miwji6F0=
+yNAu7c-V62ZWSaNvZjylK5bUbDBGyYclmygiji1ys6RCB8vnT37xQuIpF4ZZCZH2 target=3D_=
+blank><img src=3Dhttp://services.google.com/fh/files/emails/gcp_newsletter_=
+email_twitter.png alt=3D"Visit Google Cloud on Twitter" width=3D33 style=3D=
+"-ms-interpolation-mode:bicubic; border:none; outline:none; text-decoration=
+:none"></a></td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+<div style=3D"display: none; white-space: nowrap; line-height: normal; font=
+-size: 15px; font-weight: normal; font-variant: normal; font-style: normal;=
+ font-family: courier; color: #ffffff; width: 480px !important; min-width: =
+480px !important; max-width: 480px !important;">
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0  =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0
+</div>
+<img alt=3D"" height=3D1 width=3D3 src=3Dhttps://notifications.google.com/g=
+/img/ANiao5pct2rjSKGV6iCOWWju9ZJsgJHF8sP2NXjB9fRFf4nuMIubrZ5lcYdpQcGznomJGu=
+x7TCPmDovb5Eb56Gxv6cVIEc5gm_pyhiIcAM0nChlZe6betb7cLqGYbr6LPAmkSCvuFg.gif></=
+body>
+</html>
+
+--0000000000007da79e062f387acd--
