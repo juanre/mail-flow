@@ -37,8 +37,20 @@ def setup_workflows(data_store):
         WorkflowDefinition(
             name="save-invoices",
             description="Save invoice PDFs to ~/invoices",
-            action_type="save_attachment",
-            action_params={"directory": "~/invoices", "pattern": "*.pdf"},
+            action_type="save_pdf",
+            action_params={
+                "directory": "~/invoices",
+                "filename_template": "{date}_{from}_invoice",
+            },
+        ),
+        WorkflowDefinition(
+            name="save-receipts",
+            description="Save receipts (PDFs or email as PDF)",
+            action_type="save_pdf",
+            action_params={
+                "directory": "~/receipts",
+                "filename_template": "{date}_{from}_{subject}",
+            },
         ),
         WorkflowDefinition(
             name="flag-errors",
