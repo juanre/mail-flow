@@ -95,9 +95,7 @@ class Config:
 
         # Ensure reasonable limits
         ui_settings = self.settings.get("ui", {})
-        ui_settings["max_suggestions"] = min(
-            max(1, ui_settings.get("max_suggestions", 5)), 20
-        )
+        ui_settings["max_suggestions"] = min(max(1, ui_settings.get("max_suggestions", 5)), 20)
 
         storage_settings = self.settings.get("storage", {})
         storage_settings["max_backups_per_file"] = min(
@@ -133,7 +131,9 @@ class Config:
 
         try:
             backup_dir = self.config_dir / "backups"
-            backup_name = f"{filepath.stem}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{filepath.suffix}"
+            backup_name = (
+                f"{filepath.stem}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{filepath.suffix}"
+            )
             backup_path = backup_dir / backup_name
 
             # Copy file to backup
@@ -141,9 +141,7 @@ class Config:
             logger.debug(f"Created backup: {backup_path}")
 
             # Rotate old backups
-            max_backups = self.settings.get("storage", {}).get(
-                "max_backups_per_file", 10
-            )
+            max_backups = self.settings.get("storage", {}).get("max_backups_per_file", 10)
             rotate_backups(backup_dir, filepath.stem, max_backups)
 
         except Exception as e:

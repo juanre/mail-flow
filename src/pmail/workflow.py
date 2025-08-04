@@ -191,9 +191,7 @@ def save_pdf(
             # Ensure template doesn't already end with .pdf
             if not filename_template.endswith(".pdf"):
                 filename_template = filename_template + ".pdf"
-            save_email_pdf(
-                message, directory=directory, filename_template=filename_template
-            )
+            save_email_pdf(message, directory=directory, filename_template=filename_template)
 
     except Exception as e:
         raise WorkflowError(

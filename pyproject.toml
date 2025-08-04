@@ -29,3 +29,10 @@ dev = [
     "mypy>=1.17.1",
     "ruff>=0.12.7",
 ]
+
+[tool.black]
+line-length = 99
+
+[tool.isort]
+profile = "black"
+line_length = 99

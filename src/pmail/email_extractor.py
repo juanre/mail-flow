@@ -146,9 +146,7 @@ class EmailExtractor:
                         try:
                             payload = part.get_payload(decode=True)
                             if payload:
-                                body = self._html_to_text(
-                                    payload.decode("utf-8", "ignore")
-                                )
+                                body = self._html_to_text(payload.decode("utf-8", "ignore"))
                         except Exception as e:
                             logger.warning(f"Failed to decode text/html part: {e}")
             else:
@@ -188,12 +186,8 @@ class EmailExtractor:
             import re
 
             # Remove script and style elements
-            html = re.sub(
-                r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL | re.IGNORECASE
-            )
-            html = re.sub(
-                r"<style[^>]*>.*?</style>", "", html, flags=re.DOTALL | re.IGNORECASE
-            )
+            html = re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL | re.IGNORECASE)
+            html = re.sub(r"<style[^>]*>.*?</style>", "", html, flags=re.DOTALL | re.IGNORECASE)
             # Remove HTML tags
             text = re.sub(r"<[^>]+>", " ", html)
             # Collapse whitespace
@@ -273,9 +267,7 @@ class EmailExtractor:
             try:
                 # Handle "Name <email@domain>" format
                 if "<" in from_addr and ">" in from_addr:
-                    email_part = from_addr[
-                        from_addr.find("<") + 1 : from_addr.find(">")
-                    ]
+                    email_part = from_addr[from_addr.find("<") + 1 : from_addr.find(">")]
                 else:
                     email_part = from_addr
 
@@ -288,9 +280,7 @@ class EmailExtractor:
                 logger.warning(f"Failed to extract domain: {e}")
 
         # Attachment features
-        features["has_pdf"] = any(
-            att.get("is_pdf", False) for att in email_data["attachments"]
-        )
+        features["has_pdf"] = any(att.get("is_pdf", False) for att in email_data["attachments"])
         features["has_attachments"] = len(email_data["attachments"]) > 0
         features["num_attachments"] = len(email_data["attachments"])
         features["has_images"] = any(
@@ -305,12 +295,8 @@ class EmailExtractor:
         body_preview = email_data["body"][:MAX_BODY_PREVIEW_LENGTH].lower()
 
         # Extract keywords (limit number to prevent memory issues)
-        features["subject_words"] = list(set(re.findall(r"\b\w+\b", subject_lower)))[
-            :100
-        ]
-        features["body_preview_words"] = list(
-            set(re.findall(r"\b\w+\b", body_preview))
-        )[:200]
+        features["subject_words"] = list(set(re.findall(r"\b\w+\b", subject_lower)))[:100]
+        features["body_preview_words"] = list(set(re.findall(r"\b\w+\b", body_preview)))[:200]
 
         # Size features
         features["subject_length"] = len(email_data["subject"])

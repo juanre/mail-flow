@@ -129,9 +129,7 @@ def test_system(config, emails):
                 for i, (workflow_name, score, instances) in enumerate(rankings, 1):
                     workflow = data_store.workflows.get(workflow_name)
                     if workflow:
-                        print(
-                            f"      {i}. {workflow.description} ({score:.0%} confidence)"
-                        )
+                        print(f"      {i}. {workflow.description} ({score:.0%} confidence)")
 
                         # Show why it matched
                         if instances and score > 0.3:
@@ -140,9 +138,7 @@ def test_system(config, emails):
                                 email_data["features"], best_instance
                             )
                             if explanations:
-                                print(
-                                    f"         Reason: {', '.join(explanations.values())}"
-                                )
+                                print(f"         Reason: {', '.join(explanations.values())}")
             else:
                 print("    No predictions available")
 

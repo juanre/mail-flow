@@ -255,8 +255,7 @@ def retry_operation(
             last_exception = e
             if attempt < max_attempts - 1:
                 logger.warning(
-                    f"Attempt {attempt + 1} failed: {e}. "
-                    f"Retrying in {current_delay:.1f}s..."
+                    f"Attempt {attempt + 1} failed: {e}. " f"Retrying in {current_delay:.1f}s..."
                 )
                 time.sleep(current_delay)
                 current_delay *= backoff

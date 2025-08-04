@@ -29,9 +29,7 @@ class TestSaveReceiptWorkflow:
         pdf_content = b"%PDF-1.4\n%Invoice PDF content\n"
         pdf_att.set_payload(pdf_content)
         encoders.encode_base64(pdf_att)
-        pdf_att.add_header(
-            "Content-Disposition", 'attachment; filename="invoice_12345.pdf"'
-        )
+        pdf_att.add_header("Content-Disposition", 'attachment; filename="invoice_12345.pdf"')
         msg.attach(pdf_att)
 
         # Extract email
@@ -114,9 +112,7 @@ class TestSaveReceiptWorkflow:
             pdf_att = MIMEBase("application", "pdf")
             pdf_att.set_payload(content)
             encoders.encode_base64(pdf_att)
-            pdf_att.add_header(
-                "Content-Disposition", f'attachment; filename="{filename}"'
-            )
+            pdf_att.add_header("Content-Disposition", f'attachment; filename="{filename}"')
             msg.attach(pdf_att)
 
         # Extract email

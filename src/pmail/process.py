@@ -60,9 +60,7 @@ def process(message: str, config: Optional[Config] = None) -> None:
                         )
                         action_func(email_data, **workflow_def.action_params)
                         print(f"\n✓ Workflow '{selected_workflow}' completed!")
-                        logger.info(
-                            f"Workflow '{selected_workflow}' completed successfully"
-                        )
+                        logger.info(f"Workflow '{selected_workflow}' completed successfully")
                     except WorkflowError as e:
                         print(f"\n✗ Workflow error: {e}")
                         logger.error(f"Workflow execution failed: {e}")
@@ -72,9 +70,7 @@ def process(message: str, config: Optional[Config] = None) -> None:
                         logger.exception(f"Unexpected error in workflow execution")
                         sys.exit(3)
                 else:
-                    print(
-                        f"\n✗ Action type '{workflow_def.action_type}' not implemented."
-                    )
+                    print(f"\n✗ Action type '{workflow_def.action_type}' not implemented.")
                     logger.error(f"Unknown action type: {workflow_def.action_type}")
                     sys.exit(4)
             else:
@@ -118,9 +114,7 @@ def main():
     try:
         if len(sys.argv) == 2:
             # Read email from file
-            with open(
-                sys.argv[1], "r", encoding="utf-8", errors="replace"
-            ) as message_file:
+            with open(sys.argv[1], "r", encoding="utf-8", errors="replace") as message_file:
                 message_text = message_file.read()
         else:
             # Read email from stdin

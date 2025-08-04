@@ -59,9 +59,7 @@ class WorkflowSelector:
                             email_data["features"], best_instance
                         )
                         if explanations:
-                            print(
-                                f"     Matches because: {', '.join(explanations.values())}"
-                            )
+                            print(f"     Matches because: {', '.join(explanations.values())}")
         else:
             print("No similar workflows found in history.\n")
 
@@ -79,9 +77,7 @@ class WorkflowSelector:
             default = None
             prompt_text = "Selection"
 
-        selector = LineInput(
-            prompt_text, typical=options, only_typical=True, with_history=False
-        )
+        selector = LineInput(prompt_text, typical=options, only_typical=True, with_history=False)
 
         choice = selector.ask(default=default)
 
@@ -100,9 +96,7 @@ class WorkflowSelector:
                 email_features=email_data["features"],
                 user_confirmed=True,
                 confidence_score=(
-                    rankings[0][1]
-                    if rankings and rankings[0][0] == selected_workflow
-                    else 0.0
+                    rankings[0][1] if rankings and rankings[0][0] == selected_workflow else 0.0
                 ),
             )
             self.data_store.add_criteria_instance(instance)
@@ -131,9 +125,7 @@ class WorkflowSelector:
             for key, template in WORKFLOW_TEMPLATES.items():
                 print(f"  - {key}: {template['description']}")
 
-            template_input = LineInput(
-                "Template name", typical=list(WORKFLOW_TEMPLATES.keys())
-            )
+            template_input = LineInput("Template name", typical=list(WORKFLOW_TEMPLATES.keys()))
             template_key = template_input.ask()
 
             if template_key in WORKFLOW_TEMPLATES:
@@ -154,9 +146,7 @@ class WorkflowSelector:
                     "create_todo",
                     "custom",
                 ]
-                action_input = LineInput(
-                    "Action type", typical=action_types, only_typical=True
-                )
+                action_input = LineInput("Action type", typical=action_types, only_typical=True)
                 action_type = action_input.ask()
                 action_params = {}
         else:
@@ -169,17 +159,13 @@ class WorkflowSelector:
                 "create_todo",
                 "custom",
             ]
-            action_input = LineInput(
-                "Action type", typical=action_types, only_typical=True
-            )
+            action_input = LineInput("Action type", typical=action_types, only_typical=True)
             action_type = action_input.ask()
             action_params = {}
 
         # Configure action parameters if not using template
         if action_type == "flag" and not action_params:
-            flag_input = LineInput(
-                "Flag name", typical=["important", "archived", "todo"]
-            )
+            flag_input = LineInput("Flag name", typical=["important", "archived", "todo"])
             action_params["flag"] = flag_input.ask()
 
         elif action_type == "save_attachment" and not action_params:
@@ -187,15 +173,11 @@ class WorkflowSelector:
                 "Directory", typical=["~/Downloads", "~/Documents", "~/invoices"]
             )
             action_params["directory"] = dir_input.ask()
-            pattern_input = LineInput(
-                "File pattern", typical=["*.pdf", "*.*", "*.jpg", "*.png"]
-            )
+            pattern_input = LineInput("File pattern", typical=["*.pdf", "*.*", "*.jpg", "*.png"])
             action_params["pattern"] = pattern_input.ask(default="*.*")
 
         elif action_type == "save_email_as_pdf" and not action_params:
-            dir_input = LineInput(
-                "Directory", typical=["~/receipts", "~/invoices", "~/Documents"]
-            )
+            dir_input = LineInput("Directory", typical=["~/receipts", "~/invoices", "~/Documents"])
             action_params["directory"] = dir_input.ask(default="~/receipts")
             template_input = LineInput(
                 "Filename template", typical=["{date}_{from}_{subject}.pdf"]

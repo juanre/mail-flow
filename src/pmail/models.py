@@ -291,14 +291,10 @@ class DataStore:
 
     def get_criteria_for_workflow(self, workflow_name: str) -> List[CriteriaInstance]:
         """Get criteria instances for a specific workflow"""
-        return [
-            ci for ci in self.criteria_instances if ci.workflow_name == workflow_name
-        ]
+        return [ci for ci in self.criteria_instances if ci.workflow_name == workflow_name]
 
     def get_recent_criteria(self, limit: int = 100) -> List[CriteriaInstance]:
         """Get the most recent criteria instances"""
         limit = min(limit, len(self.criteria_instances))
-        sorted_criteria = sorted(
-            self.criteria_instances, key=lambda x: x.timestamp, reverse=True
-        )
+        sorted_criteria = sorted(self.criteria_instances, key=lambda x: x.timestamp, reverse=True)
         return sorted_criteria[:limit]

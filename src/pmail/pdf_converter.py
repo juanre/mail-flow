@@ -17,9 +17,7 @@ from pmail.exceptions import WorkflowError
 logger = logging.getLogger(__name__)
 
 
-def email_to_html(
-    email_data: Dict[str, Any], message_obj: Optional[Message] = None
-) -> str:
+def email_to_html(email_data: Dict[str, Any], message_obj: Optional[Message] = None) -> str:
     """Convert email data to HTML format"""
 
     # Extract data
@@ -108,7 +106,9 @@ def email_to_html(
             filename = html.escape(att.get("filename", ""))
             size = att.get("size", 0)
             size_kb = size / 1024
-            html_content += f'        <div class="attachment-item">📎 {filename} ({size_kb:.1f} KB)</div>\n'
+            html_content += (
+                f'        <div class="attachment-item">📎 {filename} ({size_kb:.1f} KB)</div>\n'
+            )
 
         html_content += "    </div>\n"
 
@@ -239,9 +239,7 @@ def save_email_as_pdf(
     """
     try:
         # Validate directory - allow the provided directory as base
-        dir_path = validate_path(
-            directory, allowed_base_dirs=[os.path.expanduser("~"), directory]
-        )
+        dir_path = validate_path(directory, allowed_base_dirs=[os.path.expanduser("~"), directory])
         dir_path.mkdir(parents=True, exist_ok=True)
 
         # Generate filename from template

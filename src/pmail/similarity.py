@@ -28,9 +28,7 @@ class SimilarityEngine:
         # Subject similarity (Jaccard similarity of word sets)
         if "subject_similarity" in self.feature_weights:
             current_words = set(email_features.get("subject_words", []))
-            criteria_words = set(
-                criteria_instance.email_features.get("subject_words", [])
-            )
+            criteria_words = set(criteria_instance.email_features.get("subject_words", []))
             similarities["subject_similarity"] = self._jaccard_similarity(
                 current_words, criteria_words
             )
@@ -45,12 +43,8 @@ class SimilarityEngine:
         # Body keywords similarity
         if "body_keywords" in self.feature_weights:
             current_body = set(email_features.get("body_preview_words", []))
-            criteria_body = set(
-                criteria_instance.email_features.get("body_preview_words", [])
-            )
-            similarities["body_keywords"] = self._jaccard_similarity(
-                current_body, criteria_body
-            )
+            criteria_body = set(criteria_instance.email_features.get("body_preview_words", []))
+            similarities["body_keywords"] = self._jaccard_similarity(current_body, criteria_body)
 
         # To address similarity
         if "to_address" in self.feature_weights:
@@ -150,13 +144,9 @@ class SimilarityEngine:
         criteria_words = set(criteria_instance.email_features.get("subject_words", []))
         common_words = current_words & criteria_words
         if common_words:
-            explanations["subject"] = (
-                f"Similar subject words: {', '.join(list(common_words)[:5])}"
-            )
+            explanations["subject"] = f"Similar subject words: {', '.join(list(common_words)[:5])}"
 
-        if email_features.get("has_pdf") and criteria_instance.email_features.get(
-            "has_pdf"
-        ):
+        if email_features.get("has_pdf") and criteria_instance.email_features.get("has_pdf"):
             explanations["attachments"] = "Both have PDF attachments"
 
         return explanations

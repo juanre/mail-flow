@@ -32,9 +32,7 @@ class TestAttachmentHandler:
         pdf_content = b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n"
         attachment.set_payload(pdf_content)
         encoders.encode_base64(attachment)
-        attachment.add_header(
-            "Content-Disposition", 'attachment; filename="test_document.pdf"'
-        )
+        attachment.add_header("Content-Disposition", 'attachment; filename="test_document.pdf"')
         msg.attach(attachment)
 
         return msg, pdf_content
@@ -56,9 +54,7 @@ class TestAttachmentHandler:
         save_dir = Path(temp_config_dir) / "attachments"
         save_dir.mkdir()
 
-        saved_path = extract_and_save_attachment(
-            attachment_part, save_dir, "test_document.pdf"
-        )
+        saved_path = extract_and_save_attachment(attachment_part, save_dir, "test_document.pdf")
 
         assert saved_path is not None
         assert saved_path.exists()

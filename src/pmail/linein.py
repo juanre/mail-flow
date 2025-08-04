@@ -26,9 +26,7 @@ def validate_date(v):
     elif len(v) == len("20211020"):
         ymd = v[:4], v[4:6], v[6:]
     else:
-        print(
-            ("** %s does not look like a date, " "not like 2021-10-20 or 20211020") % v
-        )
+        print(("** %s does not look like a date, " "not like 2021-10-20 or 20211020") % v)
         return None
 
     try:
@@ -52,14 +50,10 @@ def validate_date(v):
 
 
 class LineInput:
-    def __init__(
-        self, prompt, typical=None, only_typical=None, validator=None, with_history=True
-    ):
+    def __init__(self, prompt, typical=None, only_typical=None, validator=None, with_history=True):
         self.prompt = prompt
         self.typical = typical if typical else []
-        self.only_typical = (
-            only_typical if only_typical is not None else (len(self.typical) > 0)
-        )
+        self.only_typical = only_typical if only_typical is not None else (len(self.typical) > 0)
         self.validator = validator
         self.with_history = with_history
         self.matches = []
@@ -118,9 +112,7 @@ class LineInput:
 
             if v not in self.typical:
                 if self.only_typical:
-                    print(
-                        "** Valid values are %s not %s" % (", ".join(self.typical), v)
-                    )
+                    print("** Valid values are %s not %s" % (", ".join(self.typical), v))
                     self.maybe_history_back()
                     return self.ask(default)
                 self.typical.append(str(v))
@@ -146,9 +138,7 @@ class LineInput:
 
             if v not in self.typical:
                 if self.only_typical:
-                    print(
-                        "** Valid values are %s not %s" % (", ".join(self.typical), v)
-                    )
+                    print("** Valid values are %s not %s" % (", ".join(self.typical), v))
                     self.maybe_history_back()
                     return self.ask()
                 self.typical.append(str(v))

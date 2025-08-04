@@ -25,9 +25,7 @@ class InputValidationError(SecurityError):
     pass
 
 
-def validate_path(
-    user_path: str, allowed_base_dirs: Optional[List[str]] = None
-) -> Path:
+def validate_path(user_path: str, allowed_base_dirs: Optional[List[str]] = None) -> Path:
     """
     Validate and sanitize user-provided paths.
 
@@ -189,9 +187,7 @@ def validate_json_size(json_path: Path, max_size_mb: int = 10) -> None:
     size_mb = size_bytes / (1024 * 1024)
 
     if size_mb > max_size_mb:
-        raise InputValidationError(
-            f"File too large: {size_mb:.1f}MB (max: {max_size_mb}MB)"
-        )
+        raise InputValidationError(f"File too large: {size_mb:.1f}MB (max: {max_size_mb}MB)")
 
 
 def validate_message_id(message_id: str) -> str:

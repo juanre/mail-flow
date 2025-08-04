@@ -163,9 +163,7 @@ class TestPDFConverter:
         assert pdf_files[0].stat().st_size > 1000
 
     @patch("pmail.pdf_converter.sync_playwright")
-    def test_convert_email_to_pdf_with_playwright(
-        self, mock_playwright, temp_config_dir
-    ):
+    def test_convert_email_to_pdf_with_playwright(self, mock_playwright, temp_config_dir):
         """Test PDF conversion with Playwright"""
         # Mock Playwright
         mock_browser = MagicMock()

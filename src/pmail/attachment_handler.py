@@ -13,9 +13,7 @@ from pmail.exceptions import WorkflowError
 logger = logging.getLogger(__name__)
 
 
-def extract_and_save_attachment(
-    part: Message, directory: Path, filename: str
-) -> Optional[Path]:
+def extract_and_save_attachment(part: Message, directory: Path, filename: str) -> Optional[Path]:
     """
     Extract and save a single attachment.
 
@@ -79,9 +77,7 @@ def save_attachments_from_message(
     """
     try:
         # Validate directory - allow the provided directory as base
-        dir_path = validate_path(
-            directory, allowed_base_dirs=[os.path.expanduser("~"), directory]
-        )
+        dir_path = validate_path(directory, allowed_base_dirs=[os.path.expanduser("~"), directory])
         dir_path.mkdir(parents=True, exist_ok=True)
 
         saved_count = 0

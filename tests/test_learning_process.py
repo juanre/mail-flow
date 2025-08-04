@@ -214,17 +214,13 @@ class TestLearningProcess:
             print(f"\nTesting {test_email_name}:")
             print(f"  Expected: {expected[test_email_name]}")
             if rankings:
-                print(
-                    f"  Predicted: {rankings[0][0]} (confidence: {rankings[0][1]:.2f})"
-                )
+                print(f"  Predicted: {rankings[0][0]} (confidence: {rankings[0][1]:.2f})")
             else:
                 print(f"  Predicted: No prediction")
 
         # Should have reasonable accuracy
         accuracy = correct_predictions / total_tests if total_tests > 0 else 0
-        print(
-            f"\nOverall accuracy: {accuracy:.1%} ({correct_predictions}/{total_tests})"
-        )
+        print(f"\nOverall accuracy: {accuracy:.1%} ({correct_predictions}/{total_tests})")
         assert accuracy >= 0.5  # At least 50% accuracy
 
     def test_feature_importance(self, temp_pmail_dir, real_emails):
@@ -247,9 +243,9 @@ class TestLearningProcess:
         print("\nFeature analysis:")
 
         # Check PDF attachment correlation
-        invoice_pdf_rate = sum(
-            1 for f in invoice_features if f.get("has_pdf", False)
-        ) / len(invoice_features)
+        invoice_pdf_rate = sum(1 for f in invoice_features if f.get("has_pdf", False)) / len(
+            invoice_features
+        )
         non_invoice_pdf_rate = sum(
             1 for f in non_invoice_features if f.get("has_pdf", False)
         ) / len(non_invoice_features)
