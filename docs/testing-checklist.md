@@ -11,7 +11,7 @@ which pmail || echo "pmail not in PATH"
 playwright install chromium
 
 # Run the demo
-python demo.py
+python docs/demo.py
 
 # Run tests
 python -m pytest tests/ -v
