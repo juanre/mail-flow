@@ -93,6 +93,9 @@ class MetadataStore:
                     -- Extracted document information (JSON)
                     document_info TEXT,  -- JSON with extracted fields
                     
+                    -- Structured metadata (JSON)
+                    metadata TEXT,  -- JSON with structured data like amount, issuing-entity, etc.
+                    
                     -- Search content
                     search_content TEXT,
                     
@@ -135,6 +138,23 @@ class MetadataStore:
 
             conn.commit()
 
+            # Add metadata column if it doesn't exist (for migration)
+            self._add_metadata_column_if_missing(conn)
+
+    def _add_metadata_column_if_missing(self, conn):
+        """Add metadata column to existing databases (migration)."""
+        try:
+            # Check if column exists
+            cursor = conn.execute("PRAGMA table_info(pdf_metadata)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            if "metadata" not in columns:
+                logger.info("Adding metadata column to existing database")
+                conn.execute("ALTER TABLE pdf_metadata ADD COLUMN metadata TEXT")
+                conn.commit()
+        except Exception as e:
+            logger.warning(f"Failed to add metadata column: {e}")
+
     @contextmanager
     def get_connection(self):
         """Get database connection with proper error handling."""
@@ -161,6 +181,7 @@ class MetadataStore:
         document_type: str = DocumentType.UNKNOWN,
         document_category: str = DocumentCategory.UNCATEGORIZED,
         document_info: Optional[Dict[str, Any]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ):
         """Store comprehensive metadata for a saved PDF."""
         try:
@@ -184,7 +205,7 @@ class MetadataStore:
             )
 
             # Prepare data
-            metadata = {
+            db_data = {
                 "filename": pdf_path.name,
                 "filepath": str(pdf_path.relative_to(self.base_dir)),
                 "file_hash": file_hash,
@@ -206,6 +227,7 @@ class MetadataStore:
                 "document_type": document_type,
                 "document_category": document_category,
                 "document_info": json.dumps(document_info) if document_info else None,
+                "metadata": json.dumps(metadata) if metadata else None,
             }
 
             # Store in database
@@ -219,7 +241,8 @@ class MetadataStore:
                         email_body_html, email_headers, pdf_type,
                         pdf_original_filename, pdf_text_content,
                         workflow_name, confidence_score, search_content,
-                        document_type, document_category, document_info
+                        document_type, document_category, document_info,
+                        metadata
                     ) VALUES (
                         :filename, :filepath, :file_hash, :file_size,
                         :email_message_id, :email_from, :email_to,
@@ -227,10 +250,11 @@ class MetadataStore:
                         :email_body_html, :email_headers, :pdf_type,
                         :pdf_original_filename, :pdf_text_content,
                         :workflow_name, :confidence_score, :search_content,
-                        :document_type, :document_category, :document_info
+                        :document_type, :document_category, :document_info,
+                        :metadata
                     )
                 """,
-                    metadata,
+                    db_data,
                 )
 
                 # Update FTS index
@@ -241,10 +265,10 @@ class MetadataStore:
                     ) VALUES (?, ?, ?, ?)
                 """,
                     (
-                        metadata["filename"],
-                        metadata["email_subject"],
-                        metadata["email_from"],
-                        metadata["search_content"],
+                        db_data["filename"],
+                        db_data["email_subject"],
+                        db_data["email_from"],
+                        db_data["search_content"],
                     ),
                 )
 
@@ -318,6 +342,64 @@ class MetadataStore:
         except Exception as e:
             logger.error(f"Lookup failed: {e}")
             return []
+
+    def get_by_filepath(self, filepath: str) -> Optional[Dict[str, Any]]:
+        """Get PDF metadata by filepath or filename.
+
+        Args:
+            filepath: Either a full filepath or just a filename
+
+        Returns:
+            Dictionary with all metadata for the PDF or None if not found
+        """
+        try:
+            with self.get_connection() as conn:
+                # First try exact filepath match
+                result = conn.execute(
+                    """
+                    SELECT * FROM pdf_metadata 
+                    WHERE filepath = ?
+                """,
+                    (filepath,),
+                ).fetchone()
+
+                if result:
+                    return dict(result)
+
+                # Try with filepath ending match (for relative paths)
+                result = conn.execute(
+                    """
+                    SELECT * FROM pdf_metadata 
+                    WHERE filepath LIKE ?
+                    ORDER BY saved_at DESC
+                    LIMIT 1
+                """,
+                    (f"%{filepath}",),
+                ).fetchone()
+
+                if result:
+                    return dict(result)
+
+                # Try filename match
+                filename = Path(filepath).name
+                result = conn.execute(
+                    """
+                    SELECT * FROM pdf_metadata 
+                    WHERE filename = ?
+                    ORDER BY saved_at DESC
+                    LIMIT 1
+                """,
+                    (filename,),
+                ).fetchone()
+
+                if result:
+                    return dict(result)
+
+                return None
+
+        except Exception as e:
+            logger.error(f"Filepath lookup failed: {e}")
+            return None
 
     def check_duplicate(self, message_id: str, filename: str) -> bool:
         """Check if we already saved this PDF."""
@@ -561,6 +643,76 @@ class MetadataStore:
                         pass
 
                 return result
+            return None
+
+    def update_metadata(self, message_id: str, filename: str, metadata: Dict[str, Any]):
+        """Update structured metadata for a saved PDF.
+
+        Example metadata:
+        {
+            "issuing_entity": "Dropbox",
+            "amount": 72.00,
+            "currency": "USD",
+            "issuing_date": "2025-07-29",
+            "period": "2025-07",
+            "transaction_id": "1Y2CZP582XGH",
+            "licenses": 4,
+            "account_space_gb": 5120
+        }
+        """
+        with self.get_connection() as conn:
+            # Get existing metadata
+            cursor = conn.execute(
+                """
+                SELECT metadata 
+                FROM pdf_metadata 
+                WHERE email_message_id = ? AND filename = ?
+            """,
+                (message_id, filename),
+            )
+
+            row = cursor.fetchone()
+            if row:
+                existing_metadata = {}
+                if row["metadata"]:
+                    try:
+                        existing_metadata = json.loads(row["metadata"])
+                    except json.JSONDecodeError:
+                        pass
+
+                # Merge with new metadata
+                existing_metadata.update(metadata)
+
+                # Update database
+                conn.execute(
+                    """
+                    UPDATE pdf_metadata 
+                    SET metadata = ?
+                    WHERE email_message_id = ? AND filename = ?
+                """,
+                    (json.dumps(existing_metadata), message_id, filename),
+                )
+
+                conn.commit()
+
+    def get_metadata(self, message_id: str, filename: str) -> Optional[Dict[str, Any]]:
+        """Get structured metadata for a specific PDF."""
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                """
+                SELECT metadata
+                FROM pdf_metadata
+                WHERE email_message_id = ? AND filename = ?
+            """,
+                (message_id, filename),
+            )
+
+            row = cursor.fetchone()
+            if row and row["metadata"]:
+                try:
+                    return json.loads(row["metadata"])
+                except json.JSONDecodeError:
+                    pass
             return None
 
     @staticmethod

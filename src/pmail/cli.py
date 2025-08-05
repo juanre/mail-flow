@@ -255,6 +255,153 @@ def search(query, directory, limit, type):
 
 
 @cli.command()
+@click.argument("filepath")
+def data(filepath):
+    """Show all database information for a PDF file
+
+    FILEPATH can be either a full path or just the filename.
+    If only a filename is provided, it will search all workflow directories.
+
+    Examples:
+        pmail data gsk/expense/2025/2025-07-29-dropbox.com-subscription.pdf
+        pmail data 2025-07-29-dropbox.com-subscription.pdf
+    """
+    from pmail.metadata_store import MetadataStore
+    import json
+
+    # Try different workflow directories
+    config = Config()
+    data_store = DataStore(config)
+
+    # Extract base directories from workflows
+    base_dirs = set()
+    for workflow in data_store.workflows.values():
+        if workflow.action_type == "save_pdf" and "directory" in workflow.action_params:
+            dir_path = Path(workflow.action_params["directory"]).expanduser()
+            # Add the actual workflow directory as a base dir
+            base_dirs.add(dir_path)
+
+    # Also try common locations
+    base_dirs.add(Path("~/Documents/pmail").expanduser())
+    base_dirs.add(Path("~/receipts").expanduser())
+
+    result = None
+    found_in_store = None
+
+    # Try each base directory
+    for base_dir in base_dirs:
+        if not base_dir.exists():
+            continue
+
+        try:
+            store = MetadataStore(str(base_dir))
+            result = store.get_by_filepath(filepath)
+            if result:
+                found_in_store = base_dir
+                break
+        except Exception:
+            continue
+
+    if not result:
+        click.echo(f"No data found for: {filepath}", err=True)
+        click.echo("\nTried searching in:", err=True)
+        for base_dir in sorted(base_dirs):
+            click.echo(f"  - {base_dir}", err=True)
+        sys.exit(1)
+
+    # Format and display the data
+    click.echo(f"\n📄 PDF Metadata for: {result['filename']}")
+    click.echo(f"Database location: {found_in_store}")
+    click.echo("=" * 60)
+
+    # File information
+    click.echo("\n📁 File Information:")
+    click.echo(f"  Filename: {result['filename']}")
+    click.echo(f"  Path: {result['filepath']}")
+    click.echo(f"  Size: {result['file_size']:,} bytes ({result['file_size'] / 1024:.1f} KB)")
+    click.echo(f"  Hash: {result['file_hash']}")
+    click.echo(f"  Saved: {result['saved_at']}")
+
+    # Email metadata
+    click.echo("\n📧 Email Metadata:")
+    click.echo(f"  From: {result['email_from']}")
+    click.echo(f"  To: {result['email_to']}")
+    click.echo(f"  Subject: {result['email_subject']}")
+    click.echo(f"  Date: {result['email_date']}")
+    click.echo(f"  Message ID: {result['email_message_id']}")
+
+    # PDF information
+    click.echo("\n📑 PDF Information:")
+    click.echo(f"  Type: {result['pdf_type']} (attachment/converted)")
+    if result["pdf_original_filename"]:
+        click.echo(f"  Original filename: {result['pdf_original_filename']}")
+    if result["pdf_page_count"]:
+        click.echo(f"  Page count: {result['pdf_page_count']}")
+
+    # Document classification
+    click.echo("\n🏷️  Document Classification:")
+    click.echo(f"  Type: {result['document_type'] or 'Not classified'}")
+    click.echo(f"  Category: {result['document_category'] or 'Not categorized'}")
+
+    # Workflow information
+    click.echo("\n⚙️  Workflow Information:")
+    click.echo(f"  Workflow: {result['workflow_name']}")
+    if result["confidence_score"]:
+        click.echo(f"  Confidence: {result['confidence_score']:.2f}")
+
+    # Email headers (parsed JSON)
+    if result["email_headers"]:
+        try:
+            headers = json.loads(result["email_headers"])
+            if headers:
+                click.echo("\n📨 Email Headers:")
+                for key, value in headers.items():
+                    if key.lower() not in ["from", "to", "subject", "date", "message-id"]:
+                        click.echo(f"  {key}: {value}")
+        except:
+            pass
+
+    # Document info (parsed JSON)
+    if result["document_info"]:
+        try:
+            doc_info = json.loads(result["document_info"])
+            if doc_info:
+                click.echo("\n📊 Extracted Document Information:")
+                for key, value in doc_info.items():
+                    click.echo(f"  {key}: {value}")
+        except:
+            pass
+
+    # Structured metadata (parsed JSON)
+    if result.get("metadata"):
+        try:
+            metadata = json.loads(result["metadata"])
+            if metadata:
+                click.echo("\n💼 Structured Metadata:")
+                for key, value in metadata.items():
+                    click.echo(f"  {key}: {value}")
+        except:
+            pass
+
+    # Text content preview
+    if result["pdf_text_content"]:
+        click.echo("\n📝 PDF Text Content (first 500 chars):")
+        text_preview = result["pdf_text_content"][:500].strip()
+        if len(result["pdf_text_content"]) > 500:
+            text_preview += "..."
+        click.echo(f"  {text_preview}")
+
+    if result["email_body_text"] and not result["pdf_text_content"]:
+        click.echo("\n📝 Email Body Text (first 500 chars):")
+        text_preview = result["email_body_text"][:500].strip()
+        if len(result["email_body_text"]) > 500:
+            text_preview += "..."
+        click.echo(f"  {text_preview}")
+
+    click.echo("\n" + "=" * 60)
+
+
+@cli.command()
 def version():
     """Show pmail version"""
     from pmail import __version__
