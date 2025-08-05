@@ -298,7 +298,7 @@ def save_email_as_pdf(
     email_data: Dict[str, Any],
     message_obj: Optional[Message] = None,
     directory: str = "~/receipts",
-    filename_template: str = "{date}_{from}_{subject}.pdf",
+    filename_template: str = "{date}-{from}-{subject}.pdf",
     use_year_dirs: bool = True,
     store_metadata: bool = True,
 ) -> None:

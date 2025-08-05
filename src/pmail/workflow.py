@@ -96,7 +96,7 @@ def create_todo(message: Dict[str, Any], todo_file: str = "~/todos.txt"):
 def save_email_pdf(
     message: Dict[str, Any],
     directory: str = "~/receipts",
-    filename_template: str = "{date}_{from}_{subject}.pdf",
+    filename_template: str = "{date}-{from}-{subject}.pdf",
     use_year_dirs: bool = True,
     store_metadata: bool = True,
 ):
@@ -135,7 +135,7 @@ def save_email_pdf(
 def save_pdf(
     message: Dict[str, Any],
     directory: str,
-    filename_template: str = "{date}_{from}_{subject}",
+    filename_template: str = "{date}-{from}-{subject}",
     use_year_dirs: bool = True,
     store_metadata: bool = True,
 ):

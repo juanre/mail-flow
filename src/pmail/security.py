@@ -139,7 +139,7 @@ def sanitize_filename(filename: str) -> str:
     filename = os.path.basename(filename)
 
     # Replace dangerous characters
-    safe_filename = re.sub(r"[^a-zA-Z0-9._-]", "_", filename)
+    safe_filename = re.sub(r"[^a-zA-Z0-9._-]", "-", filename)
 
     # Limit length
     max_length = 255
@@ -149,7 +149,7 @@ def sanitize_filename(filename: str) -> str:
 
     # Don't allow hidden files
     if safe_filename.startswith("."):
-        safe_filename = "_" + safe_filename[1:]
+        safe_filename = "-" + safe_filename[1:]
 
     return safe_filename
 

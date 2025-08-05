@@ -98,7 +98,7 @@ def init(reset):
                 "action_type": "save_pdf",
                 "action_params": {
                     "directory": f"~/Documents/pmail/{entity_code}/{category_code}",
-                    "filename_template": "{date}_{from}_{subject}",
+                    "filename_template": "{date}-{from}-{subject}",
                 },
             }
             default_workflows.append(workflow)

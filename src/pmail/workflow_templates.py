@@ -11,7 +11,7 @@ WORKFLOW_TEMPLATES = {
         "action_type": "save_pdf",
         "action_params": {
             "directory": "~/Documents/pmail/gsk/expense",
-            "filename_template": "{date}_{from}_{subject}",
+            "filename_template": "{date}-{from}-{subject}",
         },
     },
     "gsk_tax": {
@@ -20,7 +20,7 @@ WORKFLOW_TEMPLATES = {
         "action_type": "save_pdf",
         "action_params": {
             "directory": "~/Documents/pmail/gsk/tax-doc",
-            "filename_template": "{date}_TAX_{from}_{subject}",
+            "filename_template": "{date}-TAX-{from}-{subject}",
         },
     },
     "gsk_doc": {
@@ -29,7 +29,7 @@ WORKFLOW_TEMPLATES = {
         "action_type": "save_pdf",
         "action_params": {
             "directory": "~/Documents/pmail/gsk/doc",
-            "filename_template": "{date}_{from}_{subject}",
+            "filename_template": "{date}-{from}-{subject}",
         },
     },
     # TheStarMaps workflows
@@ -39,7 +39,7 @@ WORKFLOW_TEMPLATES = {
         "action_type": "save_pdf",
         "action_params": {
             "directory": "~/Documents/pmail/tsm/expense",
-            "filename_template": "{date}_{from}_{subject}",
+            "filename_template": "{date}-{from}-{subject}",
         },
     },
     "tsm_tax": {
@@ -48,7 +48,7 @@ WORKFLOW_TEMPLATES = {
         "action_type": "save_pdf",
         "action_params": {
             "directory": "~/Documents/pmail/tsm/tax-doc",
-            "filename_template": "{date}_TAX_{from}_{subject}",
+            "filename_template": "{date}-TAX-{from}-{subject}",
         },
     },
     "tsm_doc": {
@@ -57,7 +57,7 @@ WORKFLOW_TEMPLATES = {
         "action_type": "save_pdf",
         "action_params": {
             "directory": "~/Documents/pmail/tsm/doc",
-            "filename_template": "{date}_{from}_{subject}",
+            "filename_template": "{date}-{from}-{subject}",
         },
     },
     # Personal (Juan Reyero) workflows
@@ -67,7 +67,7 @@ WORKFLOW_TEMPLATES = {
         "action_type": "save_pdf",
         "action_params": {
             "directory": "~/Documents/pmail/jro/expense",
-            "filename_template": "{date}_{from}_{subject}",
+            "filename_template": "{date}-{from}-{subject}",
         },
     },
     "jro_tax": {
@@ -76,7 +76,7 @@ WORKFLOW_TEMPLATES = {
         "action_type": "save_pdf",
         "action_params": {
             "directory": "~/Documents/pmail/jro/tax-doc",
-            "filename_template": "{date}_TAX_{from}_{subject}",
+            "filename_template": "{date}-TAX-{from}-{subject}",
         },
     },
     "jro_doc": {
@@ -85,7 +85,7 @@ WORKFLOW_TEMPLATES = {
         "action_type": "save_pdf",
         "action_params": {
             "directory": "~/Documents/pmail/jro/doc",
-            "filename_template": "{date}_{from}_{subject}",
+            "filename_template": "{date}-{from}-{subject}",
         },
     },
     # Generic workflows
@@ -95,7 +95,7 @@ WORKFLOW_TEMPLATES = {
         "action_type": "save_email_as_pdf",
         "action_params": {
             "directory": "~/Documents/pmail/newsletters",
-            "filename_template": "{date}_{from}_newsletter",
+            "filename_template": "{date}-{from}-newsletter",
         },
     },
     "save_invoice_only": {
