@@ -291,6 +291,7 @@ source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },
     { name = "black" },
+    { name = "click" },
     { name = "gnureadline" },
     { name = "playwright" },
     { name = "pytest" },
@@ -308,6 +309,7 @@ dev = [
 requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.13.4" },
     { name = "black", specifier = ">=25.1.0" },
+    { name = "click", specifier = ">=8.2.1" },
     { name = "gnureadline", specifier = ">=8.2.13" },
     { name = "playwright", specifier = ">=1.54.0" },
     { name = "pytest", specifier = ">=8.4.1" },
