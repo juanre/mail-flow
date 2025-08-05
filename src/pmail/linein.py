@@ -5,7 +5,8 @@ from datetime import datetime
 import gnureadline as readline
 
 readline.read_init_file(os.path.expanduser("~/.inputrc"))
-readline.set_completer_delims(" ")
+# Set delimiters to allow completion of workflow names with hyphens
+readline.set_completer_delims(" \t\n`~!@#$%^&*()=+[{]}\\|;:'\",<>/?.")
 
 
 def validate_float(v):
@@ -80,10 +81,15 @@ class LineInput:
         readline.clear_history()
 
     def complete(self, text, state):
-        """It will be called with increasing numbers in state until it returns
-        None
-        """
-        return (sorted([t for t in self.typical if t.startswith(text)]) + [None])[state]
+        """It will be called with increasing numbers in state until it returns None"""
+        if state == 0:
+            # First call for this text, compute matches
+            self.matches = sorted([t for t in self.typical if t.startswith(text)])
+
+        # Return the state'th match
+        if state < len(self.matches):
+            return self.matches[state]
+        return None
 
     def maybe_history_back(self):
         if self.with_history:
@@ -99,28 +105,28 @@ class LineInput:
                 import sys
 
                 try:
-                    # Save original stdin/stdout
-                    original_stdin = sys.stdin
-                    original_stdout = sys.stdout
-                    # Open /dev/tty for reading and writing
-                    tty_in = open("/dev/tty", "r")
-                    tty_out = open("/dev/tty", "w")
-                    sys.stdin = tty_in
-                    sys.stdout = tty_out
+                    # Save original file descriptors
+                    old_stdin = os.dup(0)
+                    old_stdout = os.dup(1)
 
-                    # Re-initialize readline for the new file descriptors
-                    # This is crucial for tab completion to work
-                    import termios
-                    import tty
+                    # Open /dev/tty for reading and writing
+                    tty = open("/dev/tty", "r+")
 
                     # Save terminal settings
-                    old_settings = termios.tcgetattr(tty_in.fileno())
+                    import termios
+
+                    old_settings = termios.tcgetattr(tty.fileno())
 
                     try:
-                        # Set up readline with the new terminal
+                        # Critical: Update file descriptors 0 and 1 to use tty
+                        # This ensures readline outputs to the right place
+                        os.dup2(tty.fileno(), 0)  # stdin
+                        os.dup2(tty.fileno(), 1)  # stdout
+
+                        # Now set up readline - it will use the correct file descriptors
+                        readline.clear_history()
                         readline.set_completer(self.complete)
                         readline.parse_and_bind("tab: complete")
-                        readline.clear_history()
 
                         if self.with_history and os.path.exists(self.history_file):
                             readline.read_history_file(self.history_file)
@@ -132,14 +138,15 @@ class LineInput:
                         else:
                             v = input("%s: " % (self.prompt))
                     finally:
-                        # Restore terminal settings
-                        termios.tcsetattr(tty_in.fileno(), termios.TCSADRAIN, old_settings)
+                        # Restore original file descriptors
+                        os.dup2(old_stdin, 0)
+                        os.dup2(old_stdout, 1)
+                        os.close(old_stdin)
+                        os.close(old_stdout)
 
-                    # Restore original stdin/stdout
-                    sys.stdin.close()
-                    sys.stdout.close()
-                    sys.stdin = original_stdin
-                    sys.stdout = original_stdout
+                        # Restore terminal settings
+                        termios.tcsetattr(tty.fileno(), termios.TCSADRAIN, old_settings)
+                        tty.close()
                 except Exception:
                     # If /dev/tty fails, fall back to regular input
                     sys.stdin = original_stdin
