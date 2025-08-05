@@ -19,28 +19,6 @@ class WorkflowSelector:
     def select_workflow(self, email_data: dict) -> Optional[str]:
         """Present workflow options and get user selection"""
 
-        # Check if workflow was pre-specified (e.g., via CLI or environment)
-        import os
-
-        pre_specified_workflow = os.environ.get("PMAIL_WORKFLOW")
-        if pre_specified_workflow:
-            # Validate the workflow exists
-            if pre_specified_workflow in self.data_store.workflows:
-                # Record the decision
-                instance = CriteriaInstance(
-                    email_id=email_data["message_id"],
-                    workflow_name=pre_specified_workflow,
-                    timestamp=datetime.now(),
-                    email_features=email_data["features"],
-                    user_confirmed=True,
-                    confidence_score=1.0,
-                )
-                self.data_store.add_criteria_instance(instance)
-                return pre_specified_workflow
-            else:
-                print(f"✗ Error: Workflow '{pre_specified_workflow}' not found")
-                return None
-
         # Get ranked workflows
         criteria_instances = self.data_store.get_recent_criteria()
         rankings = self.similarity_engine.rank_workflows(
@@ -60,9 +38,14 @@ class WorkflowSelector:
                 print(f"  - {att['filename']}")
         print("=" * 60 + "\n")
 
-        # Build options list
+        # Build options list - include all workflow names for tab completion
         options = ["skip", "new"]
         option_map = {"skip": None, "new": "new"}
+
+        # Add all workflow names to options for tab completion
+        for wf_name in self.data_store.workflows.keys():
+            options.append(wf_name)
+            option_map[wf_name] = wf_name
 
         if rankings:
             print("Suggested workflows (based on similarity):")
@@ -89,7 +72,8 @@ class WorkflowSelector:
             print("No similar workflows found in history.\n")
 
         print("\nOptions:")
-        print("  Enter number (1-9) to select a workflow")
+        print("  Enter number (1-9) to select a suggested workflow")
+        print("  Type workflow name (with tab completion)")
         print("  'skip' to skip this email")
         print("  'new' to create a new workflow")
 
@@ -102,7 +86,7 @@ class WorkflowSelector:
             default = None
             prompt_text = "Selection"
 
-        selector = LineInput(prompt_text, typical=options, only_typical=True, with_history=False)
+        selector = LineInput(prompt_text, typical=options, only_typical=False, with_history=True)
 
         choice = selector.ask(default=default)
 

@@ -18,8 +18,7 @@ logger = logging.getLogger(__name__)
 @click.group(invoke_without_command=True)
 @click.pass_context
 @click.option("--debug", is_flag=True, help="Enable debug logging")
-@click.option("--workflow", "-w", help="Specify workflow name (for non-interactive use)")
-def cli(ctx, debug, workflow):
+def cli(ctx, debug):
     """pmail - Smart Email Processing for Mutt
 
     When invoked without a subcommand, processes email from stdin.
@@ -28,27 +27,18 @@ def cli(ctx, debug, workflow):
     log_level = "DEBUG" if debug else "INFO"
     setup_logging(log_level)
 
-    # Store workflow in context for subcommands
-    ctx.obj = {"workflow": workflow}
-
     # If no subcommand, process email from stdin
     if ctx.invoked_subcommand is None:
-        process_stdin(workflow)
+        process_stdin()
 
 
-def process_stdin(workflow_name=None):
+def process_stdin():
     """Process email from stdin (default behavior for mutt integration)"""
     try:
         email_content = sys.stdin.read()
         if not email_content:
             logger.error("No email content received from stdin")
             sys.exit(1)
-
-        # Set workflow in environment if specified via CLI
-        if workflow_name:
-            import os
-
-            os.environ["PMAIL_WORKFLOW"] = workflow_name
 
         process_email(email_content)
     except KeyboardInterrupt:
