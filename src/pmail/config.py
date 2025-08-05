@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 import logging
 
-from pmail.utils import rotate_backups
 
 logger = logging.getLogger(__name__)
 
@@ -29,10 +28,7 @@ class Config:
         """Create necessary directories"""
         try:
             self.config_dir.mkdir(exist_ok=True, mode=0o700)  # Private directory
-            (self.config_dir / "workflows").mkdir(exist_ok=True, mode=0o700)
-            (self.config_dir / "history").mkdir(exist_ok=True, mode=0o700)
-            (self.config_dir / "backups").mkdir(exist_ok=True, mode=0o700)
-            (self.config_dir / "logs").mkdir(exist_ok=True, mode=0o700)
+            (self.config_dir / "history").mkdir(exist_ok=True, mode=0o700)  # For readline history
         except Exception as e:
             logger.error(f"Failed to create config directories: {e}")
             raise
@@ -74,7 +70,6 @@ class Config:
             },
             "learning": {"min_confidence_threshold": 0.3},
             "storage": {
-                "max_backups_per_file": 10,
                 "max_criteria_instances": 10000,
                 "max_workflows": 100,
             },
@@ -98,9 +93,6 @@ class Config:
         ui_settings["max_suggestions"] = min(max(1, ui_settings.get("max_suggestions", 5)), 20)
 
         storage_settings = self.settings.get("storage", {})
-        storage_settings["max_backups_per_file"] = min(
-            max(1, storage_settings.get("max_backups_per_file", 10)), 100
-        )
 
     def save_config(self):
         """Save configuration to disk"""
@@ -120,29 +112,3 @@ class Config:
 
     def get_history_dir(self) -> Path:
         return self.config_dir / "history"
-
-    def backup_file(self, filepath: Path):
-        """Create backup of file with rotation"""
-        import shutil
-        from datetime import datetime
-
-        if not filepath.exists():
-            return
-
-        try:
-            backup_dir = self.config_dir / "backups"
-            backup_name = (
-                f"{filepath.stem}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{filepath.suffix}"
-            )
-            backup_path = backup_dir / backup_name
-
-            # Copy file to backup
-            shutil.copy2(filepath, backup_path)
-            logger.debug(f"Created backup: {backup_path}")
-
-            # Rotate old backups
-            max_backups = self.settings.get("storage", {}).get("max_backups_per_file", 10)
-            rotate_backups(backup_dir, filepath.stem, max_backups)
-
-        except Exception as e:
-            logger.warning(f"Failed to create backup: {e}")

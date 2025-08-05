@@ -174,33 +174,6 @@ def calculate_file_hash(filepath: Path, algorithm: str = "sha256") -> str:
     return hash_func.hexdigest()
 
 
-def rotate_backups(backup_dir: Path, prefix: str, max_backups: int = 10) -> None:
-    """
-    Rotate backup files, keeping only the most recent.
-
-    Args:
-        backup_dir: Directory containing backups
-        prefix: Filename prefix to match
-        max_backups: Maximum number of backups to keep
-    """
-    if not backup_dir.exists():
-        return
-
-    # Find all matching backups
-    backups = list(backup_dir.glob(f"{prefix}*"))
-
-    # Sort by modification time
-    backups.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-
-    # Remove old backups
-    for old_backup in backups[max_backups:]:
-        try:
-            old_backup.unlink()
-            logger.debug(f"Removed old backup: {old_backup}")
-        except OSError as e:
-            logger.warning(f"Failed to remove backup {old_backup}: {e}")
-
-
 def truncate_string(text: str, max_length: int, suffix: str = "...") -> str:
     """
     Truncate string to maximum length.

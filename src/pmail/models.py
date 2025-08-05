@@ -176,12 +176,6 @@ class DataStore:
             )
 
         with file_lock(self.workflows_file):
-            # Backup before save
-            try:
-                self.config.backup_file(self.workflows_file)
-            except Exception as e:
-                logger.warning(f"Failed to backup workflows: {e}")
-
             # Prepare data
             workflows_data = {}
             for name, workflow in self.workflows.items():
@@ -207,12 +201,6 @@ class DataStore:
             )[: self.MAX_CRITERIA_INSTANCES]
 
         with file_lock(self.criteria_file):
-            # Backup before save
-            try:
-                self.config.backup_file(self.criteria_file)
-            except Exception as e:
-                logger.warning(f"Failed to backup criteria: {e}")
-
             # Prepare data
             criteria_data = []
             for instance in self.criteria_instances:
