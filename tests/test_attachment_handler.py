@@ -119,13 +119,18 @@ class TestAttachmentHandler:
 
         # Save only PDFs
         count = save_attachments_from_message(
-            message_obj=msg, email_data=email_data, directory=save_dir, pattern="*.pdf"
+            message_obj=msg,
+            email_data=email_data,
+            directory=save_dir,
+            pattern="*.pdf",
+            use_year_dirs=False,
+            store_metadata=False,
         )
 
         assert count == 1
         saved_files = list(Path(save_dir).glob("*"))
         assert len(saved_files) == 1
-        assert saved_files[0].name == "invoice.pdf"
+        assert saved_files[0].name.endswith("-invoice.pdf")
 
     def test_save_attachments_all_files(self, temp_config_dir):
         """Test saving all attachments"""
@@ -155,15 +160,23 @@ class TestAttachmentHandler:
 
         # Save all files
         count = save_attachments_from_message(
-            message_obj=msg, email_data=email_data, directory=save_dir, pattern="*.*"
+            message_obj=msg,
+            email_data=email_data,
+            directory=save_dir,
+            pattern="*.*",
+            use_year_dirs=False,
+            store_metadata=False,
         )
 
         assert count == 3
         saved_files = list(Path(save_dir).glob("*"))
         assert len(saved_files) == 3
 
-        filenames = {f.name for f in saved_files}
-        assert filenames == {"doc1.pdf", "image.jpg", "data.csv"}
+        # Check that all files were saved with date prefixes
+        filenames = [f.name for f in saved_files]
+        assert any(name.endswith("-doc1.pdf") for name in filenames)
+        assert any(name.endswith("-image.jpg") for name in filenames)
+        assert any(name.endswith("-data.csv") for name in filenames)
 
     def test_save_attachments_no_multipart(self, temp_config_dir):
         """Test handling non-multipart messages"""
@@ -180,6 +193,8 @@ class TestAttachmentHandler:
             email_data=email_data,
             directory=temp_config_dir,
             pattern="*.pdf",
+            use_year_dirs=False,
+            store_metadata=False,
         )
 
         assert count == 0

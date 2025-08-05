@@ -38,12 +38,19 @@ class TestSaveReceiptWorkflow:
 
         # Run save_receipt workflow
         receipts_dir = Path(temp_config_dir) / "receipts"
-        save_pdf(email_data, directory=str(receipts_dir))
+        save_pdf(
+            email_data, directory=str(receipts_dir), use_year_dirs=False, store_metadata=False
+        )
 
         # Should have saved the PDF attachment
         pdf_files = list(receipts_dir.glob("*.pdf"))
         assert len(pdf_files) == 1
-        assert pdf_files[0].name == "invoice_12345.pdf"
+        # Check for date prefix (could be email date or today's date) and original filename
+        assert pdf_files[0].name.endswith("-invoice_12345.pdf")
+        # Verify it has a date prefix in YYYY-MM-DD format
+        import re
+
+        assert re.match(r"\d{4}-\d{2}-\d{2}-invoice_12345\.pdf", pdf_files[0].name)
 
         # Verify content
         with open(pdf_files[0], "rb") as f:
@@ -82,6 +89,8 @@ class TestSaveReceiptWorkflow:
             email_data,
             directory=str(receipts_dir),
             filename_template="{date}_{from}_order",
+            use_year_dirs=False,
+            store_metadata=False,
         )
 
         # Should have created a PDF from the email
@@ -121,14 +130,19 @@ class TestSaveReceiptWorkflow:
 
         # Run save_receipt workflow
         receipts_dir = Path(temp_config_dir) / "receipts"
-        save_pdf(email_data, directory=str(receipts_dir))
+        save_pdf(
+            email_data, directory=str(receipts_dir), use_year_dirs=False, store_metadata=False
+        )
 
         # Should have saved all PDF attachments
         pdf_files = list(receipts_dir.glob("*.pdf"))
         assert len(pdf_files) == 3
 
-        pdf_names = {f.name for f in pdf_files}
-        assert pdf_names == {"invoice_jan.pdf", "receipt_jan.pdf", "statement.pdf"}
+        # Check that all expected files were saved (with date prefixes)
+        pdf_names = [f.name for f in pdf_files]
+        assert any("invoice_jan.pdf" in name for name in pdf_names)
+        assert any("receipt_jan.pdf" in name for name in pdf_names)
+        assert any("statement.pdf" in name for name in pdf_names)
 
     def test_save_receipt_with_non_pdf_attachments(self, temp_config_dir):
         """Test that save_receipt creates PDF when only non-PDF attachments exist"""
@@ -153,7 +167,9 @@ class TestSaveReceiptWorkflow:
 
         # Run save_receipt workflow
         receipts_dir = Path(temp_config_dir) / "receipts"
-        save_pdf(email_data, directory=str(receipts_dir))
+        save_pdf(
+            email_data, directory=str(receipts_dir), use_year_dirs=False, store_metadata=False
+        )
 
         # Should have created PDF from email (not saved the JPG)
         pdf_files = list(receipts_dir.glob("*.pdf"))

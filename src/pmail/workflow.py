@@ -10,11 +10,18 @@ from pmail.exceptions import WorkflowError
 from pmail.security import validate_path, sanitize_filename, sanitize_shell_arg
 from pmail.attachment_handler import save_attachments_from_message
 from pmail.pdf_converter import save_email_as_pdf
+from pmail.metadata_store import MetadataStore
 
 logger = logging.getLogger(__name__)
 
 
-def save_attachment(message: Dict[str, Any], directory: str, pattern: str = "*.pdf"):
+def save_attachment(
+    message: Dict[str, Any],
+    directory: str,
+    pattern: str = "*.pdf",
+    use_year_dirs: bool = True,
+    store_metadata: bool = True,
+):
     """Save attachments matching pattern to directory"""
     try:
         # Get the Message object if available
@@ -32,6 +39,8 @@ def save_attachment(message: Dict[str, Any], directory: str, pattern: str = "*.p
             email_data=message,
             directory=directory,
             pattern=pattern,
+            use_year_dirs=use_year_dirs,
+            store_metadata=store_metadata,
         )
 
         if saved_count == 0:
@@ -127,6 +136,8 @@ def save_email_pdf(
     message: Dict[str, Any],
     directory: str = "~/receipts",
     filename_template: str = "{date}_{from}_{subject}.pdf",
+    use_year_dirs: bool = True,
+    store_metadata: bool = True,
 ):
     """Save the entire email as a PDF file
 
@@ -136,6 +147,8 @@ def save_email_pdf(
         message: Email data
         directory: Where to save PDFs
         filename_template: Template for filename
+        use_year_dirs: Whether to create year subdirectories
+        store_metadata: Whether to store metadata in SQLite
     """
     try:
         # Get the Message object if available
@@ -147,6 +160,8 @@ def save_email_pdf(
             message_obj=message_obj,
             directory=directory,
             filename_template=filename_template,
+            use_year_dirs=use_year_dirs,
+            store_metadata=store_metadata,
         )
 
     except Exception as e:
@@ -160,6 +175,8 @@ def save_pdf(
     message: Dict[str, Any],
     directory: str,
     filename_template: str = "{date}_{from}_{subject}",
+    use_year_dirs: bool = True,
+    store_metadata: bool = True,
 ):
     """Save PDF: extracts PDF attachment if exists, otherwise converts email to PDF
 
@@ -184,14 +201,26 @@ def save_pdf(
         if pdf_attachments:
             # Has PDF attachments - save them
             print(f"  ℹ️  Found {len(pdf_attachments)} PDF attachment(s)")
-            save_attachment(message, directory=directory, pattern="*.pdf")
+            save_attachment(
+                message,
+                directory=directory,
+                pattern="*.pdf",
+                use_year_dirs=use_year_dirs,
+                store_metadata=store_metadata,
+            )
         else:
             # No PDF attachments - convert email to PDF
             print("  ℹ️  No PDF attachments found, converting email to PDF")
             # Ensure template doesn't already end with .pdf
             if not filename_template.endswith(".pdf"):
                 filename_template = filename_template + ".pdf"
-            save_email_pdf(message, directory=directory, filename_template=filename_template)
+            save_email_pdf(
+                message,
+                directory=directory,
+                filename_template=filename_template,
+                use_year_dirs=use_year_dirs,
+                store_metadata=store_metadata,
+            )
 
     except Exception as e:
         raise WorkflowError(

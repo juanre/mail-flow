@@ -224,6 +224,8 @@ def save_email_as_pdf(
     message_obj: Optional[Message] = None,
     directory: str = "~/receipts",
     filename_template: str = "{date}_{from}_{subject}.pdf",
+    use_year_dirs: bool = True,
+    store_metadata: bool = True,
 ) -> None:
     """
     Save email as PDF file using Playwright.
@@ -236,17 +238,19 @@ def save_email_as_pdf(
         message_obj: Original email Message object (for better HTML extraction)
         directory: Directory to save PDF
         filename_template: Template for filename generation
+        use_year_dirs: Whether to create year subdirectories
+        store_metadata: Whether to store metadata in SQLite
     """
     try:
         # Validate directory - allow the provided directory as base
-        dir_path = validate_path(directory, allowed_base_dirs=[os.path.expanduser("~"), directory])
-        dir_path.mkdir(parents=True, exist_ok=True)
+        base_dir = validate_path(directory, allowed_base_dirs=[os.path.expanduser("~"), directory])
 
         # Generate filename from template
         from_domain = email_data.get("features", {}).get("from_domain", "unknown")
         date_str = datetime.now().strftime("%Y%m%d")
 
         # Parse date from email if available
+        email_date = None
         if email_data.get("date"):
             try:
                 from email.utils import parsedate_to_datetime
@@ -254,9 +258,22 @@ def save_email_as_pdf(
                 email_date = parsedate_to_datetime(email_data["date"])
                 date_str = email_date.strftime("%Y%m%d")
             except:
-                pass
+                email_date = None
 
-        # Build filename
+        if not email_date:
+            email_date = datetime.now()
+            date_str = email_date.strftime("%Y%m%d")
+
+        # Create year directory if requested
+        if use_year_dirs:
+            dir_path = base_dir / str(email_date.year)
+        else:
+            dir_path = base_dir
+
+        dir_path.mkdir(parents=True, exist_ok=True)
+
+        # Build filename with date prefix
+        date_prefix = email_date.strftime("%Y-%m-%d")
         filename_parts = {
             "date": date_str,
             "from": from_domain,
@@ -270,6 +287,8 @@ def save_email_as_pdf(
         if not filename.endswith(".pdf"):
             filename += ".pdf"
 
+        # Add date prefix
+        filename = f"{date_prefix}-{filename}"
         output_path = dir_path / filename
 
         # Check if file exists
@@ -287,6 +306,32 @@ def save_email_as_pdf(
         convert_email_to_pdf(html_content, output_path)
 
         print(f"  ✓ Saved email as PDF: {output_path}")
+
+        # Store metadata if requested
+        if store_metadata:
+            try:
+                from pmail.metadata_store import MetadataStore
+
+                store = MetadataStore(str(base_dir))
+
+                # Extract text from email for searching
+                body_text = store._extract_text_from_body(email_data.get("body", ""))
+
+                # Get suggested classification
+                doc_type, doc_category = MetadataStore.suggest_document_classification(email_data)
+
+                store.store_pdf_metadata(
+                    pdf_path=output_path,
+                    email_data=email_data,
+                    workflow_name=email_data.get("_workflow_name", "save_email_as_pdf"),
+                    pdf_type="converted",
+                    pdf_text=body_text,  # Use email text since we converted it
+                    confidence_score=email_data.get("_confidence_score"),
+                    document_type=doc_type,
+                    document_category=doc_category,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to store metadata: {e}")
 
     except Exception as e:
         if isinstance(e, WorkflowError):

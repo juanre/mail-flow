@@ -117,6 +117,8 @@ class TestPDFConverter:
             email_data,
             directory=str(receipts_dir),
             filename_template="{from}_{subject}.pdf",
+            use_year_dirs=False,
+            store_metadata=False,
         )
 
         # Should create directory
@@ -152,7 +154,13 @@ class TestPDFConverter:
 
         receipts_dir = Path(temp_config_dir) / "receipts"
 
-        save_email_as_pdf(email_data, message_obj=msg, directory=str(receipts_dir))
+        save_email_as_pdf(
+            email_data,
+            message_obj=msg,
+            directory=str(receipts_dir),
+            use_year_dirs=False,
+            store_metadata=False,
+        )
 
         # Should create PDF file
         pdf_files = list(receipts_dir.glob("*.pdf"))

@@ -62,6 +62,8 @@ def save_attachments_from_message(
     email_data: Dict[str, Any],
     directory: str,
     pattern: str = "*.pdf",
+    use_year_dirs: bool = True,
+    store_metadata: bool = True,
 ) -> int:
     """
     Save attachments from email message object.
@@ -71,13 +73,37 @@ def save_attachments_from_message(
         email_data: Extracted email data with attachment info
         directory: Directory to save attachments
         pattern: File pattern to match
+        use_year_dirs: Whether to create year subdirectories
+        store_metadata: Whether to store metadata in SQLite
 
     Returns:
         Number of attachments saved
     """
     try:
+        from datetime import datetime
+
         # Validate directory - allow the provided directory as base
-        dir_path = validate_path(directory, allowed_base_dirs=[os.path.expanduser("~"), directory])
+        base_dir = validate_path(directory, allowed_base_dirs=[os.path.expanduser("~"), directory])
+
+        # Parse email date for year-based organization
+        email_date = None
+        if use_year_dirs and email_data.get("date"):
+            try:
+                from email.utils import parsedate_to_datetime
+
+                email_date = parsedate_to_datetime(email_data["date"])
+            except Exception as e:
+                logger.warning(f"Could not parse email date: {e}")
+
+        if not email_date:
+            email_date = datetime.now()
+
+        # Create year directory if requested
+        if use_year_dirs:
+            dir_path = base_dir / str(email_date.year)
+        else:
+            dir_path = base_dir
+
         dir_path.mkdir(parents=True, exist_ok=True)
 
         saved_count = 0
@@ -116,10 +142,38 @@ def save_attachments_from_message(
                 matches = safe_filename == pattern
 
             if matches:
-                saved_path = extract_and_save_attachment(part, dir_path, safe_filename)
+                # Add date prefix to filename
+                date_prefix = email_date.strftime("%Y-%m-%d")
+                final_filename = f"{date_prefix}-{safe_filename}"
+
+                saved_path = extract_and_save_attachment(part, dir_path, final_filename)
                 if saved_path:
                     saved_count += 1
-                    print(f"  ✓ Saved: {safe_filename} to {saved_path}")
+                    print(f"  ✓ Saved: {final_filename} to {saved_path}")
+
+                    # Store metadata if requested
+                    if store_metadata:
+                        try:
+                            from pmail.metadata_store import MetadataStore
+
+                            store = MetadataStore(str(base_dir))
+
+                            # Get suggested classification
+                            doc_type, doc_category = MetadataStore.suggest_document_classification(
+                                email_data
+                            )
+
+                            store.store_pdf_metadata(
+                                pdf_path=saved_path,
+                                email_data=email_data,
+                                workflow_name=email_data.get("_workflow_name", "save_attachment"),
+                                pdf_type="attachment",
+                                confidence_score=email_data.get("_confidence_score"),
+                                document_type=doc_type,
+                                document_category=doc_category,
+                            )
+                        except Exception as e:
+                            logger.warning(f"Failed to store metadata: {e}")
 
         return saved_count
 

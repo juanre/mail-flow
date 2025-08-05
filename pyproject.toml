@@ -17,6 +17,7 @@ dependencies = [
 
 [project.scripts]
 pmail = "pmail:process.main"
+pmail-search = "pmail.search:main"
 
 [build-system]
 requires = ["hatchling"]

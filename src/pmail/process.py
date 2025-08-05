@@ -58,6 +58,16 @@ def process(message: str, config: Optional[Config] = None) -> None:
                         logger.info(
                             f"Executing {workflow_def.action_type} for {selected_workflow}"
                         )
+                        # Add workflow metadata to email_data for storage
+                        email_data["_workflow_name"] = selected_workflow
+                        # Get confidence score from rankings if available
+                        confidence = 0.0
+                        for wf_name, score, _ in email_data.get("_rankings", []):
+                            if wf_name == selected_workflow:
+                                confidence = score
+                                break
+                        email_data["_confidence_score"] = confidence
+
                         action_func(email_data, **workflow_def.action_params)
                         print(f"\n✓ Workflow '{selected_workflow}' completed!")
                         logger.info(f"Workflow '{selected_workflow}' completed successfully")

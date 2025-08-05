@@ -25,6 +25,9 @@ class WorkflowSelector:
             email_data["features"], criteria_instances, self.max_suggestions
         )
 
+        # Store rankings in email_data for later use
+        email_data["_rankings"] = rankings
+
         # Display email info
         print("\n" + "=" * 60)
         print(f"From: {email_data['from']}")

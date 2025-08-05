@@ -67,7 +67,13 @@ class TestWorkflowIntegration:
 
         # Run save_attachment workflow
         with patch("builtins.print") as mock_print:
-            save_attachment(email_data, directory=str(invoices_dir), pattern="*.pdf")
+            save_attachment(
+                email_data,
+                directory=str(invoices_dir),
+                pattern="*.pdf",
+                use_year_dirs=False,
+                store_metadata=False,
+            )
 
         # Check directory was created
         assert invoices_dir.exists()
@@ -75,7 +81,7 @@ class TestWorkflowIntegration:
         # Check PDF was saved
         pdf_files = list(invoices_dir.glob("*.pdf"))
         assert len(pdf_files) == 1
-        assert pdf_files[0].name == "invoice_12345.pdf"
+        assert pdf_files[0].name.endswith("-invoice_12345.pdf")
 
         # Verify print output
         print_calls = [str(call) for call in mock_print.call_args_list]
@@ -99,6 +105,8 @@ class TestWorkflowIntegration:
                 email_data,
                 directory=str(receipts_dir),
                 filename_template="{date}_{from}_invoice.pdf",
+                use_year_dirs=False,
+                store_metadata=False,
             )
 
         # Check directory was created
@@ -148,7 +156,9 @@ class TestWorkflowIntegration:
         receipts_dir = Path(temp_config_dir) / "receipts"
 
         with patch("builtins.print") as mock_print:
-            save_email_pdf(email_data, directory=str(receipts_dir))
+            save_email_pdf(
+                email_data, directory=str(receipts_dir), use_year_dirs=False, store_metadata=False
+            )
 
         # Check PDF was created
         pdf_files = list(receipts_dir.glob("*.pdf"))
@@ -186,11 +196,19 @@ class TestWorkflowIntegration:
         # Save only PDFs
         docs_dir = Path(temp_config_dir) / "documents"
 
-        save_attachment(email_data, directory=str(docs_dir), pattern="*.pdf")
+        save_attachment(
+            email_data,
+            directory=str(docs_dir),
+            pattern="*.pdf",
+            use_year_dirs=False,
+            store_metadata=False,
+        )
 
         # Check only PDFs were saved
         pdf_files = list(docs_dir.glob("*.pdf"))
         assert len(pdf_files) == 2
 
-        pdf_names = {f.name for f in pdf_files}
-        assert pdf_names == {"report.pdf", "contract.pdf"}
+        # Check that both PDFs were saved with date prefixes
+        pdf_names = [f.name for f in pdf_files]
+        assert any(name.endswith("-report.pdf") for name in pdf_names)
+        assert any(name.endswith("-contract.pdf") for name in pdf_names)
