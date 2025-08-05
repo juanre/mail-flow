@@ -2,6 +2,7 @@ import email
 import re
 from typing import Dict, List, Any, Optional
 from email.message import Message
+from email.header import decode_header
 import mimetypes
 import logging
 
@@ -70,6 +71,20 @@ class EmailExtractor:
         if not address:
             return ""
 
+        # Decode MIME-encoded addresses
+        try:
+            decoded_parts = []
+            for part, encoding in decode_header(address):
+                if isinstance(part, bytes):
+                    decoded_parts.append(part.decode(encoding or "utf-8", errors="replace"))
+                else:
+                    decoded_parts.append(part)
+            address = "".join(decoded_parts)
+        except Exception as e:
+            logger.warning(f"Failed to decode address header: {e}")
+            # Fall back to original address
+            pass
+
         # Truncate if too long
         return truncate_string(address.strip(), 500)
 
@@ -77,6 +92,21 @@ class EmailExtractor:
         """Clean and validate subject"""
         if not subject:
             return ""
+
+        # Decode MIME-encoded headers
+        decoded_parts = []
+        try:
+            for part, encoding in decode_header(subject):
+                if isinstance(part, bytes):
+                    # Decode bytes using the specified encoding or utf-8
+                    decoded_parts.append(part.decode(encoding or "utf-8", errors="replace"))
+                else:
+                    decoded_parts.append(part)
+            subject = "".join(decoded_parts)
+        except Exception as e:
+            logger.warning(f"Failed to decode subject header: {e}")
+            # Fall back to original subject
+            pass
 
         subject = subject.strip()
 
