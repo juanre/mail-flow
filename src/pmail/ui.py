@@ -1,9 +1,12 @@
 from typing import List, Tuple, Optional
 import sys
 from datetime import datetime
+import logging
 
 from pmail.linein import LineInput
 from pmail.models import CriteriaInstance, WorkflowDefinition
+
+logger = logging.getLogger(__name__)
 
 
 class WorkflowSelector:
@@ -47,6 +50,9 @@ class WorkflowSelector:
             options.append(wf_name)
             option_map[wf_name] = wf_name
 
+        # Debug: Show what options are available
+        logger.debug(f"Available options for tab completion: {options}")
+
         if rankings:
             print("Suggested workflows (based on similarity):")
             for i, (workflow_name, score, instances) in enumerate(rankings, 1):
@@ -85,6 +91,11 @@ class WorkflowSelector:
         else:
             default = None
             prompt_text = "Selection"
+
+        # Debug: print options being passed to LineInput
+        print(
+            f"Debug: Tab completion options: {', '.join(options[:10])}{'...' if len(options) > 10 else ''}"
+        )
 
         selector = LineInput(prompt_text, typical=options, only_typical=False, with_history=True)
 
