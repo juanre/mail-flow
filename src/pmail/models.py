@@ -169,11 +169,11 @@ class DataStore:
 
         try:
             # Just create one basic workflow so the system works out of the box
-            defaults["save-attachments"] = WorkflowDefinition(
-                name="save-attachments",
-                description="Save all attachments",
-                action_type="save_attachment",
-                action_params={"directory": "~/Downloads/email-attachments"},
+            defaults["create-todo"] = WorkflowDefinition(
+                name="create-todo",
+                description="Create a todo item from email",
+                action_type="create_todo",
+                action_params={"todo_file": "~/todos.txt"},
             )
         except ValidationError as e:
             logger.error(f"Failed to create default workflow: {e}")

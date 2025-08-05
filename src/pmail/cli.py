@@ -103,22 +103,14 @@ def init(reset):
             }
             default_workflows.append(workflow)
 
-    # Add a few generic workflows
-    default_workflows.extend(
-        [
-            {
-                "name": "create-todo",
-                "description": "Create a todo item from email",
-                "action_type": "create_todo",
-                "action_params": {"todo_file": "~/todos.txt"},
-            },
-            {
-                "name": "save-attachments",
-                "description": "Save all attachments",
-                "action_type": "save_attachment",
-                "action_params": {"directory": "~/Downloads/email-attachments"},
-            },
-        ]
+    # Add generic workflow
+    default_workflows.append(
+        {
+            "name": "create-todo",
+            "description": "Create a todo item from email",
+            "action_type": "create_todo",
+            "action_params": {"todo_file": "~/todos.txt"},
+        }
     )
 
     click.echo("\nCreating default workflows...")
@@ -139,9 +131,6 @@ def init(reset):
     for entity_code, _ in entities:
         for category_code, _ in categories:
             directories.append(f"~/Documents/pmail/{entity_code}/{category_code}")
-
-    # Add generic directories
-    directories.append("~/Downloads/email-attachments")
 
     for dir_path in directories:
         full_path = Path(dir_path).expanduser()
