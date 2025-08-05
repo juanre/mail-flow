@@ -6,35 +6,34 @@ from email.message import EmailMessage
 from unittest.mock import patch, MagicMock
 
 from pmail.pdf_converter import (
-    email_to_html,
+    extract_best_html_from_message,
+    wrap_email_html,
     convert_email_to_pdf,
     save_email_as_pdf,
-    clean_html_for_pdf,
 )
+from pmail.exceptions import WorkflowError
 
 
 class TestPDFConverter:
-    def test_email_to_html_plain_text(self):
+    def test_extract_plain_text_to_html(self):
         """Test converting plain text email to HTML"""
-        email_data = {
-            "from": "sender@example.com",
-            "to": "recipient@example.com",
-            "subject": "Test Email",
-            "date": "Mon, 01 Jan 2024 12:00:00 +0000",
-            "body": "This is a test email.\nWith multiple lines.",
-            "attachments": [],
-        }
+        msg = EmailMessage()
+        msg["From"] = "sender@example.com"
+        msg["To"] = "recipient@example.com"
+        msg["Subject"] = "Test Email"
+        msg.set_content("This is a test email.\nWith multiple lines.")
 
-        html = email_to_html(email_data)
+        html_content, is_original = extract_best_html_from_message(msg)
 
-        assert "sender@example.com" in html
-        assert "recipient@example.com" in html
-        assert "Test Email" in html
-        assert "This is a test email.<br>" in html
-        assert "With multiple lines." in html
+        # Should convert to HTML
+        assert is_original is False
+        assert "This is a test email." in html_content
+        assert "<br>" in html_content
 
-    def test_email_to_html_with_attachments(self):
-        """Test HTML generation includes attachment list"""
+    def test_wrap_email_with_attachments(self):
+        """Test wrapping HTML with email headers"""
+        html_content = "<html><body>Email content</body></html>"
+
         email_data = {
             "from": "sender@example.com",
             "to": "recipient@example.com",
@@ -47,15 +46,15 @@ class TestPDFConverter:
             ],
         }
 
-        html = email_to_html(email_data)
+        wrapped = wrap_email_html(html_content, email_data, is_original_html=True)
 
-        assert "Attachments:" in html
-        assert "invoice.pdf (100.0 KB)" in html
-        assert "receipt.jpg (50.0 KB)" in html
-        assert "📎" in html
+        assert "sender@example.com" in wrapped
+        assert "Invoice" in wrapped
 
-    def test_email_to_html_escapes_content(self):
-        """Test that HTML special characters are escaped"""
+    def test_wrap_email_escapes_headers(self):
+        """Test that HTML special characters are escaped in headers"""
+        html_content = "<html><body>Content</body></html>"
+
         email_data = {
             "from": "<script>alert('xss')</script>",
             "to": "test@example.com",
@@ -65,41 +64,31 @@ class TestPDFConverter:
             "attachments": [],
         }
 
-        html = email_to_html(email_data)
+        wrapped = wrap_email_html(html_content, email_data, is_original_html=True)
 
-        # Should escape HTML tags
-        assert "&lt;script&gt;" in html
-        assert "<script>" not in html
-        assert "Test &amp; &lt;b&gt;Demo&lt;/b&gt;" in html
+        # Headers should be escaped
+        assert "&lt;script&gt;" in wrapped
+        assert "&amp;" in wrapped
+        assert "&lt;b&gt;" in wrapped
 
-    def test_clean_html_for_pdf(self):
-        """Test HTML cleaning for PDF conversion"""
-        html_with_scripts = """
-        <html>
-        <head><script>alert('test');</script></head>
-        <body>
-            <p style="color: red; position: absolute; transform: rotate(45deg);">Text</p>
-            <img src="http://example.com/image.jpg" alt="External">
-        </body>
-        </html>
-        """
+    def test_extract_html_from_multipart(self):
+        """Test extracting HTML from multipart email"""
+        msg = EmailMessage()
+        msg["From"] = "sender@example.com"
+        msg["To"] = "recipient@example.com"
+        msg["Subject"] = "HTML Email"
+        msg.set_content("Plain text version")
+        msg.add_alternative("<h1>HTML version</h1>", subtype="html")
 
-        cleaned = clean_html_for_pdf(html_with_scripts)
+        html_content, is_original = extract_best_html_from_message(msg)
 
-        # Scripts should be removed
-        assert "<script>" not in cleaned
-        assert "alert" not in cleaned
-
-        # Complex styles simplified
-        assert "position: absolute" not in cleaned
-        assert "color: red" in cleaned  # Basic styles kept
-
-        # External images replaced
-        assert "http://example.com" not in cleaned
-        assert "[Image:" in cleaned
+        # Should prefer HTML version
+        assert is_original is True
+        assert "<h1>HTML version</h1>" in html_content
+        assert "Plain text version" not in html_content
 
     def test_save_email_as_pdf(self, temp_config_dir):
-        """Test the main save_email_as_pdf function"""
+        """Test save_email_as_pdf function requires message object"""
         email_data = {
             "from": "invoice@company.com",
             "to": "user@example.com",
@@ -113,25 +102,16 @@ class TestPDFConverter:
         # Test with custom directory
         receipts_dir = Path(temp_config_dir) / "receipts"
 
-        save_email_as_pdf(
-            email_data,
-            directory=str(receipts_dir),
-            filename_template="{from}_{subject}.pdf",
-            use_year_dirs=False,
-            store_metadata=False,
-        )
-
-        # Should create directory
-        assert receipts_dir.exists()
-
-        # Should create actual PDF file
-        pdf_files = list(receipts_dir.glob("*.pdf"))
-        assert len(pdf_files) == 1
-        assert "company.com" in pdf_files[0].name
-        assert "Invoice" in pdf_files[0].name
-
-        # PDF should have content
-        assert pdf_files[0].stat().st_size > 1000  # Should be at least 1KB
+        # Should raise error without message object
+        with pytest.raises(WorkflowError) as exc_info:
+            save_email_as_pdf(
+                email_data,
+                directory=str(receipts_dir),
+                filename_template="{from}_{subject}.pdf",
+                use_year_dirs=False,
+                store_metadata=False,
+            )
+        assert "Message object is required" in str(exc_info.value)
 
     def test_save_email_as_pdf_with_message_obj(self, temp_config_dir):
         """Test PDF conversion with Message object for better HTML extraction"""
@@ -190,7 +170,9 @@ class TestPDFConverter:
 
         # Verify calls
         mock_p.chromium.launch.assert_called_once_with(headless=True)
-        mock_page.set_content.assert_called_once_with(html_content, timeout=30000)
+        mock_page.set_content.assert_called_once_with(
+            html_content, timeout=30000, wait_until="networkidle"
+        )
         mock_page.pdf.assert_called_once()
         mock_browser.close.assert_called_once()
 
@@ -208,8 +190,6 @@ class TestPDFConverter:
         pdf_path = Path(temp_config_dir) / "test.pdf"
 
         # Should raise WorkflowError with helpful message
-        from pmail.exceptions import WorkflowError
-
         with pytest.raises(WorkflowError) as exc_info:
             convert_email_to_pdf(html_content, pdf_path)
 

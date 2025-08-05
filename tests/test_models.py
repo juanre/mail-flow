@@ -65,14 +65,14 @@ class TestWorkflowDefinition:
         workflow = WorkflowDefinition(
             name="test-workflow",
             description="Test",
-            action_type="flag",
-            action_params={"flag": "important"},
+            action_type="save_pdf",
+            action_params={"directory": "~/pdfs"},
         )
 
         # Convert to dict
         data = workflow.to_dict()
         assert data["name"] == "test-workflow"
-        assert data["action_type"] == "flag"
+        assert data["action_type"] == "save_pdf"
 
         # Convert back from dict
         workflow2 = WorkflowDefinition.from_dict(data)
@@ -86,8 +86,8 @@ class TestDataStore:
 
         # Should have default workflows
         assert len(store.workflows) > 0
-        assert "archive" in store.workflows
-        assert "needs-reply" in store.workflows
+        assert "save-attachments" in store.workflows
+        assert "save-receipts" in store.workflows
 
         # Should start with no criteria instances
         assert len(store.criteria_instances) == 0
@@ -123,8 +123,8 @@ class TestDataStore:
         workflow = WorkflowDefinition(
             name="custom-workflow",
             description="Custom test workflow",
-            action_type="flag",
-            action_params={"flag": "custom"},
+            action_type="create_todo",
+            action_params={"todo_file": "~/todos.txt"},
         )
 
         store.add_workflow(workflow)
@@ -144,16 +144,16 @@ class TestDataStore:
         for i in range(3):
             instance = CriteriaInstance(
                 email_id=f"test{i}",
-                workflow_name="archive" if i < 2 else "needs-reply",
+                workflow_name="save-attachments" if i < 2 else "save-receipts",
                 timestamp=datetime.now(),
                 email_features={},
             )
             store.add_criteria_instance(instance)
 
-        # Get criteria for archive workflow
-        archive_criteria = store.get_criteria_for_workflow("archive")
-        assert len(archive_criteria) == 2
+        # Get criteria for save-attachments workflow
+        attach_criteria = store.get_criteria_for_workflow("save-attachments")
+        assert len(attach_criteria) == 2
 
-        # Get criteria for needs-reply workflow
-        reply_criteria = store.get_criteria_for_workflow("needs-reply")
-        assert len(reply_criteria) == 1
+        # Get criteria for save-receipts workflow
+        receipt_criteria = store.get_criteria_for_workflow("save-receipts")
+        assert len(receipt_criteria) == 1

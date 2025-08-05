@@ -55,45 +55,6 @@ def save_attachment(
         )
 
 
-def flag_in_mutt(message: Dict[str, Any], flag: str):
-    """Flag the message in mutt"""
-    # Sanitize inputs for display
-    message_id = sanitize_shell_arg(message.get("message_id", ""))
-    flag = sanitize_shell_arg(flag)
-
-    if not message_id:
-        raise WorkflowError("No message ID available")
-
-    # Note: We can't directly modify mutt's state from outside
-    # These are instructions for the user
-    print(f"\nTo flag this message in mutt:")
-    print(f"  1. Search for message: /~i {message_id}")
-    print(f"  2. Tag the message: t")
-    print(f"  3. Apply flag: ;W{flag}")
-    print(f"\nMessage ID: {message_id}")
-
-    logger.info(f"Flag instructions provided for message {message_id}")
-
-
-def copy_to_folder(message: Dict[str, Any], folder: str):
-    """Copy message to another folder"""
-    # Sanitize inputs for display
-    message_id = sanitize_shell_arg(message.get("message_id", ""))
-    folder = sanitize_shell_arg(folder)
-
-    if not message_id:
-        raise WorkflowError("No message ID available")
-
-    # Note: We can't directly modify mutt's state from outside
-    # These are instructions for the user
-    print(f"\nTo copy this message to '{folder}' in mutt:")
-    print(f"  1. Search for message: /~i {message_id}")
-    print(f"  2. Save/copy: s{folder}")
-    print(f"\nMessage ID: {message_id}")
-
-    logger.info(f"Copy instructions provided for message {message_id}")
-
-
 def create_todo(message: Dict[str, Any], todo_file: str = "~/todos.txt"):
     """Create a todo item from the email"""
     try:
@@ -231,11 +192,9 @@ def save_pdf(
 
 # Action type mapping - maps action types to functions
 Workflows = {
-    "flag": flag_in_mutt,
     "save_attachment": save_attachment,
     "save_email_as_pdf": save_email_pdf,
     "save_pdf": save_pdf,
-    "copy_to_folder": copy_to_folder,
     "create_todo": create_todo,
 }
 

@@ -64,8 +64,6 @@ class WorkflowDefinition:
     # Valid action types
     VALID_ACTION_TYPES = {
         "save_attachment",
-        "flag",
-        "copy_to_folder",
         "create_todo",
         "save_email_as_pdf",
         "save_pdf",
@@ -97,22 +95,6 @@ class WorkflowDefinition:
                 validate_path(self.action_params["directory"])
             except Exception as e:
                 raise ValidationError(f"Invalid directory path: {e}")
-
-        elif self.action_type == "flag":
-            if "flag" not in self.action_params:
-                raise ValidationError("flag action requires 'flag' parameter")
-            # Limit flag name length
-            flag = self.action_params["flag"]
-            if not isinstance(flag, str) or len(flag) > 50:
-                raise ValidationError("Flag name must be string under 50 characters")
-
-        elif self.action_type == "copy_to_folder":
-            if "folder" not in self.action_params:
-                raise ValidationError("copy_to_folder requires 'folder' parameter")
-            # Basic folder name validation
-            folder = self.action_params["folder"]
-            if not isinstance(folder, str) or len(folder) > 200:
-                raise ValidationError("Folder name must be string under 200 characters")
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -186,23 +168,23 @@ class DataStore:
         defaults = {}
 
         try:
-            defaults["archive"] = WorkflowDefinition(
-                name="archive",
-                description="Archive the email",
-                action_type="flag",
-                action_params={"flag": "archived"},
-            )
-            defaults["needs-reply"] = WorkflowDefinition(
-                name="needs-reply",
-                description="Mark email as needing reply",
-                action_type="flag",
-                action_params={"flag": "important"},
-            )
             defaults["save-attachments"] = WorkflowDefinition(
                 name="save-attachments",
                 description="Save all attachments",
                 action_type="save_attachment",
                 action_params={"directory": "~/Downloads/email-attachments"},
+            )
+            defaults["save-receipts"] = WorkflowDefinition(
+                name="save-receipts",
+                description="Save receipts (PDFs or convert email)",
+                action_type="save_pdf",
+                action_params={"directory": "~/receipts"},
+            )
+            defaults["create-todos"] = WorkflowDefinition(
+                name="create-todos",
+                description="Create todo items from emails",
+                action_type="create_todo",
+                action_params={"todo_file": "~/todos.txt"},
             )
         except ValidationError as e:
             logger.error(f"Failed to create default workflow: {e}")

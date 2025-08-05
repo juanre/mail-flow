@@ -55,27 +55,27 @@ class TestLearningProcess:
 
         # Add error notification workflow
         error_workflow = WorkflowDefinition(
-            name="flag-errors",
-            description="Flag error notifications for review",
-            action_type="flag",
-            action_params={"flag": "error"},
+            name="save-errors",
+            description="Save error notifications as PDF",
+            action_type="save_email_as_pdf",
+            action_params={"directory": "~/errors"},
         )
         data_store.add_workflow(error_workflow)
 
-        # Add archive workflow for updates
+        # Add todo workflow for updates
         update_workflow = WorkflowDefinition(
-            name="archive-updates",
-            description="Archive software update notifications",
-            action_type="flag",
-            action_params={"flag": "archived"},
+            name="create-update-todos",
+            description="Create todos for software updates",
+            action_type="create_todo",
+            action_params={"todo_file": "~/updates.txt"},
         )
         data_store.add_workflow(update_workflow)
 
         # Verify workflows were saved
         assert len(data_store.workflows) >= 6  # 3 default + 3 new
         assert "save-invoices" in data_store.workflows
-        assert "flag-errors" in data_store.workflows
-        assert "archive-updates" in data_store.workflows
+        assert "save-errors" in data_store.workflows
+        assert "create-update-todos" in data_store.workflows
 
     def test_first_learning_phase(self, temp_pmail_dir, real_emails):
         """Test the first phase of learning - training the system"""
@@ -92,9 +92,9 @@ class TestLearningProcess:
             ("amazon_invoice", "save-invoices"),
             ("cloudflare_invoice", "save-invoices"),
             ("other_invoice", "save-invoices"),
-            ("dropbox_update", "archive-updates"),
+            ("dropbox_update", "create-update-todos"),
             ("github_notification", "archive"),
-            ("prodigi_failed", "flag-errors"),
+            ("prodigi_failed", "save-errors"),
         ]
 
         for email_name, workflow_name in training_data:
@@ -121,7 +121,7 @@ class TestLearningProcess:
         invoice_criteria = data_store.get_criteria_for_workflow("save-invoices")
         assert len(invoice_criteria) >= 3
 
-        error_criteria = data_store.get_criteria_for_workflow("flag-errors")
+        error_criteria = data_store.get_criteria_for_workflow("save-errors")
         assert len(error_criteria) >= 1
 
     def test_similarity_learning(self, temp_pmail_dir, real_emails):
@@ -171,9 +171,9 @@ class TestLearningProcess:
             "amazon_invoice": "save-invoices",
             "cloudflare_invoice": "save-invoices",
             "other_invoice": "save-invoices",
-            "dropbox_update": "archive-updates",
+            "dropbox_update": "create-update-todos",
             "github_notification": "archive",
-            "prodigi_failed": "flag-errors",
+            "prodigi_failed": "save-errors",
         }
 
         correct_predictions = 0

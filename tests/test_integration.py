@@ -71,8 +71,8 @@ class TestIntegration:
         # First, train the system with a few examples
         training_emails = [
             ("amazon_invoice", "save-invoices"),
-            ("prodigi_failed", "flag-errors"),
-            ("github_notification", "archive"),
+            ("prodigi_failed", "save-errors"),
+            ("github_notification", "create-todos"),
         ]
 
         # Create workflows
@@ -85,11 +85,17 @@ class TestIntegration:
                 action_type="save_attachment",
                 action_params={"directory": "~/invoices", "pattern": "*.pdf"},
             ),
-            "flag-errors": WorkflowDefinition(
-                name="flag-errors",
-                description="Flag error emails",
-                action_type="flag",
-                action_params={"flag": "error"},
+            "save-errors": WorkflowDefinition(
+                name="save-errors",
+                description="Save error emails as PDF",
+                action_type="save_email_as_pdf",
+                action_params={"directory": "~/errors"},
+            ),
+            "create-todos": WorkflowDefinition(
+                name="create-todos",
+                description="Create todo items from emails",
+                action_type="create_todo",
+                action_params={"todo_file": "~/todos.txt"},
             ),
         }
 

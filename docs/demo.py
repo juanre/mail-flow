@@ -53,16 +53,16 @@ def setup_workflows(data_store):
             },
         ),
         WorkflowDefinition(
-            name="flag-errors",
-            description="Flag error notifications",
-            action_type="flag",
-            action_params={"flag": "error"},
+            name="save-errors",
+            description="Save error notifications as PDF",
+            action_type="save_email_as_pdf",
+            action_params={"directory": "~/errors"},
         ),
         WorkflowDefinition(
-            name="archive-updates",
-            description="Archive software updates",
-            action_type="flag",
-            action_params={"flag": "archived"},
+            name="create-update-todos",
+            description="Create todos for software updates",
+            action_type="create_todo",
+            action_params={"todo_file": "~/updates.txt"},
         ),
     ]
 
@@ -84,8 +84,8 @@ def train_system(config, emails):
     training = [
         ("amazon_invoice", "save-invoices", "Amazon invoice"),
         ("cloudflare_invoice", "save-invoices", "Cloudflare invoice"),
-        ("prodigi_failed", "flag-errors", "Prodigi error notification"),
-        ("dropbox_update", "archive-updates", "Dropbox update"),
+        ("prodigi_failed", "save-errors", "Prodigi error notification"),
+        ("dropbox_update", "create-update-todos", "Dropbox update"),
     ]
 
     for email_name, workflow, description in training:

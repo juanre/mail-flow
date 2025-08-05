@@ -141,11 +141,9 @@ class WorkflowSelector:
             else:
                 print("Template not found, creating custom workflow...")
                 action_types = [
-                    "flag",
                     "save_attachment",
                     "save_email_as_pdf",
                     "save_pdf",
-                    "copy_to_folder",
                     "create_todo",
                     "custom",
                 ]
@@ -154,11 +152,9 @@ class WorkflowSelector:
                 action_params = {}
         else:
             action_types = [
-                "flag",
                 "save_attachment",
                 "save_email_as_pdf",
                 "save_pdf",
-                "copy_to_folder",
                 "create_todo",
                 "custom",
             ]
@@ -167,11 +163,7 @@ class WorkflowSelector:
             action_params = {}
 
         # Configure action parameters if not using template
-        if action_type == "flag" and not action_params:
-            flag_input = LineInput("Flag name", typical=["important", "archived", "todo"])
-            action_params["flag"] = flag_input.ask()
-
-        elif action_type == "save_attachment" and not action_params:
+        if action_type == "save_attachment" and not action_params:
             dir_input = LineInput(
                 "Directory", typical=["~/Downloads", "~/Documents", "~/invoices"]
             )
@@ -207,10 +199,6 @@ class WorkflowSelector:
             action_params["filename_template"] = template_input.ask(
                 default="{date}_{from}_{subject}"
             )
-
-        elif action_type == "copy_to_folder" and not action_params:
-            folder_input = LineInput("Folder name")
-            action_params["folder"] = folder_input.ask()
 
         elif action_type == "create_todo" and not action_params:
             file_input = LineInput("Todo file", typical=["~/todos.txt"])

@@ -1,9 +1,10 @@
-"""Convert emails to PDF format"""
+"""Convert emails to PDF format - preserving original content"""
 
 import os
 import logging
+import base64
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 from email.message import Message
 import html
 from datetime import datetime
@@ -17,31 +18,157 @@ from pmail.exceptions import WorkflowError
 logger = logging.getLogger(__name__)
 
 
-def email_to_html(email_data: Dict[str, Any], message_obj: Optional[Message] = None) -> str:
-    """Convert email data to HTML format"""
+def extract_best_html_from_message(message_obj: Message) -> Tuple[str, bool]:
+    """
+    Extract the best HTML representation from an email message.
+    Returns (html_content, is_html_original)
 
-    # Extract data
+    Priority:
+    1. text/html part (original HTML)
+    2. multipart/related with text/html (HTML with inline images)
+    3. text/plain converted to HTML
+    """
+    html_content = None
+    plain_content = None
+    inline_images = {}
+
+    # First pass: collect all parts
+    for part in message_obj.walk():
+        content_type = part.get_content_type()
+        content_disposition = str(part.get("Content-Disposition", ""))
+
+        # Skip attachments
+        if "attachment" in content_disposition:
+            continue
+
+        if content_type == "text/html":
+            try:
+                charset = part.get_content_charset() or "utf-8"
+                html_content = part.get_payload(decode=True).decode(charset, errors="replace")
+            except Exception as e:
+                logger.warning(f"Failed to decode HTML part: {e}")
+
+        elif content_type == "text/plain" and not plain_content:
+            try:
+                charset = part.get_content_charset() or "utf-8"
+                plain_content = part.get_payload(decode=True).decode(charset, errors="replace")
+            except Exception as e:
+                logger.warning(f"Failed to decode plain text part: {e}")
+
+        elif content_type.startswith("image/") and part.get("Content-ID"):
+            # Inline image - store for embedding
+            try:
+                image_data = part.get_payload(decode=True)
+                content_id = part.get("Content-ID").strip("<>")
+
+                # Create data URL for embedding
+                mime_type = content_type
+                data_url = f"data:{mime_type};base64,{base64.b64encode(image_data).decode()}"
+                inline_images[content_id] = data_url
+
+                # Also store by filename if available
+                filename = part.get_filename()
+                if filename:
+                    inline_images[filename] = data_url
+            except Exception as e:
+                logger.warning(f"Failed to process inline image: {e}")
+
+    # If we have HTML, process it
+    if html_content:
+        # Replace CID references with data URLs for inline images
+        for cid, data_url in inline_images.items():
+            html_content = html_content.replace(f"cid:{cid}", data_url)
+            html_content = html_content.replace(f'"cid:{cid}"', f'"{data_url}"')
+            html_content = html_content.replace(f"'cid:{cid}'", f"'{data_url}'")
+
+        return html_content, True
+
+    # Fallback to plain text converted to HTML
+    if plain_content:
+        # Basic HTML conversion preserving structure
+        escaped = html.escape(plain_content)
+        # Convert URLs to links
+        import re
+
+        url_pattern = r'(https?://[^\s<>"{}|\\^`\[\]]+)'
+        escaped = re.sub(url_pattern, r'<a href="\1">\1</a>', escaped)
+        # Convert newlines to <br>
+        escaped = escaped.replace("\n", "<br>\n")
+
+        html_content = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {{
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 20px;
+        }}
+    </style>
+</head>
+<body>
+{escaped}
+</body>
+</html>"""
+        return html_content, False
+
+    # Last resort - empty HTML
+    return "<html><body>No content available</body></html>", False
+
+
+def wrap_email_html(html_content: str, email_data: Dict[str, Any], is_original_html: bool) -> str:
+    """
+    Wrap email HTML content with headers and proper structure.
+    Preserves original HTML as much as possible.
+    """
+    # Extract headers
     from_addr = html.escape(email_data.get("from", ""))
     to_addr = html.escape(email_data.get("to", ""))
     subject = html.escape(email_data.get("subject", ""))
     date = html.escape(email_data.get("date", ""))
-    body = email_data.get("body", "")
 
-    # Check if body is HTML or plain text
-    is_html = False
-    if message_obj:
-        for part in message_obj.walk():
-            if part.get_content_type() == "text/html":
-                is_html = True
-                break
+    # If we have original HTML, try to preserve it better
+    if is_original_html and "<html" in html_content.lower():
+        # Parse the HTML to insert headers
+        soup = BeautifulSoup(html_content, "html.parser")
 
-    if not is_html:
-        # Convert plain text to HTML
-        body = html.escape(body)
-        body = body.replace("\n", "<br>\n")
+        # Create header div
+        header_html = f"""
+<div style="background-color: #f0f0f0; padding: 15px; margin-bottom: 20px; border-radius: 5px; font-family: Arial, sans-serif;">
+    <div style="margin: 5px 0;"><strong>From:</strong> {from_addr}</div>
+    <div style="margin: 5px 0;"><strong>To:</strong> {to_addr}</div>
+    <div style="margin: 5px 0;"><strong>Subject:</strong> {subject}</div>
+    <div style="margin: 5px 0;"><strong>Date:</strong> {date}</div>
+</div>
+"""
 
-    # Create HTML document
-    html_content = f"""<!DOCTYPE html>
+        # Find body tag and insert header at the beginning
+        body_tag = soup.find("body")
+        if body_tag:
+            # Parse header as BeautifulSoup object and insert
+            header_soup = BeautifulSoup(header_html, "html.parser")
+            body_tag.insert(0, header_soup)
+        else:
+            # No body tag, wrap everything
+            return f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{subject}</title>
+</head>
+<body>
+    {header_html}
+    {html_content}
+</body>
+</html>"""
+
+        return str(soup)
+
+    else:
+        # Simple HTML or converted from plain text
+        return f"""<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -52,7 +179,7 @@ def email_to_html(email_data: Dict[str, Any], message_obj: Optional[Message] = N
             margin: 20px;
             line-height: 1.6;
         }}
-        .header {{
+        .email-header {{
             background-color: #f0f0f0;
             padding: 15px;
             border-radius: 5px;
@@ -61,97 +188,54 @@ def email_to_html(email_data: Dict[str, Any], message_obj: Optional[Message] = N
         .header-item {{
             margin: 5px 0;
         }}
-        .label {{
-            font-weight: bold;
-            display: inline-block;
-            width: 80px;
-        }}
-        .content {{
+        .email-content {{
             padding: 20px;
             background-color: #ffffff;
             border: 1px solid #ddd;
             border-radius: 5px;
         }}
-        .attachments {{
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border-radius: 5px;
-        }}
-        .attachment-item {{
-            margin: 5px 0;
-        }}
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="header-item"><span class="label">From:</span> {from_addr}</div>
-        <div class="header-item"><span class="label">To:</span> {to_addr}</div>
-        <div class="header-item"><span class="label">Subject:</span> {subject}</div>
-        <div class="header-item"><span class="label">Date:</span> {date}</div>
+    <div class="email-header">
+        <div class="header-item"><strong>From:</strong> {from_addr}</div>
+        <div class="header-item"><strong>To:</strong> {to_addr}</div>
+        <div class="header-item"><strong>Subject:</strong> {subject}</div>
+        <div class="header-item"><strong>Date:</strong> {date}</div>
     </div>
     
-    <div class="content">
-        {body}
+    <div class="email-content">
+        {html_content}
     </div>
-"""
-
-    # Add attachments list if any
-    if email_data.get("attachments"):
-        html_content += """
-    <div class="attachments">
-        <h3>Attachments:</h3>
-"""
-        for att in email_data["attachments"]:
-            filename = html.escape(att.get("filename", ""))
-            size = att.get("size", 0)
-            size_kb = size / 1024
-            html_content += (
-                f'        <div class="attachment-item">📎 {filename} ({size_kb:.1f} KB)</div>\n'
-            )
-
-        html_content += "    </div>\n"
-
-    html_content += """
 </body>
 </html>"""
 
-    return html_content
 
+def add_attachments_list(html_content: str, email_data: Dict[str, Any]) -> str:
+    """Add a list of attachments to the HTML if any exist"""
+    if not email_data.get("attachments"):
+        return html_content
 
-def clean_html_for_pdf(html_content: str) -> str:
-    """Clean and simplify HTML for better PDF conversion"""
-    soup = BeautifulSoup(html_content, "html.parser")
+    attachments_html = """
+<div style="margin-top: 20px; padding: 10px; background-color: #f9f9f9; border-radius: 5px; font-family: Arial, sans-serif;">
+    <h3 style="margin-top: 0;">Attachments:</h3>
+"""
 
-    # Remove scripts, styles, and other problematic elements
-    for tag in soup(["script", "style", "meta", "link"]):
-        tag.decompose()
+    for att in email_data["attachments"]:
+        filename = html.escape(att.get("filename", ""))
+        size = att.get("size", 0)
+        size_kb = size / 1024
+        attachments_html += (
+            f'    <div style="margin: 5px 0;">📎 {filename} ({size_kb:.1f} KB)</div>\n'
+        )
 
-    # Remove external images that might cause issues
-    for img in soup.find_all("img"):
-        src = img.get("src", "")
-        if src.startswith(("http://", "https://", "//")):
-            img["alt"] = f"[Image: {img.get('alt', 'external image')}]"
-            img["src"] = ""
+    attachments_html += "</div>"
 
-    # Simplify overly complex styles
-    for element in soup.find_all(style=True):
-        style = element["style"]
-        # Keep only basic styles
-        allowed_props = [
-            "color",
-            "background-color",
-            "font-weight",
-            "font-size",
-            "text-align",
-        ]
-        style_parts = []
-        for prop in style.split(";"):
-            if any(allowed in prop for allowed in allowed_props):
-                style_parts.append(prop.strip())
-        element["style"] = "; ".join(style_parts)
-
-    return str(soup)
+    # Insert before closing body tag
+    if "</body>" in html_content:
+        return html_content.replace("</body>", f"{attachments_html}\n</body>")
+    else:
+        return html_content + attachments_html
 
 
 def convert_email_to_pdf(html_content: str, output_path: Path) -> None:
@@ -181,18 +265,9 @@ def convert_email_to_pdf(html_content: str, output_path: Path) -> None:
 
             page = browser.new_page()
 
-            # Block external requests for security and performance
-            page.route(
-                "**/*",
-                lambda route: (
-                    route.abort()
-                    if route.request.url.startswith(("http://", "https://"))
-                    else route.continue_()
-                ),
-            )
-
             # Set content with timeout
-            page.set_content(html_content, timeout=30000)  # 30 second timeout
+            # Let Playwright handle external images naturally
+            page.set_content(html_content, timeout=30000, wait_until="networkidle")
 
             # Generate PDF with good defaults
             page.pdf(
@@ -228,21 +303,27 @@ def save_email_as_pdf(
     store_metadata: bool = True,
 ) -> None:
     """
-    Save email as PDF file using Playwright.
+    Save email as PDF file using Playwright - preserving original content.
 
     Note: Requires Playwright browsers to be installed:
         playwright install chromium
 
     Args:
         email_data: Extracted email data
-        message_obj: Original email Message object (for better HTML extraction)
+        message_obj: Original email Message object (required for proper conversion)
         directory: Directory to save PDF
         filename_template: Template for filename generation
         use_year_dirs: Whether to create year subdirectories
         store_metadata: Whether to store metadata in SQLite
     """
+    if not message_obj:
+        raise WorkflowError(
+            "Email Message object is required for PDF conversion",
+            recovery_hint="Ensure the email is properly parsed before conversion",
+        )
+
     try:
-        # Validate directory - allow the provided directory as base
+        # Validate directory
         base_dir = validate_path(directory, allowed_base_dirs=[os.path.expanduser("~"), directory])
 
         # Generate filename from template
@@ -299,10 +380,16 @@ def save_email_as_pdf(
                 output_path = dir_path / f"{base}_{counter}.pdf"
                 counter += 1
 
-        # Convert email to HTML
-        html_content = email_to_html(email_data, message_obj)
+        # Extract best HTML representation
+        html_content, is_original = extract_best_html_from_message(message_obj)
 
-        # Convert to PDF using Playwright
+        # Wrap with headers
+        html_content = wrap_email_html(html_content, email_data, is_original)
+
+        # Add attachments list
+        html_content = add_attachments_list(html_content, email_data)
+
+        # Convert to PDF
         convert_email_to_pdf(html_content, output_path)
 
         print(f"  ✓ Saved email as PDF: {output_path}")
@@ -325,7 +412,7 @@ def save_email_as_pdf(
                     email_data=email_data,
                     workflow_name=email_data.get("_workflow_name", "save_email_as_pdf"),
                     pdf_type="converted",
-                    pdf_text=body_text,  # Use email text since we converted it
+                    pdf_text=body_text,
                     confidence_score=email_data.get("_confidence_score"),
                     document_type=doc_type,
                     document_category=doc_category,
