@@ -97,12 +97,44 @@ class LineInput:
             if os.path.exists(self.history_file):
                 readline.read_history_file(self.history_file)
         try:
-            if default is not None:
-                v = input("%s [default: %s]: " % (self.prompt, default))
-                if v == "":
-                    v = default
+            # Check if stdin is a pipe (e.g., from mutt)
+            if not os.isatty(0):
+                # Try to open /dev/tty for interactive input
+                import sys
+
+                try:
+                    # Save original stdin/stdout
+                    original_stdin = sys.stdin
+                    original_stdout = sys.stdout
+                    # Open /dev/tty for reading and writing
+                    sys.stdin = open("/dev/tty", "r")
+                    sys.stdout = open("/dev/tty", "w")
+
+                    if default is not None:
+                        v = input("%s [default: %s]: " % (self.prompt, default))
+                        if v == "":
+                            v = default
+                    else:
+                        v = input("%s: " % (self.prompt))
+
+                    # Restore original stdin/stdout
+                    sys.stdin.close()
+                    sys.stdout.close()
+                    sys.stdin = original_stdin
+                    sys.stdout = original_stdout
+                except Exception:
+                    # If /dev/tty fails, fall back to regular input
+                    sys.stdin = original_stdin
+                    sys.stdout = original_stdout
+                    raise
             else:
-                v = input("%s: " % (self.prompt))
+                # Normal interactive mode
+                if default is not None:
+                    v = input("%s [default: %s]: " % (self.prompt, default))
+                    if v == "":
+                        v = default
+                else:
+                    v = input("%s: " % (self.prompt))
 
             if self.validator is not None:
                 v = self.validator(v)

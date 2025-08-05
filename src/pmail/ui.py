@@ -19,6 +19,28 @@ class WorkflowSelector:
     def select_workflow(self, email_data: dict) -> Optional[str]:
         """Present workflow options and get user selection"""
 
+        # Check if workflow was pre-specified (e.g., via CLI or environment)
+        import os
+
+        pre_specified_workflow = os.environ.get("PMAIL_WORKFLOW")
+        if pre_specified_workflow:
+            # Validate the workflow exists
+            if pre_specified_workflow in self.data_store.workflows:
+                # Record the decision
+                instance = CriteriaInstance(
+                    email_id=email_data["message_id"],
+                    workflow_name=pre_specified_workflow,
+                    timestamp=datetime.now(),
+                    email_features=email_data["features"],
+                    user_confirmed=True,
+                    confidence_score=1.0,
+                )
+                self.data_store.add_criteria_instance(instance)
+                return pre_specified_workflow
+            else:
+                print(f"✗ Error: Workflow '{pre_specified_workflow}' not found")
+                return None
+
         # Get ranked workflows
         criteria_instances = self.data_store.get_recent_criteria()
         rankings = self.similarity_engine.rank_workflows(
