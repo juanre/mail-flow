@@ -91,11 +91,7 @@ class LineInput:
             # readline.write_history_file(self.history_file)
 
     def ask(self, default=None):
-        readline.set_completer(self.complete)
-        readline.clear_history()
-        if self.with_history:
-            if os.path.exists(self.history_file):
-                readline.read_history_file(self.history_file)
+        # Don't set up readline here - we'll do it after switching to tty if needed
         try:
             # Check if stdin is a pipe (e.g., from mutt)
             if not os.isatty(0):
@@ -107,15 +103,37 @@ class LineInput:
                     original_stdin = sys.stdin
                     original_stdout = sys.stdout
                     # Open /dev/tty for reading and writing
-                    sys.stdin = open("/dev/tty", "r")
-                    sys.stdout = open("/dev/tty", "w")
+                    tty_in = open("/dev/tty", "r")
+                    tty_out = open("/dev/tty", "w")
+                    sys.stdin = tty_in
+                    sys.stdout = tty_out
 
-                    if default is not None:
-                        v = input("%s [default: %s]: " % (self.prompt, default))
-                        if v == "":
-                            v = default
-                    else:
-                        v = input("%s: " % (self.prompt))
+                    # Re-initialize readline for the new file descriptors
+                    # This is crucial for tab completion to work
+                    import termios
+                    import tty
+
+                    # Save terminal settings
+                    old_settings = termios.tcgetattr(tty_in.fileno())
+
+                    try:
+                        # Set up readline with the new terminal
+                        readline.set_completer(self.complete)
+                        readline.parse_and_bind("tab: complete")
+                        readline.clear_history()
+
+                        if self.with_history and os.path.exists(self.history_file):
+                            readline.read_history_file(self.history_file)
+
+                        if default is not None:
+                            v = input("%s [default: %s]: " % (self.prompt, default))
+                            if v == "":
+                                v = default
+                        else:
+                            v = input("%s: " % (self.prompt))
+                    finally:
+                        # Restore terminal settings
+                        termios.tcsetattr(tty_in.fileno(), termios.TCSADRAIN, old_settings)
 
                     # Restore original stdin/stdout
                     sys.stdin.close()
@@ -129,6 +147,11 @@ class LineInput:
                     raise
             else:
                 # Normal interactive mode
+                readline.set_completer(self.complete)
+                readline.clear_history()
+                if self.with_history and os.path.exists(self.history_file):
+                    readline.read_history_file(self.history_file)
+
                 if default is not None:
                     v = input("%s [default: %s]: " % (self.prompt, default))
                     if v == "":
