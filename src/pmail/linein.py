@@ -104,24 +104,29 @@ class LineInput:
                 # Try to open /dev/tty for interactive input
                 import sys
 
+                # Save original stdin/stdout for error handling
+                original_stdin = sys.stdin
+                original_stdout = sys.stdout
+
                 try:
                     # Save original file descriptors
                     old_stdin = os.dup(0)
                     old_stdout = os.dup(1)
 
-                    # Open /dev/tty for reading and writing
-                    tty = open("/dev/tty", "r+")
+                    # Open /dev/tty separately for reading and writing
+                    tty_in = open("/dev/tty", "r")
+                    tty_out = open("/dev/tty", "w")
 
                     # Save terminal settings
                     import termios
 
-                    old_settings = termios.tcgetattr(tty.fileno())
+                    old_settings = termios.tcgetattr(tty_in.fileno())
 
                     try:
                         # Critical: Update file descriptors 0 and 1 to use tty
                         # This ensures readline outputs to the right place
-                        os.dup2(tty.fileno(), 0)  # stdin
-                        os.dup2(tty.fileno(), 1)  # stdout
+                        os.dup2(tty_in.fileno(), 0)  # stdin
+                        os.dup2(tty_out.fileno(), 1)  # stdout
 
                         # Now set up readline - it will use the correct file descriptors
                         readline.clear_history()
@@ -145,8 +150,9 @@ class LineInput:
                         os.close(old_stdout)
 
                         # Restore terminal settings
-                        termios.tcsetattr(tty.fileno(), termios.TCSADRAIN, old_settings)
-                        tty.close()
+                        termios.tcsetattr(tty_in.fileno(), termios.TCSADRAIN, old_settings)
+                        tty_in.close()
+                        tty_out.close()
                 except Exception:
                     # If /dev/tty fails, fall back to regular input
                     sys.stdin = original_stdin
