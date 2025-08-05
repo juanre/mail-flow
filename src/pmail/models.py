@@ -164,21 +164,8 @@ class DataStore:
             self.criteria_instances = []
 
     def _default_workflows(self) -> Dict[str, WorkflowDefinition]:
-        """Provide minimal default workflows - use 'pmail init' for full set"""
-        defaults = {}
-
-        try:
-            # Just create one basic workflow so the system works out of the box
-            defaults["create-todo"] = WorkflowDefinition(
-                name="create-todo",
-                description="Create a todo item from email",
-                action_type="create_todo",
-                action_params={"todo_file": "~/todos.txt"},
-            )
-        except ValidationError as e:
-            logger.error(f"Failed to create default workflow: {e}")
-
-        return defaults
+        """No default workflows - use 'pmail init' to create workflows"""
+        return {}
 
     def save_workflows(self):
         """Save workflows with atomic write and locking"""
