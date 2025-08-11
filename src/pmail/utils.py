@@ -1,15 +1,15 @@
 """Utility functions for pmail"""
 
-import fcntl
 import hashlib
 import json
 import logging
 import os
 import tempfile
 import time
-from contextlib import contextmanager
+from collections.abc import Callable
+from contextlib import contextmanager, suppress
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any
 
 from pmail.exceptions import DataError
 
@@ -48,10 +48,8 @@ def atomic_write(filepath: Path, content: str, mode: str = "w") -> None:
 
     except Exception as e:
         # Clean up temp file on error
-        try:
+        with suppress(OSError):
             os.unlink(temp_path)
-        except OSError:
-            pass
         raise DataError(
             f"Failed to write {filepath}: {e}",
             recovery_hint="Check disk space and permissions",
@@ -89,7 +87,7 @@ def safe_json_load(filepath: Path, default: Any = None) -> Any:
         return default
 
     try:
-        with open(filepath, "r") as f:
+        with open(filepath) as f:
             return json.load(f)
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON in {filepath}: {e}")
@@ -147,10 +145,8 @@ def file_lock(filepath: Path, timeout: float = 10.0):
         # Release lock
         if lock_file:
             lock_file.close()
-            try:
+            with suppress(OSError):
                 lock_path.unlink()
-            except OSError:
-                pass
 
 
 def calculate_file_hash(filepath: Path, algorithm: str = "sha256") -> str:

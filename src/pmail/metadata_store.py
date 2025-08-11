@@ -7,13 +7,11 @@ import hashlib
 import json
 import logging
 import sqlite3
-from contextlib import contextmanager
-from datetime import datetime
+from contextlib import contextmanager, suppress
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from pmail.exceptions import DataError
-from pmail.security import sanitize_filename
 
 logger = logging.getLogger(__name__)
 
@@ -63,46 +61,46 @@ class MetadataStore:
                     file_hash TEXT,
                     file_size INTEGER,
                     saved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    
+
                     -- Email metadata
                     email_message_id TEXT NOT NULL,
                     email_from TEXT,
                     email_to TEXT,
                     email_subject TEXT,
                     email_date TEXT,
-                    
+
                     -- Email content
                     email_body_text TEXT,
                     email_body_html TEXT,
                     email_headers TEXT,  -- JSON
-                    
+
                     -- PDF metadata
                     pdf_type TEXT,  -- 'attachment' or 'converted'
                     pdf_original_filename TEXT,
                     pdf_page_count INTEGER,
                     pdf_text_content TEXT,
-                    
+
                     -- Workflow information
                     workflow_name TEXT,
                     confidence_score REAL,
-                    
+
                     -- Document classification
                     document_type TEXT,  -- 'invoice', 'receipt', 'tax', 'statement', etc.
                     document_category TEXT,  -- broader category
-                    
+
                     -- Extracted document information (JSON)
                     document_info TEXT,  -- JSON with extracted fields
-                    
+
                     -- Structured metadata (JSON)
                     metadata TEXT,  -- JSON with structured data like amount, issuing-entity, etc.
-                    
+
                     -- Search content
                     search_content TEXT,
-                    
+
                     -- Integration
                     mutt_folder TEXT,
                     original_email_path TEXT,
-                    
+
                     UNIQUE(email_message_id, filename)
                 )
             """
@@ -111,12 +109,12 @@ class MetadataStore:
             # Full-text search
             conn.execute(
                 """
-                CREATE VIRTUAL TABLE IF NOT EXISTS pdf_search 
+                CREATE VIRTUAL TABLE IF NOT EXISTS pdf_search
                 USING fts5(
-                    filename, 
-                    email_subject, 
-                    email_from, 
-                    search_content, 
+                    filename,
+                    email_subject,
+                    email_from,
+                    search_content,
                     content=pdf_metadata
                 )
             """
@@ -173,15 +171,15 @@ class MetadataStore:
     def store_pdf_metadata(
         self,
         pdf_path: Path,
-        email_data: Dict[str, Any],
+        email_data: dict[str, Any],
         workflow_name: str,
         pdf_type: str = "attachment",
-        pdf_text: Optional[str] = None,
-        confidence_score: Optional[float] = None,
+        pdf_text: str | None = None,
+        confidence_score: float | None = None,
         document_type: str = DocumentType.UNKNOWN,
         document_category: str = DocumentCategory.UNCATEGORIZED,
-        document_info: Optional[Dict[str, Any]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        document_info: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
     ):
         """Store comprehensive metadata for a saved PDF."""
         try:
@@ -236,7 +234,7 @@ class MetadataStore:
                     """
                     INSERT OR REPLACE INTO pdf_metadata (
                         filename, filepath, file_hash, file_size,
-                        email_message_id, email_from, email_to, 
+                        email_message_id, email_from, email_to,
                         email_subject, email_date, email_body_text,
                         email_body_html, email_headers, pdf_type,
                         pdf_original_filename, pdf_text_content,
@@ -279,14 +277,14 @@ class MetadataStore:
             logger.error(f"Failed to store metadata: {e}")
             raise DataError(f"Failed to store PDF metadata: {e}")
 
-    def search(self, query: str, limit: int = 20) -> List[Dict[str, Any]]:
+    def search(self, query: str, limit: int = 20) -> list[dict[str, Any]]:
         """Search PDFs using full-text search."""
         try:
             with self.get_connection() as conn:
                 # Use FTS5 for search
                 results = conn.execute(
                     """
-                    SELECT 
+                    SELECT
                         m.*,
                         rank
                     FROM pdf_search s
@@ -304,13 +302,13 @@ class MetadataStore:
             logger.error(f"Search failed: {e}")
             return []
 
-    def search_by_type(self, document_type: str, limit: int = 20) -> List[Dict[str, Any]]:
+    def search_by_type(self, document_type: str, limit: int = 20) -> list[dict[str, Any]]:
         """Search PDFs by document type."""
         try:
             with self.get_connection() as conn:
                 results = conn.execute(
                     """
-                    SELECT * FROM pdf_metadata 
+                    SELECT * FROM pdf_metadata
                     WHERE document_type = ?
                     ORDER BY saved_at DESC
                     LIMIT ?
@@ -324,13 +322,13 @@ class MetadataStore:
             logger.error(f"Search by type failed: {e}")
             return []
 
-    def get_by_message_id(self, message_id: str) -> List[Dict[str, Any]]:
+    def get_by_message_id(self, message_id: str) -> list[dict[str, Any]]:
         """Get all PDFs associated with an email message ID."""
         try:
             with self.get_connection() as conn:
                 results = conn.execute(
                     """
-                    SELECT * FROM pdf_metadata 
+                    SELECT * FROM pdf_metadata
                     WHERE email_message_id = ?
                     ORDER BY saved_at DESC
                 """,
@@ -343,7 +341,7 @@ class MetadataStore:
             logger.error(f"Lookup failed: {e}")
             return []
 
-    def get_by_filepath(self, filepath: str) -> Optional[Dict[str, Any]]:
+    def get_by_filepath(self, filepath: str) -> dict[str, Any] | None:
         """Get PDF metadata by filepath or filename.
 
         Args:
@@ -357,7 +355,7 @@ class MetadataStore:
                 # First try exact filepath match
                 result = conn.execute(
                     """
-                    SELECT * FROM pdf_metadata 
+                    SELECT * FROM pdf_metadata
                     WHERE filepath = ?
                 """,
                     (filepath,),
@@ -369,7 +367,7 @@ class MetadataStore:
                 # Try with filepath ending match (for relative paths)
                 result = conn.execute(
                     """
-                    SELECT * FROM pdf_metadata 
+                    SELECT * FROM pdf_metadata
                     WHERE filepath LIKE ?
                     ORDER BY saved_at DESC
                     LIMIT 1
@@ -384,7 +382,7 @@ class MetadataStore:
                 filename = Path(filepath).name
                 result = conn.execute(
                     """
-                    SELECT * FROM pdf_metadata 
+                    SELECT * FROM pdf_metadata
                     WHERE filename = ?
                     ORDER BY saved_at DESC
                     LIMIT 1
@@ -407,7 +405,7 @@ class MetadataStore:
             with self.get_connection() as conn:
                 result = conn.execute(
                     """
-                    SELECT COUNT(*) as count FROM pdf_metadata 
+                    SELECT COUNT(*) as count FROM pdf_metadata
                     WHERE email_message_id = ? AND filename = ?
                 """,
                     (message_id, filename),
@@ -419,7 +417,7 @@ class MetadataStore:
             logger.error(f"Duplicate check failed: {e}")
             return False
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """Get storage statistics."""
         try:
             with self.get_connection() as conn:
@@ -432,8 +430,8 @@ class MetadataStore:
                 # By PDF type
                 result = conn.execute(
                     """
-                    SELECT pdf_type, COUNT(*) as count 
-                    FROM pdf_metadata 
+                    SELECT pdf_type, COUNT(*) as count
+                    FROM pdf_metadata
                     GROUP BY pdf_type
                 """
                 )
@@ -442,8 +440,8 @@ class MetadataStore:
                 # By document type
                 result = conn.execute(
                     """
-                    SELECT document_type, COUNT(*) as count 
-                    FROM pdf_metadata 
+                    SELECT document_type, COUNT(*) as count
+                    FROM pdf_metadata
                     WHERE document_type IS NOT NULL
                     GROUP BY document_type
                     ORDER BY count DESC
@@ -454,8 +452,8 @@ class MetadataStore:
                 # By document category
                 result = conn.execute(
                     """
-                    SELECT document_category, COUNT(*) as count 
-                    FROM pdf_metadata 
+                    SELECT document_category, COUNT(*) as count
+                    FROM pdf_metadata
                     WHERE document_category IS NOT NULL
                     GROUP BY document_category
                     ORDER BY count DESC
@@ -466,8 +464,8 @@ class MetadataStore:
                 # By workflow
                 result = conn.execute(
                     """
-                    SELECT workflow_name, COUNT(*) as count 
-                    FROM pdf_metadata 
+                    SELECT workflow_name, COUNT(*) as count
+                    FROM pdf_metadata
                     GROUP BY workflow_name
                     ORDER BY count DESC
                     LIMIT 10
@@ -478,10 +476,10 @@ class MetadataStore:
                 # By year
                 result = conn.execute(
                     """
-                    SELECT 
+                    SELECT
                         strftime('%Y', email_date) as year,
-                        COUNT(*) as count 
-                    FROM pdf_metadata 
+                        COUNT(*) as count
+                    FROM pdf_metadata
                     WHERE email_date IS NOT NULL
                     GROUP BY year
                     ORDER BY year DESC
@@ -541,8 +539,8 @@ class MetadataStore:
         self,
         message_id: str,
         filename: str,
-        document_type: Optional[str] = None,
-        document_category: Optional[str] = None,
+        document_type: str | None = None,
+        document_category: str | None = None,
     ):
         """Update document classification for a saved PDF."""
         with self.get_connection() as conn:
@@ -559,14 +557,14 @@ class MetadataStore:
 
             if updates:
                 query = f"""
-                    UPDATE pdf_metadata 
+                    UPDATE pdf_metadata
                     SET {", ".join(updates)}
                     WHERE email_message_id = :message_id AND filename = :filename
                 """
                 conn.execute(query, params)
                 conn.commit()
 
-    def update_document_info(self, message_id: str, filename: str, document_info: Dict[str, Any]):
+    def update_document_info(self, message_id: str, filename: str, document_info: dict[str, Any]):
         """Update extracted document information for a saved PDF.
 
         Example document_info:
@@ -585,8 +583,8 @@ class MetadataStore:
             # Get existing document info
             cursor = conn.execute(
                 """
-                SELECT document_info 
-                FROM pdf_metadata 
+                SELECT document_info
+                FROM pdf_metadata
                 WHERE email_message_id = ? AND filename = ?
             """,
                 (message_id, filename),
@@ -596,10 +594,8 @@ class MetadataStore:
             if row:
                 existing_info = {}
                 if row["document_info"]:
-                    try:
+                    with suppress(json.JSONDecodeError):
                         existing_info = json.loads(row["document_info"])
-                    except json.JSONDecodeError:
-                        pass
 
                 # Merge with new info
                 existing_info.update(document_info)
@@ -607,7 +603,7 @@ class MetadataStore:
                 # Update database
                 conn.execute(
                     """
-                    UPDATE pdf_metadata 
+                    UPDATE pdf_metadata
                     SET document_info = ?
                     WHERE email_message_id = ? AND filename = ?
                 """,
@@ -616,7 +612,7 @@ class MetadataStore:
 
                 conn.commit()
 
-    def get_document_info(self, message_id: str, filename: str) -> Optional[Dict[str, Any]]:
+    def get_document_info(self, message_id: str, filename: str) -> dict[str, Any] | None:
         """Get document info for a specific PDF."""
         with self.get_connection() as conn:
             cursor = conn.execute(
@@ -637,15 +633,13 @@ class MetadataStore:
                 }
 
                 if row["document_info"]:
-                    try:
+                    with suppress(json.JSONDecodeError):
                         result["info"] = json.loads(row["document_info"])
-                    except json.JSONDecodeError:
-                        pass
 
                 return result
             return None
 
-    def update_metadata(self, message_id: str, filename: str, metadata: Dict[str, Any]):
+    def update_metadata(self, message_id: str, filename: str, metadata: dict[str, Any]):
         """Update structured metadata for a saved PDF.
 
         Example metadata:
@@ -664,8 +658,8 @@ class MetadataStore:
             # Get existing metadata
             cursor = conn.execute(
                 """
-                SELECT metadata 
-                FROM pdf_metadata 
+                SELECT metadata
+                FROM pdf_metadata
                 WHERE email_message_id = ? AND filename = ?
             """,
                 (message_id, filename),
@@ -675,10 +669,8 @@ class MetadataStore:
             if row:
                 existing_metadata = {}
                 if row["metadata"]:
-                    try:
+                    with suppress(json.JSONDecodeError):
                         existing_metadata = json.loads(row["metadata"])
-                    except json.JSONDecodeError:
-                        pass
 
                 # Merge with new metadata
                 existing_metadata.update(metadata)
@@ -686,7 +678,7 @@ class MetadataStore:
                 # Update database
                 conn.execute(
                     """
-                    UPDATE pdf_metadata 
+                    UPDATE pdf_metadata
                     SET metadata = ?
                     WHERE email_message_id = ? AND filename = ?
                 """,
@@ -695,7 +687,7 @@ class MetadataStore:
 
                 conn.commit()
 
-    def get_metadata(self, message_id: str, filename: str) -> Optional[Dict[str, Any]]:
+    def get_metadata(self, message_id: str, filename: str) -> dict[str, Any] | None:
         """Get structured metadata for a specific PDF."""
         with self.get_connection() as conn:
             cursor = conn.execute(
@@ -716,7 +708,7 @@ class MetadataStore:
             return None
 
     @staticmethod
-    def suggest_document_classification(email_data: Dict[str, Any]) -> Tuple[str, str]:
+    def suggest_document_classification(email_data: dict[str, Any]) -> tuple[str, str]:
         """Suggest document type and category based on email content.
 
         Returns:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 import os
 from datetime import datetime
@@ -23,18 +22,18 @@ def validate_date(v):
     if len(v) == len("2021-10-20"):
         ymd = v.split("-")
         if len(ymd) != 3:
-            print("** %s does not look like a date, not 3 values" % v)
+            print(f"** {v} does not look like a date, not 3 values")
             return None
     elif len(v) == len("20211020"):
         ymd = v[:4], v[4:6], v[6:]
     else:
-        print(("** %s does not look like a date, " "not like 2021-10-20 or 20211020") % v)
+        print(f"** {v} does not look like a date, " "not like 2021-10-20 or 20211020")
         return None
 
     try:
         y, m, d = [int(v) for v in ymd]
     except ValueError:
-        print("** %s does not look like a date, not 3 ints" % v)
+        print(f"** {v} does not look like a date, not 3 ints")
         return None
 
     min_year, max_year = 2021, datetime.today().year
@@ -45,7 +44,7 @@ def validate_date(v):
     try:
         datetime(y, m, d)
     except ValueError as e:
-        print("** %s not correct: %s" % (v, str(e)))
+        print(f"** {v} not correct: {str(e)}")
         return None
 
     return "-".join(ymd)
@@ -72,13 +71,12 @@ class LineInput:
             )
 
             # When typical is not set we initialize it with the history
-            if not typical:
-                if os.path.exists(self.history_file):
-                    readline.read_history_file(self.history_file)
-                    for i in range(readline.get_current_history_length()):
-                        v = readline.get_history_item(i + 1)
-                        if v not in self.typical:
-                            self.typical.append(v)
+            if not typical and os.path.exists(self.history_file):
+                readline.read_history_file(self.history_file)
+                for i in range(readline.get_current_history_length()):
+                    v = readline.get_history_item(i + 1)
+                    if v not in self.typical:
+                        self.typical.append(v)
         readline.clear_history()
 
     def complete(self, text, state):
@@ -115,7 +113,7 @@ class LineInput:
                     old_stdout = os.dup(1)
 
                     # Open /dev/tty separately for reading and writing
-                    tty_in = open("/dev/tty", "r")
+                    tty_in = open("/dev/tty")
                     tty_out = open("/dev/tty", "w")
 
                     # Save terminal settings
@@ -138,11 +136,11 @@ class LineInput:
                             readline.read_history_file(self.history_file)
 
                         if default is not None:
-                            v = input("%s [default: %s]: " % (self.prompt, default))
+                            v = input(f"{self.prompt} [default: {default}]: ")
                             if v == "":
                                 v = default
                         else:
-                            v = input("%s: " % (self.prompt))
+                            v = input(f"{self.prompt}: ")
                     finally:
                         # Restore original file descriptors
                         os.dup2(old_stdin, 0)
@@ -167,11 +165,11 @@ class LineInput:
                     readline.read_history_file(self.history_file)
 
                 if default is not None:
-                    v = input("%s [default: %s]: " % (self.prompt, default))
+                    v = input(f"{self.prompt} [default: {default}]: ")
                     if v == "":
                         v = default
                 else:
-                    v = input("%s: " % (self.prompt))
+                    v = input(f"{self.prompt}: ")
 
             if self.validator is not None:
                 v = self.validator(v)
@@ -181,7 +179,7 @@ class LineInput:
 
             if v not in self.typical:
                 if self.only_typical:
-                    print("** Valid values are %s not %s" % (", ".join(self.typical), v))
+                    print("** Valid values are {} not {}".format(", ".join(self.typical), v))
                     self.maybe_history_back()
                     return self.ask(default)
                 self.typical.append(str(v))
@@ -193,12 +191,11 @@ class LineInput:
     def _ask(self):
         readline.set_completer(self.complete)
         readline.clear_history()
-        if self.with_history:
-            if os.path.exists(self.history_file):
-                readline.read_history_file(self.history_file)
+        if self.with_history and os.path.exists(self.history_file):
+            readline.read_history_file(self.history_file)
 
         try:
-            v = input("%s: " % (self.prompt))
+            v = input(f"{self.prompt}: ")
             if self.validator is not None:
                 v = self.validator(v)
                 if v is None:
@@ -207,7 +204,7 @@ class LineInput:
 
             if v not in self.typical:
                 if self.only_typical:
-                    print("** Valid values are %s not %s" % (", ".join(self.typical), v))
+                    print("** Valid values are {} not {}".format(", ".join(self.typical), v))
                     self.maybe_history_back()
                     return self.ask()
                 self.typical.append(str(v))

@@ -2,13 +2,13 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class Config:
-    def __init__(self, config_dir: Optional[str] = None):
+    def __init__(self, config_dir: str | None = None):
         if config_dir is None:
             config_dir = os.path.expanduser("~/.pmail")
 
@@ -37,7 +37,7 @@ class Config:
         config_file = self.config_dir / "config.json"
         if config_file.exists():
             try:
-                with open(config_file, "r") as f:
+                with open(config_file) as f:
                     self.settings = json.load(f)
                     # Validate loaded settings
                     self._validate_settings()
@@ -52,7 +52,7 @@ class Config:
             self.settings = self._default_settings()
             self.save_config()
 
-    def _default_settings(self) -> Dict[str, Any]:
+    def _default_settings(self) -> dict[str, Any]:
         """Default configuration settings"""
         return {
             "feature_weights": {
@@ -91,7 +91,7 @@ class Config:
         ui_settings = self.settings.get("ui", {})
         ui_settings["max_suggestions"] = min(max(1, ui_settings.get("max_suggestions", 5)), 20)
 
-        storage_settings = self.settings.get("storage", {})
+        self.settings.get("storage", {})
 
     def save_config(self):
         """Save configuration to disk"""

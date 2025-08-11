@@ -1,7 +1,4 @@
-import math
-from collections import Counter
-from datetime import datetime
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 
 class SimilarityEngine:
@@ -12,7 +9,7 @@ class SimilarityEngine:
         self.feature_weights = config.settings["feature_weights"]
 
     def calculate_similarity(
-        self, email_features: Dict[str, Any], criteria_instance: "CriteriaInstance"
+        self, email_features: dict[str, Any], criteria_instance: "CriteriaInstance"
     ) -> float:
         """Calculate similarity score between current email and a criteria instance"""
 
@@ -85,10 +82,10 @@ class SimilarityEngine:
 
     def rank_workflows(
         self,
-        email_features: Dict[str, Any],
-        criteria_instances: List["CriteriaInstance"],
+        email_features: dict[str, Any],
+        criteria_instances: list["CriteriaInstance"],
         top_n: int = 5,
-    ) -> List[Tuple[str, float, List["CriteriaInstance"]]]:
+    ) -> list[tuple[str, float, list["CriteriaInstance"]]]:
         """Rank workflows based on similarity to past criteria instances"""
 
         workflow_scores = {}
@@ -127,8 +124,8 @@ class SimilarityEngine:
         return workflow_rankings[:top_n]
 
     def get_feature_explanation(
-        self, email_features: Dict[str, Any], criteria_instance: "CriteriaInstance"
-    ) -> Dict[str, str]:
+        self, email_features: dict[str, Any], criteria_instance: "CriteriaInstance"
+    ) -> dict[str, str]:
         """Explain why an email matches a criteria instance"""
 
         explanations = {}

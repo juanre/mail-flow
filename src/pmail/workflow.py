@@ -1,22 +1,19 @@
 import datetime
-import json
 import logging
 import os
-from email.message import Message
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any
 
 from pmail.attachment_handler import save_attachments_from_message
 from pmail.exceptions import WorkflowError
-from pmail.metadata_store import MetadataStore
 from pmail.pdf_converter import save_email_as_pdf
-from pmail.security import sanitize_filename, sanitize_shell_arg, validate_path
+from pmail.security import validate_path
 
 logger = logging.getLogger(__name__)
 
 
 def save_attachment(
-    message: Dict[str, Any],
+    message: dict[str, Any],
     directory: str,
     pattern: str = "*.pdf",
     use_year_dirs: bool = True,
@@ -55,7 +52,7 @@ def save_attachment(
         )
 
 
-def create_todo(message: Dict[str, Any], todo_file: str = "~/todos.txt"):
+def create_todo(message: dict[str, Any], todo_file: str = "~/todos.txt"):
     """Create a todo item from the email"""
     try:
         # Validate todo file path - allow the provided path as base
@@ -94,7 +91,7 @@ def create_todo(message: Dict[str, Any], todo_file: str = "~/todos.txt"):
 
 
 def save_email_pdf(
-    message: Dict[str, Any],
+    message: dict[str, Any],
     directory: str = "~/receipts",
     filename_template: str = "{date}-{from}-{subject}.pdf",
     use_year_dirs: bool = True,
@@ -133,7 +130,7 @@ def save_email_pdf(
 
 
 def save_pdf(
-    message: Dict[str, Any],
+    message: dict[str, Any],
     directory: str,
     filename_template: str = "{date}-{from}-{subject}",
     use_year_dirs: bool = True,

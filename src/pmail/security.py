@@ -1,10 +1,8 @@
 """Security utilities for input validation and sanitization"""
 
 import os
-import pathlib
 import re
 from pathlib import Path
-from typing import List, Optional
 
 
 class SecurityError(Exception):
@@ -25,7 +23,7 @@ class InputValidationError(SecurityError):
     pass
 
 
-def validate_path(user_path: str, allowed_base_dirs: Optional[List[str]] = None) -> Path:
+def validate_path(user_path: str, allowed_base_dirs: list[str] | None = None) -> Path:
     """
     Validate and sanitize user-provided paths.
 
@@ -110,10 +108,7 @@ def validate_email_address(email: str) -> str:
 
     # Extract email from "Name <email@domain>" format
     match = re.search(r"<([^>]+)>", email)
-    if match:
-        email_part = match.group(1)
-    else:
-        email_part = email.strip()
+    email_part = match.group(1) if match else email.strip()
 
     if not re.match(email_pattern, email_part):
         # Don't reveal the exact email in error message

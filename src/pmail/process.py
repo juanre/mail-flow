@@ -2,7 +2,6 @@
 
 import logging
 import sys
-from typing import Optional
 
 from pmail.config import Config
 from pmail.email_extractor import EmailExtractor
@@ -16,7 +15,7 @@ from pmail.workflow import Workflows
 logger = logging.getLogger(__name__)
 
 
-def process(message: str, config: Optional[Config] = None) -> None:
+def process(message: str, config: Config | None = None) -> None:
     """
     Process an email message through the pmail workflow.
 
@@ -77,7 +76,7 @@ def process(message: str, config: Optional[Config] = None) -> None:
                         sys.exit(2)
                     except Exception as e:
                         print(f"\n✗ Unexpected error: {e}")
-                        logger.exception(f"Unexpected error in workflow execution")
+                        logger.exception("Unexpected error in workflow execution")
                         sys.exit(3)
                 else:
                     print(f"\n✗ Action type '{workflow_def.action_type}' not implemented.")
@@ -124,7 +123,7 @@ def main():
     try:
         if len(sys.argv) == 2:
             # Read email from file
-            with open(sys.argv[1], "r", encoding="utf-8", errors="replace") as message_file:
+            with open(sys.argv[1], encoding="utf-8", errors="replace") as message_file:
                 message_text = message_file.read()
         else:
             # Read email from stdin

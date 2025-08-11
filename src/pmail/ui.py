@@ -1,7 +1,5 @@
 import logging
-import sys
 from datetime import datetime
-from typing import List, Optional, Tuple
 
 from pmail.linein import LineInput
 from pmail.models import CriteriaInstance, WorkflowDefinition
@@ -19,7 +17,7 @@ class WorkflowSelector:
         self.max_suggestions = config.settings["ui"]["max_suggestions"]
         self.show_confidence = config.settings["ui"]["show_confidence"]
 
-    def select_workflow(self, email_data: dict) -> Optional[str]:
+    def select_workflow(self, email_data: dict) -> str | None:
         """Present workflow options and get user selection"""
 
         # Get ranked workflows
@@ -46,7 +44,7 @@ class WorkflowSelector:
         option_map = {"skip": None, "new": "new"}
 
         # Add all workflow names to options for tab completion
-        for wf_name in self.data_store.workflows.keys():
+        for wf_name in self.data_store.workflows:
             options.append(wf_name)
             option_map[wf_name] = wf_name
 
@@ -115,7 +113,7 @@ class WorkflowSelector:
 
         return selected_workflow
 
-    def _create_new_workflow(self) -> Optional[str]:
+    def _create_new_workflow(self) -> str | None:
         """Interactive workflow creation"""
         print("\n--- Create New Workflow ---")
 

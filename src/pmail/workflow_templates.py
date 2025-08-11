@@ -1,6 +1,6 @@
 """Pre-configured workflow templates for common use cases"""
 
-from typing import Any, Dict
+from typing import Any
 
 # Workflow templates organized by entity and purpose
 WORKFLOW_TEMPLATES = {
@@ -107,7 +107,7 @@ WORKFLOW_TEMPLATES = {
 }
 
 
-def get_workflow_suggestions(email_data: Dict[str, Any]) -> list:
+def get_workflow_suggestions(email_data: dict[str, Any]) -> list:
     """Suggest workflow templates based on email characteristics"""
     suggestions = []
     from_domain = email_data.get("features", {}).get("from_domain", "")

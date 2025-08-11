@@ -1,12 +1,10 @@
-import json
 import logging
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pmail.exceptions import DataError, ValidationError
-from pmail.security import MAX_ATTACHMENT_COUNT, validate_path
+from pmail.security import validate_path
 from pmail.utils import atomic_json_write, file_lock, safe_json_load
 
 logger = logging.getLogger(__name__)
@@ -19,9 +17,9 @@ class CriteriaInstance:
     email_id: str
     workflow_name: str
     timestamp: datetime
-    email_features: Dict[str, Any]
+    email_features: dict[str, Any]
     user_confirmed: bool = True
-    confidence_score: Optional[float] = None
+    confidence_score: float | None = None
 
     def __post_init__(self):
         """Validate after initialization"""
@@ -32,7 +30,7 @@ class CriteriaInstance:
         if not isinstance(self.email_features, dict):
             raise ValidationError("email_features must be a dictionary")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "email_id": self.email_id,
             "workflow_name": self.workflow_name,
@@ -43,7 +41,7 @@ class CriteriaInstance:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CriteriaInstance":
+    def from_dict(cls, data: dict[str, Any]) -> "CriteriaInstance":
         try:
             data["timestamp"] = datetime.fromisoformat(data["timestamp"])
             return cls(**data)
@@ -58,7 +56,7 @@ class WorkflowDefinition:
     name: str
     description: str
     action_type: str  # e.g., "save_attachment", "flag", "copy_to_folder"
-    action_params: Dict[str, Any] = field(default_factory=dict)
+    action_params: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.now)
 
     # Valid action types
@@ -96,7 +94,7 @@ class WorkflowDefinition:
             except Exception as e:
                 raise ValidationError(f"Invalid directory path: {e}")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "description": self.description,
@@ -106,7 +104,7 @@ class WorkflowDefinition:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "WorkflowDefinition":
+    def from_dict(cls, data: dict[str, Any]) -> "WorkflowDefinition":
         try:
             data["created_at"] = datetime.fromisoformat(data["created_at"])
             return cls(**data)
@@ -163,7 +161,7 @@ class DataStore:
             logger.error(f"Failed to load criteria instances: {e}")
             self.criteria_instances = []
 
-    def _default_workflows(self) -> Dict[str, WorkflowDefinition]:
+    def _default_workflows(self) -> dict[str, WorkflowDefinition]:
         """No default workflows - use 'pmail init' to create workflows"""
         return {}
 
@@ -235,11 +233,11 @@ class DataStore:
         self.workflows[workflow.name] = workflow
         self.save_workflows()
 
-    def get_criteria_for_workflow(self, workflow_name: str) -> List[CriteriaInstance]:
+    def get_criteria_for_workflow(self, workflow_name: str) -> list[CriteriaInstance]:
         """Get criteria instances for a specific workflow"""
         return [ci for ci in self.criteria_instances if ci.workflow_name == workflow_name]
 
-    def get_recent_criteria(self, limit: int = 100) -> List[CriteriaInstance]:
+    def get_recent_criteria(self, limit: int = 100) -> list[CriteriaInstance]:
         """Get the most recent criteria instances"""
         limit = min(limit, len(self.criteria_instances))
         sorted_criteria = sorted(self.criteria_instances, key=lambda x: x.timestamp, reverse=True)

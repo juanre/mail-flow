@@ -1,11 +1,10 @@
 """Attachment extraction handler for pmail"""
 
-import base64
 import logging
 import os
 from email.message import Message
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from pmail.exceptions import WorkflowError
 from pmail.security import sanitize_filename, validate_path
@@ -13,7 +12,7 @@ from pmail.security import sanitize_filename, validate_path
 logger = logging.getLogger(__name__)
 
 
-def extract_and_save_attachment(part: Message, directory: Path, filename: str) -> Optional[Path]:
+def extract_and_save_attachment(part: Message, directory: Path, filename: str) -> Path | None:
     """
     Extract and save a single attachment.
 
@@ -59,7 +58,7 @@ def extract_and_save_attachment(part: Message, directory: Path, filename: str) -
 
 def save_attachments_from_message(
     message_obj: Message,
-    email_data: Dict[str, Any],
+    email_data: dict[str, Any],
     directory: str,
     pattern: str = "*.pdf",
     use_year_dirs: bool = True,
@@ -99,10 +98,7 @@ def save_attachments_from_message(
             email_date = datetime.now()
 
         # Create year directory if requested
-        if use_year_dirs:
-            dir_path = base_dir / str(email_date.year)
-        else:
-            dir_path = base_dir
+        dir_path = base_dir / str(email_date.year) if use_year_dirs else base_dir
 
         dir_path.mkdir(parents=True, exist_ok=True)
 

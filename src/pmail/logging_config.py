@@ -4,13 +4,12 @@ import logging
 import logging.handlers
 import os
 from pathlib import Path
-from typing import Optional
 
 
 def setup_logging(
     log_level: str = "INFO",
-    log_file: Optional[str] = None,
-    log_dir: Optional[str] = None,
+    log_file: str | None = None,
+    log_dir: str | None = None,
 ) -> None:
     """
     Set up logging configuration for pmail.

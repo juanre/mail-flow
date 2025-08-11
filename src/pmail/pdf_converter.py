@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from email.message import Message
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
@@ -18,7 +18,7 @@ from pmail.security import sanitize_filename, validate_path
 logger = logging.getLogger(__name__)
 
 
-def extract_best_html_from_message(message_obj: Message) -> Tuple[str, bool]:
+def extract_best_html_from_message(message_obj: Message) -> tuple[str, bool]:
     """
     Extract the best HTML representation from an email message.
     Returns (html_content, is_html_original)
@@ -118,7 +118,7 @@ def extract_best_html_from_message(message_obj: Message) -> Tuple[str, bool]:
     return "<html><body>No content available</body></html>", False
 
 
-def wrap_email_html(html_content: str, email_data: Dict[str, Any], is_original_html: bool) -> str:
+def wrap_email_html(html_content: str, email_data: dict[str, Any], is_original_html: bool) -> str:
     """
     Wrap email HTML content with headers and proper structure.
     Preserves original HTML as much as possible.
@@ -203,7 +203,7 @@ def wrap_email_html(html_content: str, email_data: Dict[str, Any], is_original_h
         <div class="header-item"><strong>Subject:</strong> {subject}</div>
         <div class="header-item"><strong>Date:</strong> {date}</div>
     </div>
-    
+
     <div class="email-content">
         {html_content}
     </div>
@@ -211,7 +211,7 @@ def wrap_email_html(html_content: str, email_data: Dict[str, Any], is_original_h
 </html>"""
 
 
-def add_attachments_list(html_content: str, email_data: Dict[str, Any]) -> str:
+def add_attachments_list(html_content: str, email_data: dict[str, Any]) -> str:
     """Add a list of attachments to the HTML if any exist"""
     if not email_data.get("attachments"):
         return html_content
@@ -295,8 +295,8 @@ def convert_email_to_pdf(html_content: str, output_path: Path) -> None:
 
 
 def save_email_as_pdf(
-    email_data: Dict[str, Any],
-    message_obj: Optional[Message] = None,
+    email_data: dict[str, Any],
+    message_obj: Message | None = None,
     directory: str = "~/receipts",
     filename_template: str = "{date}-{from}-{subject}.pdf",
     use_year_dirs: bool = True,
@@ -346,10 +346,7 @@ def save_email_as_pdf(
             date_str = email_date.strftime("%Y%m%d")
 
         # Create year directory if requested
-        if use_year_dirs:
-            dir_path = base_dir / str(email_date.year)
-        else:
-            dir_path = base_dir
+        dir_path = base_dir / str(email_date.year) if use_year_dirs else base_dir
 
         dir_path.mkdir(parents=True, exist_ok=True)
 

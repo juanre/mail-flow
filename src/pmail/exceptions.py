@@ -1,12 +1,11 @@
 """Custom exceptions for pmail"""
 
-from typing import Optional
 
 
 class PmailError(Exception):
     """Base exception for all pmail errors"""
 
-    def __init__(self, message: str, recovery_hint: Optional[str] = None):
+    def __init__(self, message: str, recovery_hint: str | None = None):
         super().__init__(message)
         self.recovery_hint = recovery_hint
 

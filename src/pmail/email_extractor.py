@@ -1,12 +1,11 @@
 import email
 import logging
-import mimetypes
 import re
 from email.header import decode_header
 from email.message import Message
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from pmail.exceptions import EmailParsingError, ValidationError
+from pmail.exceptions import EmailParsingError
 from pmail.security import (
     MAX_ATTACHMENT_COUNT,
     MAX_BODY_PREVIEW_LENGTH,
@@ -24,7 +23,7 @@ class EmailExtractor:
     def __init__(self):
         self.max_email_size = MAX_EMAIL_SIZE_MB * 1024 * 1024  # Convert to bytes
 
-    def extract(self, message_text: str) -> Dict[str, Any]:
+    def extract(self, message_text: str) -> dict[str, Any]:
         """Extract features from email with validation and size limits"""
         # Check email size
         if len(message_text) > self.max_email_size:
@@ -224,7 +223,7 @@ class EmailExtractor:
             text = re.sub(r"\s+", " ", text)
             return text.strip()
 
-    def _extract_attachments(self, msg: Message) -> List[Dict[str, Any]]:
+    def _extract_attachments(self, msg: Message) -> list[dict[str, Any]]:
         """Extract attachment information with limits"""
         attachments = []
 
@@ -286,7 +285,7 @@ class EmailExtractor:
 
         return attachments
 
-    def _extract_features(self, email_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_features(self, email_data: dict[str, Any]) -> dict[str, Any]:
         """Extract features for similarity matching"""
         features = {}
 

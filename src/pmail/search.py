@@ -5,7 +5,6 @@ Search tool for pmail metadata databases.
 import argparse
 import sys
 from pathlib import Path
-from typing import Optional
 
 from pmail.metadata_store import MetadataStore
 
@@ -117,13 +116,13 @@ def main():
 Examples:
   # Search for invoices from amazon
   %(prog)s ~/receipts "amazon invoice"
-  
+
   # Search by document type
   %(prog)s ~/receipts --type invoice
-  
+
   # Show statistics
   %(prog)s ~/receipts --stats
-  
+
   # Check if email was already saved
   %(prog)s ~/receipts --check-message-id "<msg-123@example.com>"
 """,
