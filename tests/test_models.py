@@ -1,8 +1,9 @@
-import pytest
-from datetime import datetime
 import json
+from datetime import datetime
 
-from pmail.models import CriteriaInstance, WorkflowDefinition, DataStore
+import pytest
+
+from pmail.models import CriteriaInstance, DataStore, WorkflowDefinition
 
 
 class TestCriteriaInstance:

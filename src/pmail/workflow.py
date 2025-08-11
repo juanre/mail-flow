@@ -1,16 +1,16 @@
-import json
-import os
-from pathlib import Path
-from typing import Dict, Callable, Any, Optional
 import datetime
+import json
 import logging
+import os
 from email.message import Message
+from pathlib import Path
+from typing import Any, Callable, Dict, Optional
 
-from pmail.exceptions import WorkflowError
-from pmail.security import validate_path, sanitize_filename, sanitize_shell_arg
 from pmail.attachment_handler import save_attachments_from_message
-from pmail.pdf_converter import save_email_as_pdf
+from pmail.exceptions import WorkflowError
 from pmail.metadata_store import MetadataStore
+from pmail.pdf_converter import save_email_as_pdf
+from pmail.security import sanitize_filename, sanitize_shell_arg, validate_path
 
 logger = logging.getLogger(__name__)
 

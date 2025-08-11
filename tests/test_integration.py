@@ -2,14 +2,15 @@
 Integration test simulating the complete user workflow
 """
 
-import pytest
-from pathlib import Path
 from datetime import datetime
-from unittest.mock import patch, MagicMock
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from pmail.config import Config
 from pmail.email_extractor import EmailExtractor
-from pmail.models import DataStore, CriteriaInstance
+from pmail.models import CriteriaInstance, DataStore
 from pmail.similarity import SimilarityEngine
 from pmail.ui import WorkflowSelector
 

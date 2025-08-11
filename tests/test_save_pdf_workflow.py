@@ -1,11 +1,12 @@
 """Test the smart save_receipt workflow"""
 
-import pytest
-from pathlib import Path
+from email import encoders
+from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
+from pathlib import Path
+
+import pytest
 
 from pmail.email_extractor import EmailExtractor
 from pmail.workflow import save_pdf

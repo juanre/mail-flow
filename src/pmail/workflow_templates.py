@@ -1,6 +1,6 @@
 """Pre-configured workflow templates for common use cases"""
 
-from typing import Dict, Any
+from typing import Any, Dict
 
 # Workflow templates organized by entity and purpose
 WORKFLOW_TEMPLATES = {

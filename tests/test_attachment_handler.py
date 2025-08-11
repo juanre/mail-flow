@@ -1,12 +1,13 @@
 """Test attachment extraction functionality"""
 
-import pytest
-from pathlib import Path
+from email import encoders
 from email.message import EmailMessage
+from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
+from pathlib import Path
+
+import pytest
 
 from pmail.attachment_handler import (
     extract_and_save_attachment,

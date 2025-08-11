@@ -3,14 +3,14 @@ Metadata storage for PDF workflows using SQLite.
 Tracks email origins, content, and enables full-text search.
 """
 
-import sqlite3
-import json
 import hashlib
+import json
 import logging
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, Any, List, Optional, Tuple
+import sqlite3
 from contextlib import contextmanager
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 from pmail.exceptions import DataError
 from pmail.security import sanitize_filename

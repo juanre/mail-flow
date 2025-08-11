@@ -1,17 +1,17 @@
 #!/usr/bin/env python
 
-import sys
 import logging
+import sys
 from typing import Optional
 
 from pmail.config import Config
 from pmail.email_extractor import EmailExtractor
+from pmail.exceptions import EmailParsingError, PmailError, WorkflowError
+from pmail.logging_config import setup_logging
 from pmail.models import DataStore
 from pmail.similarity import SimilarityEngine
 from pmail.ui import WorkflowSelector
 from pmail.workflow import Workflows
-from pmail.exceptions import PmailError, EmailParsingError, WorkflowError
-from pmail.logging_config import setup_logging
 
 logger = logging.getLogger(__name__)
 

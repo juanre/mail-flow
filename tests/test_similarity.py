@@ -1,8 +1,9 @@
-import pytest
 from datetime import datetime, timedelta
 
-from pmail.similarity import SimilarityEngine
+import pytest
+
 from pmail.models import CriteriaInstance
+from pmail.similarity import SimilarityEngine
 
 
 class TestSimilarityEngine:

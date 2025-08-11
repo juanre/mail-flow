@@ -3,16 +3,17 @@ Test the learning process with real emails.
 This test demonstrates how the system learns from user selections.
 """
 
-import pytest
 import os
-from pathlib import Path
-from datetime import datetime
-import tempfile
 import shutil
+import tempfile
+from datetime import datetime
+from pathlib import Path
+
+import pytest
 
 from pmail.config import Config
 from pmail.email_extractor import EmailExtractor
-from pmail.models import DataStore, CriteriaInstance, WorkflowDefinition
+from pmail.models import CriteriaInstance, DataStore, WorkflowDefinition
 from pmail.similarity import SimilarityEngine
 
 

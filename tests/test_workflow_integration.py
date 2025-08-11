@@ -1,12 +1,13 @@
 """Test complete workflow integration with Message objects"""
 
-import pytest
-from pathlib import Path
+from email import encoders
+from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
-from unittest.mock import patch, MagicMock
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from pmail.config import Config
 from pmail.email_extractor import EmailExtractor

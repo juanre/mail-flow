@@ -1,12 +1,13 @@
 """Integration tests for PDF extraction from real emails."""
 
-import pytest
-from pathlib import Path
 from email import message_from_string
+from pathlib import Path
 
-from pmail.email_extractor import EmailExtractor
+import pytest
+
 from pmail.attachment_handler import save_attachments_from_message
-from pmail.metadata_store import MetadataStore, DocumentType, DocumentCategory
+from pmail.email_extractor import EmailExtractor
+from pmail.metadata_store import DocumentCategory, DocumentType, MetadataStore
 
 
 class TestPDFExtractionIntegration:

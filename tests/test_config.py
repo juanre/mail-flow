@@ -1,6 +1,7 @@
-import pytest
 import json
 from pathlib import Path
+
+import pytest
 
 from pmail.config import Config
 

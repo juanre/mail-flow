@@ -1,17 +1,18 @@
 """Test PDF conversion functionality"""
 
-import pytest
-from pathlib import Path
 from email.message import EmailMessage
-from unittest.mock import patch, MagicMock
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
-from pmail.pdf_converter import (
-    extract_best_html_from_message,
-    wrap_email_html,
-    convert_email_to_pdf,
-    save_email_as_pdf,
-)
+import pytest
+
 from pmail.exceptions import WorkflowError
+from pmail.pdf_converter import (
+    convert_email_to_pdf,
+    extract_best_html_from_message,
+    save_email_as_pdf,
+    wrap_email_html,
+)
 
 
 class TestPDFConverter:

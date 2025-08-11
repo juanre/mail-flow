@@ -1,7 +1,8 @@
-import pytest
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
+
+import pytest
 
 from pmail.config import Config
 

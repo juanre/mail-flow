@@ -1,15 +1,15 @@
 """Utility functions for pmail"""
 
+import fcntl
+import hashlib
+import json
+import logging
 import os
 import tempfile
-import json
-import fcntl
 import time
-import hashlib
-from pathlib import Path
-from typing import Any, Dict, Optional, Callable
 from contextlib import contextmanager
-import logging
+from pathlib import Path
+from typing import Any, Callable, Dict, Optional
 
 from pmail.exceptions import DataError
 

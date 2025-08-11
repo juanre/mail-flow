@@ -1,13 +1,13 @@
-from dataclasses import dataclass, asdict, field
-from datetime import datetime
-from typing import Dict, Any, Optional, List
 import json
-from pathlib import Path
 import logging
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from pmail.utils import atomic_json_write, safe_json_load, file_lock
 from pmail.exceptions import DataError, ValidationError
-from pmail.security import validate_path, MAX_ATTACHMENT_COUNT
+from pmail.security import MAX_ATTACHMENT_COUNT, validate_path
+from pmail.utils import atomic_json_write, file_lock, safe_json_load
 
 logger = logging.getLogger(__name__)
 

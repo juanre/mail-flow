@@ -1,19 +1,19 @@
 """Convert emails to PDF format - preserving original content"""
 
-import os
-import logging
 import base64
-from pathlib import Path
-from typing import Optional, Dict, Any, Tuple
-from email.message import Message
 import html
+import logging
+import os
 from datetime import datetime
+from email.message import Message
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
 
-from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
+from playwright.sync_api import sync_playwright
 
-from pmail.security import validate_path, sanitize_filename
 from pmail.exceptions import WorkflowError
+from pmail.security import sanitize_filename, validate_path
 
 logger = logging.getLogger(__name__)
 

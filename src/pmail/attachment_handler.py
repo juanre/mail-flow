@@ -1,14 +1,14 @@
 """Attachment extraction handler for pmail"""
 
-import os
 import base64
-from pathlib import Path
-from typing import Dict, Any, Optional
-from email.message import Message
 import logging
+import os
+from email.message import Message
+from pathlib import Path
+from typing import Any, Dict, Optional
 
-from pmail.security import validate_path, sanitize_filename
 from pmail.exceptions import WorkflowError
+from pmail.security import sanitize_filename, validate_path
 
 logger = logging.getLogger(__name__)
 

@@ -1,17 +1,17 @@
 import email
-import re
-from typing import Dict, List, Any, Optional
-from email.message import Message
-from email.header import decode_header
-import mimetypes
 import logging
+import mimetypes
+import re
+from email.header import decode_header
+from email.message import Message
+from typing import Any, Dict, List, Optional
 
 from pmail.exceptions import EmailParsingError, ValidationError
 from pmail.security import (
+    MAX_ATTACHMENT_COUNT,
+    MAX_BODY_PREVIEW_LENGTH,
     MAX_EMAIL_SIZE_MB,
     MAX_SUBJECT_LENGTH,
-    MAX_BODY_PREVIEW_LENGTH,
-    MAX_ATTACHMENT_COUNT,
     sanitize_filename,
     validate_message_id,
 )

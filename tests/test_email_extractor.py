@@ -1,4 +1,5 @@
 import pytest
+
 from pmail.email_extractor import EmailExtractor
 
 

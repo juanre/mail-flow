@@ -1,7 +1,7 @@
-from typing import List, Tuple, Optional
+import logging
 import sys
 from datetime import datetime
-import logging
+from typing import List, Optional, Tuple
 
 from pmail.linein import LineInput
 from pmail.models import CriteriaInstance, WorkflowDefinition

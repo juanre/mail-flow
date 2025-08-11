@@ -1,16 +1,16 @@
 """pmail command-line interface"""
 
-import sys
 import logging
+import sys
 from pathlib import Path
 from typing import Optional
 
 import click
 
 from pmail.config import Config
+from pmail.logging_config import setup_logging
 from pmail.models import DataStore, WorkflowDefinition
 from pmail.process import process as process_email
-from pmail.logging_config import setup_logging
 
 logger = logging.getLogger(__name__)
 
@@ -266,8 +266,9 @@ def data(filepath):
         pmail data gsk/expense/2025/2025-07-29-dropbox.com-subscription.pdf
         pmail data 2025-07-29-dropbox.com-subscription.pdf
     """
-    from pmail.metadata_store import MetadataStore
     import json
+
+    from pmail.metadata_store import MetadataStore
 
     # Try different workflow directories
     config = Config()

@@ -1,12 +1,13 @@
 """Test metadata storage functionality."""
 
-import pytest
-from pathlib import Path
-from datetime import datetime
 import json
+from datetime import datetime
+from pathlib import Path
 
-from pmail.metadata_store import MetadataStore
+import pytest
+
 from pmail.exceptions import DataError
+from pmail.metadata_store import MetadataStore
 
 
 class TestMetadataStore:

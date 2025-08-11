@@ -1,14 +1,15 @@
 """Test the improved PDF converter that preserves original email content"""
 
-import pytest
-from pathlib import Path
 from email import message_from_string
-from unittest.mock import patch, MagicMock
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from pmail.pdf_converter import (
     extract_best_html_from_message,
-    wrap_email_html,
     save_email_as_pdf,
+    wrap_email_html,
 )
 
 

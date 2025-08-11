@@ -1,10 +1,10 @@
 """Security utilities for input validation and sanitization"""
 
 import os
-import re
 import pathlib
-from typing import Optional, List
+import re
 from pathlib import Path
+from typing import List, Optional
 
 
 class SecurityError(Exception):

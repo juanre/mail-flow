@@ -2,6 +2,7 @@
 
 import os
 from datetime import datetime
+
 import gnureadline as readline
 
 readline.read_init_file(os.path.expanduser("~/.inputrc"))
