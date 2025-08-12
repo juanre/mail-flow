@@ -21,6 +21,7 @@ dependencies = [
 
 [project.scripts]
 pmail = "pmail.cli:cli"
+pmail-setup = "pmail.setup:main"
 
 [build-system]
 requires = ["hatchling"]

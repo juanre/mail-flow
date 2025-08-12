@@ -25,6 +25,9 @@ playwright install chromium
 
 # Initialize pmail with default configuration
 pmail init
+
+# Optional guided setup (Playwright, Gmail, llmemory)
+pmail-setup
 ```
 
 ## Quick Start
