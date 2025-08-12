@@ -162,8 +162,33 @@ class DataStore:
             self.criteria_instances = []
 
     def _default_workflows(self) -> dict[str, WorkflowDefinition]:
-        """No default workflows - use 'pmail init' to create workflows"""
-        return {}
+        """Provide sensible defaults expected by tests and CLI."""
+        defaults: dict[str, WorkflowDefinition] = {}
+
+        try:
+            defaults["save-attachments"] = WorkflowDefinition(
+                name="save-attachments",
+                description="Save all PDF attachments to ~/receipts",
+                action_type="save_attachment",
+                action_params={"directory": "~/receipts", "pattern": "*.pdf"},
+            )
+            defaults["save-receipts"] = WorkflowDefinition(
+                name="save-receipts",
+                description="Save receipts: PDF attachments or convert email to PDF",
+                action_type="save_pdf",
+                action_params={"directory": "~/receipts", "filename_template": "{date}_{from}_{subject}"},
+            )
+            defaults["archive"] = WorkflowDefinition(
+                name="archive",
+                description="Archive emails as todos (example)",
+                action_type="create_todo",
+                action_params={"todo_file": "~/todos.txt"},
+            )
+        except Exception as e:
+            logger.error(f"Failed to create default workflows: {e}")
+            return {}
+
+        return defaults
 
     def save_workflows(self):
         """Save workflows with atomic write and locking"""

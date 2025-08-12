@@ -27,7 +27,10 @@ class Config:
         """Create necessary directories"""
         try:
             self.config_dir.mkdir(exist_ok=True, mode=0o700)  # Private directory
-            (self.config_dir / "history").mkdir(exist_ok=True, mode=0o700)  # For readline history
+            # Subdirectories used by the app and tests
+            (self.config_dir / "history").mkdir(exist_ok=True, mode=0o700)
+            (self.config_dir / "workflows").mkdir(exist_ok=True, mode=0o700)
+            (self.config_dir / "backups").mkdir(exist_ok=True, mode=0o700)
         except Exception as e:
             logger.error(f"Failed to create config directories: {e}")
             raise
@@ -111,3 +114,34 @@ class Config:
 
     def get_history_dir(self) -> Path:
         return self.config_dir / "history"
+
+    def backup_file(self, file_path: Path) -> Path:
+        """Backup a file into the backups directory with a timestamped name.
+
+        The backup filename pattern is '<stem>_<YYYYmmddHHMMSS><suffix>'.
+        """
+        backups_dir = self.config_dir / "backups"
+        backups_dir.mkdir(exist_ok=True, mode=0o700)
+
+        if not file_path.exists():
+            # Nothing to back up; return the intended path
+            from datetime import datetime
+
+            ts = datetime.now().strftime("%Y%m%d%H%M%S")
+            backup_name = f"{file_path.stem}_{ts}{file_path.suffix}"
+            return backups_dir / backup_name
+
+        from datetime import datetime
+
+        ts = datetime.now().strftime("%Y%m%d%H%M%S")
+        backup_name = f"{file_path.stem}_{ts}{file_path.suffix}"
+        backup_path = backups_dir / backup_name
+
+        try:
+            with open(file_path, "rb") as src, open(backup_path, "wb") as dst:
+                dst.write(src.read())
+        except Exception as e:
+            logger.error(f"Failed to backup file {file_path}: {e}")
+            raise
+
+        return backup_path

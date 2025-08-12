@@ -36,7 +36,8 @@ def setup_logging(
 
     # Console handler (stderr)
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.WARNING)  # Only warnings and above to console
+    # Reflect requested log level on console output
+    console_handler.setLevel(getattr(logging, log_level.upper()))
     console_handler.setFormatter(simple_formatter)
     logger.addHandler(console_handler)
 

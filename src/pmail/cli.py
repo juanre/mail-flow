@@ -229,7 +229,7 @@ def search(query, directory, limit, type):
             results = store.search(query, limit)
             search_desc = f"'{query}'"
         else:
-            # Show recent PDFs
+            # Show recent PDFs without FTS
             results = store.search("", limit)
             search_desc = "recent PDFs"
 

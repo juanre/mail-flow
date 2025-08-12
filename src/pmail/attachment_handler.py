@@ -167,6 +167,7 @@ def save_attachments_from_message(
                                 confidence_score=email_data.get("_confidence_score"),
                                 document_type=doc_type,
                                 document_category=doc_category,
+                                pdf_original_filename=filename,
                             )
                         except Exception as e:
                             logger.warning(f"Failed to store metadata: {e}")
@@ -179,8 +180,3 @@ def save_attachments_from_message(
             recovery_hint="Check directory permissions and available disk space",
         )
 
-
-# Note: To fully implement attachment saving, we would need to modify
-# the process flow to pass the original Message object through to the
-# workflow execution. Currently, we only pass the extracted data dictionary.
-# This would require changes to the process.py and workflow.py files.

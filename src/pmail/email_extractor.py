@@ -246,11 +246,18 @@ class EmailExtractor:
                     # Sanitize filename
                     safe_filename = sanitize_filename(filename)
 
+                    # Compute attachment size from decoded bytes if possible
+                    try:
+                        raw_payload = part.get_payload(decode=True) or b""
+                        att_size = len(raw_payload)
+                    except Exception:
+                        att_size = 0
+
                     att_info = {
                         "filename": safe_filename,
                         "original_filename": filename,
                         "content_type": part.get_content_type(),
-                        "size": len(part.get_payload()),
+                        "size": att_size,
                     }
 
                     # Extract extension safely
@@ -307,6 +314,12 @@ class EmailExtractor:
                         features["from_domain"] = domain
             except Exception as e:
                 logger.warning(f"Failed to extract domain: {e}")
+
+        # Include raw recipient for to_address similarity
+        try:
+            features["to"] = email_data.get("to", "").lower()
+        except Exception:
+            features["to"] = ""
 
         # Attachment features
         features["has_pdf"] = any(att.get("is_pdf", False) for att in email_data["attachments"])

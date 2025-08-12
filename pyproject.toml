@@ -1,6 +1,6 @@
 [project]
 name = "pmail"
-version = "0.1.0"
+version = "0.2.0"
 description = "Add your description here"
 readme = "README.md"
 authors = [
@@ -9,11 +9,9 @@ authors = [
 requires-python = ">=3.10"
 dependencies = [
     "beautifulsoup4>=4.13.4",
-    "black>=25.1.0",
     "click>=8.2.1",
     "gnureadline>=8.2.13",
     "playwright>=1.54.0",
-    "pytest>=8.4.1",
     "python-dateutil>=2.9.0.post0",
 ]
 
@@ -30,6 +28,7 @@ dev = [
     "isort>=6.0.1",
     "mypy>=1.17.1",
     "ruff>=0.12.7",
+    "pytest>=8.4.1",
 ]
 
 [tool.black]

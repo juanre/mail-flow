@@ -413,6 +413,7 @@ def save_email_as_pdf(
                     confidence_score=email_data.get("_confidence_score"),
                     document_type=doc_type,
                     document_category=doc_category,
+                    pdf_original_filename=None,
                 )
             except Exception as e:
                 logger.warning(f"Failed to store metadata: {e}")

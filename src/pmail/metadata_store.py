@@ -180,6 +180,7 @@ class MetadataStore:
         document_category: str = DocumentCategory.UNCATEGORIZED,
         document_info: dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
+        pdf_original_filename: str | None = None,
     ):
         """Store comprehensive metadata for a saved PDF."""
         try:
@@ -217,7 +218,8 @@ class MetadataStore:
                 "email_body_html": email_data.get("body", ""),
                 "email_headers": json.dumps(email_data.get("headers", {})),
                 "pdf_type": pdf_type,
-                "pdf_original_filename": email_data.get("original_filename"),
+                # Prefer explicitly provided original filename when available
+                "pdf_original_filename": pdf_original_filename,
                 "pdf_text_content": pdf_text,
                 "workflow_name": workflow_name,
                 "confidence_score": confidence_score,
@@ -230,7 +232,7 @@ class MetadataStore:
 
             # Store in database
             with self.get_connection() as conn:
-                conn.execute(
+                cursor = conn.execute(
                     """
                     INSERT OR REPLACE INTO pdf_metadata (
                         filename, filepath, file_hash, file_size,
@@ -256,13 +258,20 @@ class MetadataStore:
                 )
 
                 # Update FTS index
+                try:
+                    row_id = cursor.lastrowid
+                except Exception:
+                    row_id = None
+
+                # Ensure FTS entry rowid matches pdf_metadata.id for correct JOINs
                 conn.execute(
                     """
                     INSERT INTO pdf_search (
-                        filename, email_subject, email_from, search_content
-                    ) VALUES (?, ?, ?, ?)
+                        rowid, filename, email_subject, email_from, search_content
+                    ) VALUES (?, ?, ?, ?, ?)
                 """,
                     (
+                        row_id,
                         db_data["filename"],
                         db_data["email_subject"],
                         db_data["email_from"],
@@ -278,19 +287,31 @@ class MetadataStore:
             raise DataError(f"Failed to store PDF metadata: {e}")
 
     def search(self, query: str, limit: int = 20) -> list[dict[str, Any]]:
-        """Search PDFs using full-text search."""
+        """Search PDFs using FTS5 or return recent when no query."""
         try:
             with self.get_connection() as conn:
-                # Use FTS5 for search
+                if not query:
+                    results = conn.execute(
+                        """
+                        SELECT * FROM pdf_metadata
+                        ORDER BY saved_at DESC
+                        LIMIT ?
+                        """,
+                        (limit,),
+                    )
+                    return [dict(row) for row in results]
+
+                # Use FTS5 for search with bm25 ranking (lower score is better).
+                # Note: The virtual table is named pdf_search; refer to it directly in MATCH.
                 results = conn.execute(
                     """
                     SELECT
                         m.*,
-                        rank
-                    FROM pdf_search s
-                    JOIN pdf_metadata m ON m.id = s.rowid
+                        bm25(pdf_search) AS score
+                    FROM pdf_search
+                    JOIN pdf_metadata m ON m.id = pdf_search.rowid
                     WHERE pdf_search MATCH ?
-                    ORDER BY rank
+                    ORDER BY score
                     LIMIT ?
                 """,
                     (query, limit),

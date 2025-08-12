@@ -2,9 +2,16 @@
 import os
 from datetime import datetime
 
-import gnureadline as readline
+try:
+    import gnureadline as readline
+except Exception:  # pragma: no cover - environment-dependent
+    import readline  # type: ignore
 
-readline.read_init_file(os.path.expanduser("~/.inputrc"))
+# Initialize readline config if available
+try:
+    readline.read_init_file(os.path.expanduser("~/.inputrc"))
+except Exception:
+    pass
 # Set delimiters to allow completion of workflow names with hyphens
 readline.set_completer_delims(" \t\n`~!@#$%^&*()=+[{]}\\|;:'\",<>/?.")
 
