@@ -342,6 +342,23 @@ Notes:
 - This is completely optional and does not change the default SQLite FTS search. Use `pmail search` (SQLite) or `pmail msearch` (llmemory) based on needs.
 - llmemory supports local embedding providers; set `embedding_provider` accordingly and omit `openai_api_key` if using local.
 
+### MCP server (optional)
+Expose read-only tools over the Model Context Protocol so an MCP-enabled LLM (e.g., Claude Desktop) can query your archive.
+
+Run the STDIO server:
+```bash
+uv run pmail-mcp
+```
+
+Tools exposed:
+- `search_pdfs`: text search across your archive (uses SQLite FTS under the hood)
+- `get_pdf_metadata`: fetch full metadata for a PDF by path or filename
+- `get_pdf_text_preview`: short text preview (PDF extracted text or email body)
+
+Notes:
+- The server waits for MCP messages on STDIO. Ctrl-C to stop.
+- To test locally, use the stdio client from your `mcp-server` repo or an MCP client.
+
 ## Development
 
 ### Project Structure
