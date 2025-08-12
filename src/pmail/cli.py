@@ -10,6 +10,7 @@ from pmail.config import Config
 from pmail.logging_config import setup_logging
 from pmail.models import DataStore, WorkflowDefinition
 from pmail.process import process as process_email
+from pmail.gmail_api import poll_and_process as gmail_poll
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,37 @@ def process_stdin():
 
 
 @cli.command()
+@click.option("--query", "query", default="", help="Gmail search query (e.g., label:INBOX)")
+@click.option("--label", "label", default=None, help="Only process messages with this Gmail label")
+@click.option("--processed-label", default="pmail/processed", help="Label to add after processing")
+@click.option("--max-results", default=20, help="Maximum Gmail messages to process per run")
+@click.option("--remove-from-inbox", is_flag=True, help="Remove from INBOX after processing")
+def gmail(query, label, processed_label, max_results, remove_from_inbox):
+    """Process emails directly from Gmail via the Gmail API.
+
+    Requirements:
+      - Place OAuth client JSON at ~/.pmail/gmail_client_secret.json
+      - Install dependencies: uv add google-api-python-client google-auth google-auth-oauthlib
+    """
+    config = Config()
+    try:
+        count = gmail_poll(
+            config,
+            query=query,
+            label=label,
+            processed_label=processed_label,
+            max_results=max_results,
+            remove_from_inbox=remove_from_inbox,
+        )
+        click.echo(f"\n✓ Processed {count} Gmail message(s)")
+    except RuntimeError as e:
+        click.echo(str(e), err=True)
+        sys.exit(1)
+    except Exception as e:
+        logger.exception("Gmail processing failed")
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
 @click.option("--reset", is_flag=True, help="Reset configuration (backup existing)")
 def init(reset):
     """Initialize pmail configuration with default workflows"""
