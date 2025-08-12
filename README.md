@@ -304,6 +304,41 @@ Notes:
 - After processing, messages can be labeled (e.g., `pmail/processed`) and optionally removed from INBOX.
 - You can set up a cron/launchd job to periodically run the command.
 
+### Semantic search with llmemory (optional)
+pmail can optionally index saved PDFs/emails into `llmemory` for hybrid (semantic + text) search at scale.
+
+Requirements:
+- PostgreSQL 14+ with the `pgvector` extension installed and enabled.
+- Install the dependency:
+  ```bash
+  uv add llmemory
+  ```
+
+Enable in config (`~/.pmail/config.json`):
+```json
+{
+  "llmemory": {
+    "enabled": true,
+    "connection_string": "postgresql://user:pass@localhost:5432/pmail",
+    "owner_id": "default-owner",
+    "embedding_provider": "openai",
+    "openai_api_key": "sk-..."
+  }
+}
+```
+
+How it works:
+- When a PDF is saved (attachment or converted email), pmail stores metadata in SQLite as usual and, if `llmemory.enabled` is true and text is available, also indexes the content in llmemory with useful metadata (workflow, document type/category, email headers).
+
+Search with llmemory:
+```bash
+uv run pmail msearch "cloudflare invoice" --limit 10
+```
+
+Notes:
+- This is completely optional and does not change the default SQLite FTS search. Use `pmail search` (SQLite) or `pmail msearch` (llmemory) based on needs.
+- llmemory supports local embedding providers; set `embedding_provider` accordingly and omit `openai_api_key` if using local.
+
 ## Development
 
 ### Project Structure
