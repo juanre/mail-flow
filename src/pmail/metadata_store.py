@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from pmail.exceptions import DataError
+from pmail.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -281,6 +282,45 @@ class MetadataStore:
 
                 conn.commit()
                 logger.info(f"Stored metadata for {pdf_path.name}")
+
+                # Optional llmemory indexing
+                try:
+                    config = Config()
+                    llm_cfg = config.settings.get("llmemory", {})
+                    if llm_cfg.get("enabled") and pdf_text:
+                        # Lazy import to avoid hard dependency
+                        import asyncio
+                        from llmemory import AwordMemory, DocumentType as LDocType
+
+                        async def _index():
+                            memory = AwordMemory(
+                                connection_string=llm_cfg.get("connection_string"),
+                                openai_api_key=llm_cfg.get("openai_api_key"),
+                            )
+                            await memory.initialize()
+                            try:
+                                await memory.add_document(
+                                    owner_id=llm_cfg.get("owner_id", "default-owner"),
+                                    id_at_origin=email_data.get("message_id", ""),
+                                    document_name=pdf_path.name,
+                                    document_type=LDocType.PDF if pdf_type == "attachment" else LDocType.EMAIL,
+                                    content=pdf_text or "",
+                                    metadata={
+                                        "workflow_name": workflow_name,
+                                        "document_type": document_type,
+                                        "document_category": document_category,
+                                        "email_from": email_data.get("from"),
+                                        "email_subject": email_data.get("subject"),
+                                        "filepath": str(pdf_path),
+                                    },
+                                )
+                            finally:
+                                await memory.close()
+
+                        # Run the coroutine (simple fire-and-wait in current thread)
+                        asyncio.run(_index())
+                except Exception as e:
+                    logger.warning(f"llmemory indexing failed: {e}")
 
         except Exception as e:
             logger.error(f"Failed to store metadata: {e}")

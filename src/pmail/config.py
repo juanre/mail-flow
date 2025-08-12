@@ -76,6 +76,13 @@ class Config:
                 "max_workflows": 100,
             },
             "security": {"allowed_directories": ["~"], "max_email_size_mb": 25},
+            "llmemory": {
+                "enabled": False,
+                "connection_string": "",  # e.g., postgresql://user:pass@host/db
+                "owner_id": "default-owner",
+                "embedding_provider": None,  # e.g., "openai" or local provider id
+                "openai_api_key": None,
+            },
         }
 
     def _validate_settings(self):

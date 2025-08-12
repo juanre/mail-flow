@@ -243,6 +243,53 @@ def stats():
 
 
 @cli.command()
+@click.argument("query")
+@click.option("--limit", "limit", default=10, help="Max results")
+def msearch(query, limit):
+    """Semantic/hybrid search via optional llmemory backend (if enabled)."""
+    try:
+        from llmemory import AwordMemory, SearchType
+        from pmail.config import Config
+
+        config = Config()
+        llm_cfg = config.settings.get("llmemory", {})
+        if not llm_cfg.get("enabled"):
+            click.echo("llmemory is disabled. Enable in ~/.pmail/config.json under llmemory.enabled.")
+            return
+
+        async def _run():
+            memory = AwordMemory(
+                connection_string=llm_cfg.get("connection_string"),
+                openai_api_key=llm_cfg.get("openai_api_key"),
+            )
+            await memory.initialize()
+            try:
+                results = await memory.search_with_documents(
+                    owner_id=llm_cfg.get("owner_id", "default-owner"),
+                    query_text=query,
+                    search_type=SearchType.HYBRID,
+                    limit=limit,
+                )
+                for i, r in enumerate(results.results, 1):
+                    click.echo(f"{i}. {r.document_name} :: {r.content[:100].replace('\n',' ')}")
+            finally:
+                await memory.close()
+
+        import asyncio
+
+        asyncio.run(_run())
+    except ImportError:
+        click.echo(
+            "Missing llmemory dependency. Install with: uv add llmemory and configure ~/.pmail/config.json",
+            err=True,
+        )
+    except Exception as e:
+        logger.exception("llmemory search failed")
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
 @click.argument("query", required=False)
 @click.option("--directory", "-d", default="~/receipts", help="Directory to search")
 @click.option("--limit", "-n", default=20, help="Maximum results")
