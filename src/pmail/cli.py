@@ -2,6 +2,7 @@
 
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import click
@@ -11,6 +12,10 @@ from pmail.logging_config import setup_logging
 from pmail.models import DataStore, WorkflowDefinition
 from pmail.process import process as process_email
 from pmail.gmail_api import poll_and_process as gmail_poll
+from pmail.slack.ingest import ingest_channel, token_path_for_entity
+from pmail.slack.client import SlackClient, SlackConfig
+from pmail.slack.migrate_contextual import migrate_contextual_slack
+from pmail.gdocs.ingest import ingest_doc_url, ingest_doc_id, ingest_drive_folder
 
 logger = logging.getLogger(__name__)
 
@@ -486,6 +491,132 @@ def version():
     from pmail import __version__
 
     click.echo(f"pmail version {__version__}")
+
+
+@cli.command()
+@click.option("--entity", required=True, help="Entity id for token and archive placement")
+@click.option("--channel", help="Channel name or ID (C...) to sync one conversation")
+@click.option("--dm", help="DM with this username (alternative to --channel)")
+@click.option("--since", help="Cutoff (YYYY-MM-DD or unix timestamp)")
+@click.option("--force-full", is_flag=True, help="Ignore incremental and fetch full history")
+@click.option("--include-archived", is_flag=True, help="Include archived channels in listings")
+@click.option("--info", is_flag=True, help="List channels/users and exit")
+def slack(entity, channel, dm, since, force_full, include_archived, info):
+    """Sync Slack conversations to local markdown, JSON, and attachments."""
+    config = Config()
+
+    try:
+        token_path = token_path_for_entity(config, entity)
+        client = SlackClient(SlackConfig(token_path=token_path))
+        domain = client.team_domain()
+
+        if info:
+            channels = client.list_conversations(include_archived=include_archived)
+            click.echo(f"\nWorkspace: {domain}")
+            click.echo("\nChannels/Conversations:")
+            for cid, name, meta in sorted(channels, key=lambda x: x[1].lower()):
+                suffix = " (archived)" if meta.get("is_archived") else ""
+                click.echo(f"  - {name} [{cid}]{suffix}")
+            return
+
+        # resolve a single conversation
+        if dm and not channel:
+            # list IMs, find one with that username
+            for cid, name, _ in client.list_conversations(include_archived=False):
+                if name == f"dm-{dm}":
+                    channel = name
+                    channel_id = cid
+                    break
+            else:
+                raise RuntimeError(f"DM with @{dm} not found")
+        elif channel:
+            channel_id, channel_name = client.find_channel(channel)
+            channel = channel_name
+        else:
+            raise click.UsageError("Specify --channel or --dm, or use --info to list")
+
+        # parse since
+        since_ts: Optional[float] = None
+        if since:
+            try:
+                since_ts = float(since)
+            except ValueError:
+                since_ts = datetime.fromisoformat(since).timestamp()
+
+        count = ingest_channel(config, entity, channel_id, channel, since_ts, force_full)
+        click.echo(f"\n✓ Saved {count} message(s) from {channel}")
+
+    except Exception as e:
+        logger.exception("Slack sync failed")
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("old_root")
+@click.option("--entity", required=True, help="Entity id for target archive placement")
+def migrate_contextual(old_root, entity):
+    """Migrate old contextual Slack archive (org+raw) into the new markdown archive.
+
+    OLD_ROOT points to the old contextual Slack folder (containing *.org and raw/slack/...).
+    """
+    config = Config()
+    try:
+        count = migrate_contextual_slack(old_root, entity, cfg=config)
+        click.echo(f"\n✓ Migrated {count} day transcript(s) into the new archive")
+    except Exception as e:
+        logger.exception("Contextual migration failed")
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.group()
+def gdocs():
+    """Google Docs ingestion commands."""
+    pass
+
+
+@gdocs.command("url")
+@click.argument("url")
+@click.option("--entity", required=True)
+def gdocs_url(url, entity):
+    config = Config()
+    try:
+        md, pdf = ingest_doc_url(config, entity, url)
+        click.echo(f"\n✓ Saved: {md}\n✓ PDF: {pdf}")
+    except Exception as e:
+        logger.exception("gdocs url ingestion failed")
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@gdocs.command("id")
+@click.argument("file_id")
+@click.option("--entity", required=True)
+def gdocs_id(file_id, entity):
+    config = Config()
+    try:
+        md, pdf = ingest_doc_id(config, entity, file_id)
+        click.echo(f"\n✓ Saved: {md}\n✓ PDF: {pdf}")
+    except Exception as e:
+        logger.exception("gdocs id ingestion failed")
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@gdocs.command("folder")
+@click.argument("folder_id")
+@click.option("--entity", required=True)
+@click.option("--since", help="Only ingest files modified after this ISO timestamp")
+def gdocs_folder(folder_id, entity, since):
+    config = Config()
+    try:
+        count = ingest_drive_folder(config, entity, folder_id, since_iso=since)
+        click.echo(f"\n✓ Ingested {count} document(s) from folder")
+    except Exception as e:
+        logger.exception("gdocs folder ingestion failed")
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

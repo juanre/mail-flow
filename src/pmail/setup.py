@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -123,6 +124,52 @@ def configure_llmemory(config: Config):
     click.echo("✓ llmemory configuration saved")
 
 
+def install_auth_from_repo():
+    """Install auth materials from a local 'pmail-auth' folder into XDG config.
+
+    - Source: ./pmail-auth (in current working directory)
+    - Destination: ~/.config/pmail/
+    - Preserves directory structure (e.g., slack/<entity>/user_token)
+    """
+    src = Path.cwd() / "pmail-auth"
+    if not src.exists() or not src.is_dir():
+        return
+
+    xdg = Path(os.environ.get("XDG_CONFIG_HOME", "~/.config")).expanduser()
+    dst = (xdg / "pmail").resolve()
+
+    click.echo(f"\nFound local auth directory: {src}")
+    if not click.confirm(f"Copy auth files into {dst}?", default=True):
+        return
+
+    # Copy tree (merge), creating directories as needed
+    for root, dirs, files in os.walk(src):
+        rel = Path(root).relative_to(src)
+        target_dir = dst / rel
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        for name in files:
+            src_file = Path(root) / name
+            dst_file = target_dir / name
+            try:
+                shutil.copy2(src_file, dst_file)
+                # Tighten permissions for likely secret files
+                if name.lower() in {"user_token", "token", "token.json"} or "secret" in name.lower():
+                    try:
+                        os.chmod(dst_file, 0o600)
+                    except Exception:
+                        pass
+            except Exception as e:
+                click.echo(f"  ✗ Failed to copy {src_file} → {dst_file}: {e}", err=True)
+    # Ensure base dir permissions are reasonable
+    try:
+        os.chmod(dst, 0o700)
+    except Exception:
+        pass
+
+    click.echo(f"✓ Auth files installed to {dst}")
+
+
 @click.command()
 def main():
     """pmail setup wizard."""
@@ -131,6 +178,9 @@ def main():
 
     # Ensure base config exists
     click.echo(f"Using config dir: {config.config_dir}")
+
+    # Optionally install local auth files into XDG config
+    install_auth_from_repo()
 
     # Core: Playwright (browsers)
     ensure_playwright_browsers()
