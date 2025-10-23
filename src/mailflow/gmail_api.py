@@ -12,11 +12,13 @@ import base64
 import json
 import logging
 import os
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List, Optional
 
 from mailflow.config import Config
+from mailflow.exceptions import EmailParsingError
 from mailflow.process import process as process_email
 
 logger = logging.getLogger(__name__)
@@ -173,14 +175,17 @@ def poll_and_process(
         inbox_label_id = "INBOX"
 
     count = 0
+    transient_errors = 0
+    max_transient_errors = 3
+
     for mid in msg_ids:
         try:
             raw = get_message_raw(service, mid)
             if not raw:
                 logger.warning(f"Message {mid} had no raw content; skipping")
                 continue
+
             process_email(raw, config=config)
-            count += 1
 
             # Label management
             add_ids = []
@@ -191,8 +196,29 @@ def poll_and_process(
                 remove_ids.append(inbox_label_id)
             if add_ids or remove_ids:
                 modify_labels(service, mid, add_labels=add_ids, remove_labels=remove_ids)
+
+            # Only increment count and reset errors after all operations succeed
+            count += 1
+            transient_errors = 0
+
+        except EmailParsingError as e:
+            # Permanent error - log and skip
+            logger.error(f"Invalid email format for message {mid}: {e}")
+            continue
+
         except Exception as e:
+            # Could be transient network error
+            transient_errors += 1
             logger.exception(f"Failed to process Gmail message {mid}: {e}")
+
+            if transient_errors >= max_transient_errors:
+                logger.error(f"Too many consecutive errors ({transient_errors}), stopping")
+                break
+
+            # Exponential backoff
+            backoff = 2**transient_errors
+            logger.info(f"Retrying after {backoff}s backoff")
+            time.sleep(backoff)
             continue
 
     return count

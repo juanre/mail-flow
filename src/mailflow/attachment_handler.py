@@ -42,7 +42,7 @@ def extract_and_save_attachment(part: Message, directory: Path, filename: str) -
         counter = 0
         while counter < 1000:  # Safety limit
             if counter > 0:
-                filepath = directory / f"{base}_{counter}{ext}"
+                filepath = directory / f"{base}-{counter}{ext}"
 
             try:
                 # 'xb' mode fails atomically if file exists - no race condition

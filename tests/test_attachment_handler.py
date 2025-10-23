@@ -89,7 +89,7 @@ class TestAttachmentHandler:
         path2 = extract_and_save_attachment(attachment_part, save_dir, "test.pdf")
 
         assert path1.name == "test.pdf"
-        assert path2.name == "test_1.pdf"
+        assert path2.name == "test-1.pdf"
         assert path1.exists()
         assert path2.exists()
 

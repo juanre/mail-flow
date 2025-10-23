@@ -75,17 +75,64 @@ class Config:
             logger.error(f"Failed to create directories: {e}")
             raise
 
+    def _validate_config_structure(self, settings: dict) -> bool:
+        """Validate that loaded config has required structure."""
+        required_keys = {
+            "feature_weights": dict,
+            "ui": dict,
+            "learning": dict,
+            "storage": dict,
+            "security": dict,
+            "llm": dict,
+        }
+
+        for key, expected_type in required_keys.items():
+            if key not in settings:
+                logger.error(f"Config missing required key: {key}")
+                return False
+            if not isinstance(settings[key], expected_type):
+                logger.error(f"Config key {key} has wrong type: {type(settings[key])}")
+                return False
+
+        return True
+
     def _load_config(self):
-        """Load configuration with defaults"""
+        """Load configuration with structure validation"""
         config_file = self.config_dir / "config.json"
         if config_file.exists():
             try:
                 with open(config_file) as f:
-                    self.settings = json.load(f)
-                    # Validate loaded settings
+                    loaded_settings = json.load(f)
+
+                # Validate structure
+                if not self._validate_config_structure(loaded_settings):
+                    # Backup the bad config
+                    from datetime import datetime
+
+                    ts = datetime.now().strftime("%Y%m%d%H%M%S")
+                    backup_path = config_file.parent / f"config.json.invalid_{ts}"
+                    config_file.rename(backup_path)
+                    logger.error(f"Invalid config structure, backed up to {backup_path}")
+                    print(f"\n⚠️  WARNING: Invalid config.json structure!")
+                    print(f"   Backed up to: {backup_path}")
+                    print(f"   Using default settings instead.")
+                    print(f"   Check the backup file and fix the structure.\n")
+                    self.settings = self._default_settings()
+                    self.save_config()
+                else:
+                    self.settings = loaded_settings
                     self._validate_settings()
             except json.JSONDecodeError as e:
-                logger.error(f"Invalid config file: {e}")
+                logger.error(f"Invalid JSON in config file: {e}")
+                from datetime import datetime
+
+                ts = datetime.now().strftime("%Y%m%d%H%M%S")
+                backup_path = config_file.parent / f"config.json.invalid_{ts}"
+                config_file.rename(backup_path)
+                print(f"\n⚠️  WARNING: Invalid JSON in config.json!")
+                print(f"   Backed up to: {backup_path}")
+                print(f"   Error: {e}")
+                print(f"   Using default settings instead.\n")
                 self.settings = self._default_settings()
                 self.save_config()
             except Exception as e:

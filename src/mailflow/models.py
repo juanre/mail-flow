@@ -116,9 +116,12 @@ class WorkflowDefinition:
 class DataStore:
     """Handles persistence of workflows and criteria instances"""
 
-    # Limits to prevent unbounded growth
-    MAX_CRITERIA_INSTANCES = 10000
+    # Workflow limit to prevent misconfiguration
     MAX_WORKFLOWS = 100
+
+    # Storage milestone thresholds for criteria instances
+    # No hard limit - training data diversity is valuable regardless of age
+    CRITERIA_MILESTONES = [50000, 100000, 150000, 200000, 250000]
 
     def __init__(self, config):
         self.config = config
@@ -192,16 +195,25 @@ class DataStore:
             logger.info(f"Saved {len(workflows_data)} workflows")
 
     def save_criteria(self):
-        """Save criteria instances with atomic write and locking"""
-        if len(self.criteria_instances) > self.MAX_CRITERIA_INSTANCES:
-            # Trim oldest instances
-            logger.warning(
-                f"Trimming criteria instances from {len(self.criteria_instances)} "
-                f"to {self.MAX_CRITERIA_INSTANCES}"
-            )
-            self.criteria_instances = sorted(
-                self.criteria_instances, key=lambda x: x.timestamp, reverse=True
-            )[: self.MAX_CRITERIA_INSTANCES]
+        """Save criteria instances without arbitrary limits.
+
+        Training data is valuable - old examples are as important as new ones
+        for maintaining classification diversity. Storage is cheap (~2KB per instance),
+        so we don't delete training data arbitrarily.
+
+        Warnings are issued at storage milestones to keep user informed.
+        """
+        instance_count = len(self.criteria_instances)
+
+        # Warn at milestones (50k, 100k, 150k, etc.) but don't delete
+        for milestone in self.CRITERIA_MILESTONES:
+            if instance_count == milestone:
+                storage_mb = (instance_count * 2048) / (1024 * 1024)  # Rough estimate
+                logger.warning(
+                    f"Criteria instances reached {instance_count:,} entries (~{storage_mb:.1f}MB). "
+                    f"Consider reviewing if storage becomes an issue."
+                )
+                break
 
         with file_lock(self.criteria_file):
             # Prepare data
