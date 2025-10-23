@@ -20,6 +20,29 @@ from mailflow.security import sanitize_filename, validate_path
 logger = logging.getLogger(__name__)
 
 
+def sanitize_html_for_pdf(html_content: str) -> str:
+    """Sanitize HTML content for safe PDF conversion."""
+    soup = BeautifulSoup(html_content, "html.parser")
+
+    # Remove dangerous elements
+    for tag in soup.find_all(["script", "iframe", "object", "embed", "link"]):
+        tag.decompose()
+
+    # Remove event handlers from all tags
+    for tag in soup.find_all(True):
+        attrs_to_remove = [attr for attr in tag.attrs if attr.startswith("on")]
+        for attr in attrs_to_remove:
+            del tag[attr]
+
+        # Remove javascript: URLs
+        for attr in ["href", "src", "data", "action"]:
+            if attr in tag.attrs and isinstance(tag[attr], str):
+                if tag[attr].strip().lower().startswith("javascript:"):
+                    del tag[attr]
+
+    return str(soup)
+
+
 def extract_best_html_from_message(message_obj: Message) -> tuple[str, bool]:
     """
     Extract the best HTML representation from an email message.
@@ -125,6 +148,9 @@ def wrap_email_html(html_content: str, email_data: dict[str, Any], is_original_h
     Wrap email HTML content with headers and proper structure.
     Preserves original HTML as much as possible.
     """
+    # Sanitize HTML content for security
+    html_content = sanitize_html_for_pdf(html_content)
+
     # Extract headers
     from_addr = html.escape(email_data.get("from", ""))
     to_addr = html.escape(email_data.get("to", ""))
@@ -250,6 +276,7 @@ def convert_email_to_pdf(html_content: str, output_path: Path) -> None:
             recovery_hint="Email is too large to convert to PDF",
         )
 
+    browser = None
     try:
         with sync_playwright() as p:
             try:
@@ -266,6 +293,9 @@ def convert_email_to_pdf(html_content: str, output_path: Path) -> None:
                 raise
 
             page = browser.new_page()
+
+            # Set default timeout to prevent hanging
+            page.set_default_timeout(60000)  # 60 second max
 
             # Set content with timeout
             # Let Playwright handle external images naturally
@@ -285,11 +315,26 @@ def convert_email_to_pdf(html_content: str, output_path: Path) -> None:
             )
 
             browser.close()
+            browser = None
 
         logger.info(f"Successfully created PDF: {output_path}")
     except WorkflowError:
         raise
     except Exception as e:
+        # Clean up browser if still open
+        if browser:
+            try:
+                browser.close()
+            except:
+                pass
+
+        # Clean up partial PDF
+        if output_path.exists():
+            try:
+                output_path.unlink()
+            except:
+                pass
+
         raise WorkflowError(
             f"PDF conversion failed: {e}",
             recovery_hint="Check if Playwright is properly installed",

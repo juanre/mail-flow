@@ -35,24 +35,31 @@ def extract_and_save_attachment(part: Message, directory: Path, filename: str) -
 
         # Create full path
         filepath = directory / filename
+        base = filepath.stem
+        ext = filepath.suffix
 
-        # Check if file already exists
-        if filepath.exists():
-            # Add number to filename
-            base = filepath.stem
-            ext = filepath.suffix
-            counter = 1
-            while filepath.exists():
+        # Use atomic file creation to prevent race conditions
+        counter = 0
+        while counter < 1000:  # Safety limit
+            if counter > 0:
                 filepath = directory / f"{base}_{counter}{ext}"
+
+            try:
+                # 'xb' mode fails atomically if file exists - no race condition
+                with open(filepath, "xb") as f:
+                    f.write(payload)
+                    f.flush()
+                    os.fsync(f.fileno())  # Ensure data is written to disk
+                logger.info(f"Saved attachment: {filepath}")
+                return filepath
+            except FileExistsError:
                 counter += 1
+                continue
 
-        # Write the file
-        with open(filepath, "wb") as f:
-            f.write(payload)
+        raise WorkflowError(f"Could not save {filename} - too many duplicates (>1000)")
 
-        logger.info(f"Saved attachment: {filepath}")
-        return filepath
-
+    except WorkflowError:
+        raise
     except Exception as e:
         logger.error(f"Failed to save attachment {filename}: {e}")
         return None
@@ -65,7 +72,7 @@ def save_attachments_from_message(
     pattern: str = "*.pdf",
     use_year_dirs: bool = True,
     store_metadata: bool = True,
-) -> int:
+) -> tuple[int, list[str]]:
     """
     Save attachments from email message object.
 
@@ -78,7 +85,7 @@ def save_attachments_from_message(
         store_metadata: Whether to store metadata in SQLite
 
     Returns:
-        Number of attachments saved
+        tuple: (saved_count, failed_filenames)
     """
     try:
         from datetime import datetime
@@ -105,11 +112,12 @@ def save_attachments_from_message(
         dir_path.mkdir(parents=True, exist_ok=True)
 
         saved_count = 0
+        failed_files = []
 
         # We need the actual message object to extract attachments
         if not message_obj.is_multipart():
             logger.info("Email is not multipart, no attachments to extract")
-            return 0
+            return 0, []
 
         for part in message_obj.walk():
             content_disposition = part.get("Content-Disposition", "")
@@ -173,8 +181,16 @@ def save_attachments_from_message(
                             )
                         except Exception as e:
                             logger.warning(f"Failed to store metadata: {e}")
+                else:
+                    failed_files.append(final_filename)
+                    logger.error(f"Failed to save attachment: {final_filename}")
 
-        return saved_count
+        if failed_files:
+            logger.warning(
+                f"Failed to save {len(failed_files)} attachment(s): {', '.join(failed_files)}"
+            )
+
+        return saved_count, failed_files
 
     except Exception as e:
         raise WorkflowError(

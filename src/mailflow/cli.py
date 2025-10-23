@@ -318,6 +318,18 @@ def _interactive_workflow_setup(config: Config, data_store: DataStore) -> tuple[
             continue
 
         entity_name = click.prompt(f"  Full name for '{entity_code}'", default=entity_code)
+
+        # Validate entity name length
+        if not entity_name or len(entity_name) > 100:
+            click.echo("  ✗ Entity name must be 1-100 characters")
+            continue
+
+        # Sanitize entity name (remove control characters, keep printable)
+        entity_name = "".join(c for c in entity_name if c.isprintable())
+        if not entity_name:
+            click.echo("  ✗ Entity name contains no valid characters")
+            continue
+
         entities.append((entity_code, entity_name))
 
     if not entities:
@@ -346,6 +358,18 @@ def _interactive_workflow_setup(config: Config, data_store: DataStore) -> tuple[
             f"  Description for '{doc_code}'",
             default=doc_code.replace('-', ' ')
         )
+
+        # Validate description length
+        if not doc_desc or len(doc_desc) > 200:
+            click.echo("  ✗ Description must be 1-200 characters")
+            continue
+
+        # Sanitize description (remove control characters, keep printable)
+        doc_desc = "".join(c for c in doc_desc if c.isprintable())
+        if not doc_desc:
+            click.echo("  ✗ Description contains no valid characters")
+            continue
+
         doc_types.append((doc_code, doc_desc))
 
     if not doc_types:

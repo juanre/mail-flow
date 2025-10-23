@@ -128,14 +128,36 @@ class LLMClassifier:
                         f"Available workflows: {', '.join(workflows.keys())}"
                     )
 
+                # Validate and sanitize confidence
+                confidence = float(result["confidence"])
+                if not 0.0 <= confidence <= 1.0:
+                    logger.warning(
+                        f"LLM confidence {confidence} out of range, clamping to [0,1]"
+                    )
+                    confidence = max(0.0, min(1.0, confidence))
+
+                # Sanitize reasoning text
+                reasoning = result["reasoning"]
+                # Remove control characters (keep printable + newline + tab)
+                reasoning = "".join(
+                    c for c in reasoning if c.isprintable() or c in "\n\t"
+                )
+                # Limit length
+                MAX_REASONING_LENGTH = 1000
+                if len(reasoning) > MAX_REASONING_LENGTH:
+                    logger.debug(
+                        f"Truncated LLM reasoning from {len(result['reasoning'])} "
+                        f"to {MAX_REASONING_LENGTH} chars"
+                    )
+                    reasoning = reasoning[:MAX_REASONING_LENGTH] + "..."
+
                 logger.info(
-                    f"LLM classified as '{workflow_name}' "
-                    f"(confidence: {result['confidence']:.2f})"
+                    f"LLM classified as '{workflow_name}' " f"(confidence: {confidence:.2f})"
                 )
                 return WorkflowClassification(
-                    workflow=result["workflow"],
-                    confidence=result["confidence"],
-                    reasoning=result["reasoning"],
+                    workflow=workflow_name,
+                    confidence=confidence,
+                    reasoning=reasoning,
                 )
             else:
                 logger.error("LLM response parsing failed")

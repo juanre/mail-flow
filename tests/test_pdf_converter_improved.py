@@ -6,6 +6,7 @@ import pytest
 
 from mailflow.pdf_converter import (
     extract_best_html_from_message,
+    sanitize_html_for_pdf,
     save_email_as_pdf,
     wrap_email_html,
 )
@@ -231,3 +232,130 @@ Content-Type: text/html; charset=utf-8
         assert "background-color: #4CAF50" in html_content
         assert 'class="button"' in html_content
         assert 'class="responsive"' in html_content
+
+
+class TestHTMLSanitization:
+    """Test HTML sanitization for security"""
+
+    def test_sanitize_removes_script_tags(self):
+        """Test that script tags are removed"""
+        html = """<html>
+<body>
+<h1>Safe content</h1>
+<script>alert('XSS')</script>
+<p>More safe content</p>
+</body>
+</html>"""
+        sanitized = sanitize_html_for_pdf(html)
+
+        assert "<script>" not in sanitized
+        assert "alert('XSS')" not in sanitized
+        assert "<h1>Safe content</h1>" in sanitized
+        assert "<p>More safe content</p>" in sanitized
+
+    def test_sanitize_removes_iframe_tags(self):
+        """Test that iframe tags are removed"""
+        html = '<div>Content</div><iframe src="http://evil.com"></iframe>'
+        sanitized = sanitize_html_for_pdf(html)
+
+        assert "<iframe" not in sanitized
+        assert "evil.com" not in sanitized
+        assert "<div>Content</div>" in sanitized
+
+    def test_sanitize_removes_object_embed_tags(self):
+        """Test that object and embed tags are removed"""
+        html = """<div>Content</div>
+<object data="evil.swf"></object>
+<embed src="evil.swf">"""
+        sanitized = sanitize_html_for_pdf(html)
+
+        assert "<object" not in sanitized
+        assert "<embed" not in sanitized
+        assert "<div>Content</div>" in sanitized
+
+    def test_sanitize_removes_event_handlers(self):
+        """Test that event handlers are removed"""
+        html = """<div onclick="alert('XSS')">Click me</div>
+<img src="image.jpg" onerror="alert('XSS')">
+<a href="#" onmouseover="stealCookies()">Link</a>"""
+        sanitized = sanitize_html_for_pdf(html)
+
+        assert "onclick" not in sanitized
+        assert "onerror" not in sanitized
+        assert "onmouseover" not in sanitized
+        assert "alert" not in sanitized
+        assert "stealCookies" not in sanitized
+        assert "Click me" in sanitized
+        assert "Link" in sanitized
+
+    def test_sanitize_removes_javascript_urls(self):
+        """Test that javascript: URLs are removed"""
+        html = """<a href="javascript:alert('XSS')">Link</a>
+<img src="javascript:alert('XSS')">
+<form action="javascript:void(0)">"""
+        sanitized = sanitize_html_for_pdf(html)
+
+        assert "javascript:" not in sanitized.lower()
+        assert "alert" not in sanitized
+        assert "<a" in sanitized
+        assert "Link" in sanitized
+
+    def test_sanitize_removes_link_tags(self):
+        """Test that link tags (external stylesheets) are removed"""
+        html = """<html>
+<head>
+<link rel="stylesheet" href="http://evil.com/style.css">
+<style>.safe { color: blue; }</style>
+</head>
+<body>Content</body>
+</html>"""
+        sanitized = sanitize_html_for_pdf(html)
+
+        assert "<link" not in sanitized
+        assert "evil.com" not in sanitized
+        # Inline styles should be preserved
+        assert "<style>" in sanitized
+        assert ".safe { color: blue; }" in sanitized
+
+    def test_sanitize_preserves_safe_content(self):
+        """Test that safe HTML content is preserved"""
+        html = """<html>
+<head>
+<style>
+body { font-family: Arial; }
+.header { color: blue; }
+</style>
+</head>
+<body>
+<div class="header">
+<h1>Email Subject</h1>
+</div>
+<p>This is <strong>safe</strong> content with <a href="https://example.com">links</a>.</p>
+<img src="https://example.com/image.jpg" alt="Safe image">
+<table>
+<tr><td>Data</td></tr>
+</table>
+</body>
+</html>"""
+        sanitized = sanitize_html_for_pdf(html)
+
+        # All safe elements should be preserved
+        assert "<style>" in sanitized
+        assert "font-family: Arial" in sanitized
+        assert "<h1>Email Subject</h1>" in sanitized
+        assert "<strong>safe</strong>" in sanitized
+        assert 'href="https://example.com"' in sanitized
+        assert 'src="https://example.com/image.jpg"' in sanitized
+        assert "<table>" in sanitized
+
+    def test_sanitize_handles_mixed_case_attacks(self):
+        """Test that mixed case attack attempts are handled"""
+        html = """<div OnClIcK="alert('XSS')">Content</div>
+<SCRIPT>alert('XSS')</SCRIPT>
+<iFrAmE src="evil.com"></iFrAmE>"""
+        sanitized = sanitize_html_for_pdf(html)
+
+        assert "onclick" not in sanitized.lower()
+        assert "<script" not in sanitized.lower()
+        assert "<iframe" not in sanitized.lower()
+        assert "Content" in sanitized

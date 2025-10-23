@@ -68,56 +68,60 @@ class EmailExtractor:
         return extracted
 
     def _clean_address(self, address: str) -> str:
-        """Clean and validate email address"""
+        """Clean and validate email address with strict sanitization"""
         if not address:
             return ""
 
-        # Decode MIME-encoded addresses
+        decoded_parts = []
         try:
-            decoded_parts = []
             for part, encoding in decode_header(address):
                 if isinstance(part, bytes):
-                    decoded_parts.append(part.decode(encoding or "utf-8", errors="replace"))
+                    decoded = part.decode(encoding or "utf-8", errors="replace")
                 else:
-                    decoded_parts.append(part)
+                    decoded = part
+
+                # Sanitize IMMEDIATELY after decoding each part
+                decoded = decoded.replace("\n", " ").replace("\r", " ")
+                decoded = decoded.replace("\x00", "")  # Null bytes
+                decoded_parts.append(decoded)
+
             address = "".join(decoded_parts)
         except Exception as e:
             logger.warning(f"Failed to decode address header: {e}")
-            # Fall back to original address
-            pass
+            # Fallback: sanitize the original
+            address = address.replace("\n", " ").replace("\r", " ")
+            address = address.replace("\x00", "")
 
-        # Truncate if too long
         return truncate_string(address.strip(), 500)
 
     def _clean_subject(self, subject: str) -> str:
-        """Clean and validate subject"""
+        """Clean and validate subject with strict sanitization"""
         if not subject:
             return ""
 
-        # Decode MIME-encoded headers
         decoded_parts = []
         try:
             for part, encoding in decode_header(subject):
                 if isinstance(part, bytes):
-                    # Decode bytes using the specified encoding or utf-8
-                    decoded_parts.append(part.decode(encoding or "utf-8", errors="replace"))
+                    decoded = part.decode(encoding or "utf-8", errors="replace")
                 else:
-                    decoded_parts.append(part)
+                    decoded = part
+
+                # Sanitize IMMEDIATELY after decoding each part
+                decoded = decoded.replace("\n", " ").replace("\r", " ")
+                decoded = decoded.replace("\x00", "")  # Null bytes
+                decoded_parts.append(decoded)
+
             subject = "".join(decoded_parts)
         except Exception as e:
             logger.warning(f"Failed to decode subject header: {e}")
-            # Fall back to original subject
-            pass
+            # Fallback: sanitize the original
+            subject = subject.replace("\n", " ").replace("\r", " ")
+            subject = subject.replace("\x00", "")
 
         subject = subject.strip()
-
-        # Remove potentially dangerous characters
-        subject = subject.replace("\n", " ").replace("\r", " ")
-
-        # Replace file-system unfriendly characters
         subject = subject.replace("/", "-").replace("[", "(").replace("]", ")")
 
-        # Truncate if too long
         return truncate_string(subject, MAX_SUBJECT_LENGTH)
 
     def _clean_message_id(self, message_id: str) -> str:

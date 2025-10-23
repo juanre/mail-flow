@@ -32,7 +32,7 @@ def save_attachment(
             return
 
         # Use the attachment handler to save attachments
-        saved_count = save_attachments_from_message(
+        saved_count, failed_files = save_attachments_from_message(
             message_obj=message_obj,
             email_data=message,
             directory=directory,
@@ -45,6 +45,9 @@ def save_attachment(
             logger.info(f"No attachments matching '{pattern}' found")
         else:
             logger.info(f"Saved {saved_count} attachment(s) to {directory}")
+
+        if failed_files:
+            logger.error(f"Failed to save {len(failed_files)} attachment(s): {', '.join(failed_files)}")
 
     except Exception as e:
         raise WorkflowError(

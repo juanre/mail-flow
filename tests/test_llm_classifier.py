@@ -324,3 +324,179 @@ class TestWorkflowClassification:
         assert classification.workflow == "test-workflow"
         assert classification.confidence == 0.85
         assert classification.reasoning == "Test reasoning"
+
+
+@pytest.mark.asyncio
+class TestLLMOutputValidation:
+    """Test validation and sanitization of LLM output"""
+
+    async def test_confidence_clamping_above_one(self, sample_workflows, sample_criteria, sample_email):
+        """Test that confidence values above 1.0 are clamped"""
+        from mailflow.llm_classifier import LLMClassifier
+        from unittest.mock import AsyncMock, MagicMock
+
+        classifier = LLMClassifier()
+        classifier._service = MagicMock()
+
+        # Mock response with confidence > 1.0
+        mock_response = MagicMock()
+        mock_response.parsed = {
+            "workflow": "business-receipts",
+            "confidence": 1.5,
+            "reasoning": "Test reasoning"
+        }
+        classifier._service.chat = AsyncMock(return_value=mock_response)
+
+        result = await classifier.classify(sample_email, sample_workflows, sample_criteria)
+
+        assert result.confidence == 1.0
+        assert result.workflow == "business-receipts"
+
+    async def test_confidence_clamping_below_zero(self, sample_workflows, sample_criteria, sample_email):
+        """Test that confidence values below 0.0 are clamped"""
+        from mailflow.llm_classifier import LLMClassifier
+        from unittest.mock import AsyncMock, MagicMock
+
+        classifier = LLMClassifier()
+        classifier._service = MagicMock()
+
+        # Mock response with confidence < 0.0
+        mock_response = MagicMock()
+        mock_response.parsed = {
+            "workflow": "business-receipts",
+            "confidence": -0.5,
+            "reasoning": "Test reasoning"
+        }
+        classifier._service.chat = AsyncMock(return_value=mock_response)
+
+        result = await classifier.classify(sample_email, sample_workflows, sample_criteria)
+
+        assert result.confidence == 0.0
+        assert result.workflow == "business-receipts"
+
+    async def test_reasoning_control_character_removal(self, sample_workflows, sample_criteria, sample_email):
+        """Test that control characters are removed from reasoning"""
+        from mailflow.llm_classifier import LLMClassifier
+        from unittest.mock import AsyncMock, MagicMock
+
+        classifier = LLMClassifier()
+        classifier._service = MagicMock()
+
+        # Mock response with control characters in reasoning
+        mock_response = MagicMock()
+        mock_response.parsed = {
+            "workflow": "business-receipts",
+            "confidence": 0.85,
+            "reasoning": "Test\x00reasoning\x01with\x02control\x03chars"
+        }
+        classifier._service.chat = AsyncMock(return_value=mock_response)
+
+        result = await classifier.classify(sample_email, sample_workflows, sample_criteria)
+
+        # Control characters should be removed
+        assert "\x00" not in result.reasoning
+        assert "\x01" not in result.reasoning
+        assert "\x02" not in result.reasoning
+        assert "\x03" not in result.reasoning
+        assert "Test" in result.reasoning
+        assert "reasoning" in result.reasoning
+
+    async def test_reasoning_preserves_newlines_and_tabs(self, sample_workflows, sample_criteria, sample_email):
+        """Test that newlines and tabs are preserved in reasoning"""
+        from mailflow.llm_classifier import LLMClassifier
+        from unittest.mock import AsyncMock, MagicMock
+
+        classifier = LLMClassifier()
+        classifier._service = MagicMock()
+
+        # Mock response with newlines and tabs
+        mock_response = MagicMock()
+        mock_response.parsed = {
+            "workflow": "business-receipts",
+            "confidence": 0.85,
+            "reasoning": "Line 1\nLine 2\tTabbed"
+        }
+        classifier._service.chat = AsyncMock(return_value=mock_response)
+
+        result = await classifier.classify(sample_email, sample_workflows, sample_criteria)
+
+        assert "\n" in result.reasoning
+        assert "\t" in result.reasoning
+        assert "Line 1" in result.reasoning
+        assert "Line 2" in result.reasoning
+        assert "Tabbed" in result.reasoning
+
+    async def test_reasoning_truncation(self, sample_workflows, sample_criteria, sample_email):
+        """Test that reasoning is truncated if too long"""
+        from mailflow.llm_classifier import LLMClassifier
+        from unittest.mock import AsyncMock, MagicMock
+
+        classifier = LLMClassifier()
+        classifier._service = MagicMock()
+
+        # Mock response with very long reasoning
+        long_reasoning = "A" * 2000
+        mock_response = MagicMock()
+        mock_response.parsed = {
+            "workflow": "business-receipts",
+            "confidence": 0.85,
+            "reasoning": long_reasoning
+        }
+        classifier._service.chat = AsyncMock(return_value=mock_response)
+
+        result = await classifier.classify(sample_email, sample_workflows, sample_criteria)
+
+        # Should be truncated to 1000 chars + "..."
+        assert len(result.reasoning) == 1003
+        assert result.reasoning.endswith("...")
+
+    async def test_reasoning_no_truncation_when_short(self, sample_workflows, sample_criteria, sample_email):
+        """Test that short reasoning is not truncated"""
+        from mailflow.llm_classifier import LLMClassifier
+        from unittest.mock import AsyncMock, MagicMock
+
+        classifier = LLMClassifier()
+        classifier._service = MagicMock()
+
+        # Mock response with short reasoning
+        short_reasoning = "This is a short reasoning text"
+        mock_response = MagicMock()
+        mock_response.parsed = {
+            "workflow": "business-receipts",
+            "confidence": 0.85,
+            "reasoning": short_reasoning
+        }
+        classifier._service.chat = AsyncMock(return_value=mock_response)
+
+        result = await classifier.classify(sample_email, sample_workflows, sample_criteria)
+
+        assert result.reasoning == short_reasoning
+        assert not result.reasoning.endswith("...")
+
+    async def test_combined_validation(self, sample_workflows, sample_criteria, sample_email):
+        """Test combined validation: bad confidence + dirty reasoning"""
+        from mailflow.llm_classifier import LLMClassifier
+        from unittest.mock import AsyncMock, MagicMock
+
+        classifier = LLMClassifier()
+        classifier._service = MagicMock()
+
+        # Mock response with multiple issues
+        mock_response = MagicMock()
+        mock_response.parsed = {
+            "workflow": "business-receipts",
+            "confidence": 1.8,  # Out of range
+            "reasoning": "Reasoning\x00with\x01control" + ("X" * 1500)  # Has control chars and is too long
+        }
+        classifier._service.chat = AsyncMock(return_value=mock_response)
+
+        result = await classifier.classify(sample_email, sample_workflows, sample_criteria)
+
+        # Confidence should be clamped
+        assert result.confidence == 1.0
+        # Control chars should be removed
+        assert "\x00" not in result.reasoning
+        assert "\x01" not in result.reasoning
+        # Should be truncated
+        assert len(result.reasoning) == 1003
+        assert result.reasoning.endswith("...")

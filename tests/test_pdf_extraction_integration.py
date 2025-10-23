@@ -45,7 +45,7 @@ class TestPDFExtractionIntegration:
 
         # Save the PDF attachment
         save_dir = Path(temp_config_dir) / "invoices"
-        saved_count = save_attachments_from_message(
+        saved_count, failed_files = save_attachments_from_message(
             message_obj=email_data["_message_obj"],
             email_data=email_data,
             directory=str(save_dir),
@@ -55,6 +55,7 @@ class TestPDFExtractionIntegration:
         )
 
         assert saved_count == 1
+        assert failed_files == []
 
         # Verify PDF was saved in year directory with date prefix
         year_dir = save_dir / "2025"  # Based on email date
@@ -99,7 +100,7 @@ class TestPDFExtractionIntegration:
 
         # Save PDF
         save_dir = Path(temp_config_dir) / "cloudflare"
-        saved_count = save_attachments_from_message(
+        saved_count, failed_files = save_attachments_from_message(
             message_obj=email_data["_message_obj"],
             email_data=email_data,
             directory=str(save_dir),
@@ -108,6 +109,7 @@ class TestPDFExtractionIntegration:
         )
 
         assert saved_count == 1
+        assert failed_files == []
 
         # Update with extracted document info
         store = MetadataStore(str(save_dir))
@@ -180,13 +182,15 @@ class TestPDFExtractionIntegration:
         email_data = extractor.extract(cloudflare_email)
 
         save_dir = Path(temp_config_dir) / "all-invoices"
-        save_attachments_from_message(
+        saved_count, failed_files = save_attachments_from_message(
             message_obj=email_data["_message_obj"],
             email_data=email_data,
             directory=str(save_dir),
             pattern="*.pdf",
             store_metadata=True,
         )
+        assert saved_count == 1
+        assert failed_files == []
 
         # Search
         store = MetadataStore(str(save_dir))

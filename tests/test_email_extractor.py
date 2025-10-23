@@ -75,3 +75,128 @@ Test body
 """
             result = extractor.extract(email_text)
             assert result["features"]["from_domain"] == expected_domain
+
+    def test_header_injection_subject(self):
+        """Test that newlines and carriage returns are sanitized immediately after decoding"""
+        extractor = EmailExtractor()
+
+        # Test injection attempts in subject
+        injection_attempts = [
+            "Normal Subject\nInjected: Header",
+            "Normal Subject\r\nInjected: Header",
+            "Normal\nSubject\r\nWith\nMultiple\nLines",
+            "Subject with\x00null bytes",
+        ]
+
+        for malicious_subject in injection_attempts:
+            email_text = f"""From: test@example.com
+To: user@test.com
+Subject: {malicious_subject}
+Message-ID: <test@test.com>
+
+Test body
+"""
+            result = extractor.extract(email_text)
+
+            # Newlines and carriage returns should be replaced with spaces
+            assert "\n" not in result["subject"]
+            assert "\r" not in result["subject"]
+            # Null bytes should be removed
+            assert "\x00" not in result["subject"]
+
+    def test_header_injection_from_address(self):
+        """Test that from addresses are sanitized to prevent header injection"""
+        extractor = EmailExtractor()
+
+        injection_attempts = [
+            "attacker@evil.com\nBcc: victim@target.com",
+            "attacker@evil.com\r\nBcc: victim@target.com",
+            "Name\nInjected <attacker@evil.com>",
+        ]
+
+        for malicious_from in injection_attempts:
+            email_text = f"""From: {malicious_from}
+To: user@test.com
+Subject: Test
+Message-ID: <test@test.com>
+
+Test body
+"""
+            result = extractor.extract(email_text)
+
+            # Newlines and carriage returns should be sanitized
+            assert "\n" not in result["from"]
+            assert "\r" not in result["from"]
+
+    def test_header_injection_to_address(self):
+        """Test that to addresses are sanitized to prevent header injection"""
+        extractor = EmailExtractor()
+
+        injection_attempts = [
+            "user@test.com\nBcc: victim@target.com",
+            "user@test.com\r\nBcc: victim@target.com",
+        ]
+
+        for malicious_to in injection_attempts:
+            email_text = f"""From: test@example.com
+To: {malicious_to}
+Subject: Test
+Message-ID: <test@test.com>
+
+Test body
+"""
+            result = extractor.extract(email_text)
+
+            # Newlines and carriage returns should be sanitized
+            assert "\n" not in result["to"]
+            assert "\r" not in result["to"]
+
+    def test_mime_encoded_header_injection(self):
+        """Test that MIME-encoded headers with injection attempts are sanitized"""
+        import base64
+
+        extractor = EmailExtractor()
+
+        # Create MIME-encoded subject with newline injection
+        malicious_text = "Normal Subject\nInjected: Header\r\nAnother: Value"
+        encoded = base64.b64encode(malicious_text.encode("utf-8")).decode("ascii")
+        mime_subject = f"=?utf-8?B?{encoded}?="
+
+        email_text = f"""From: test@example.com
+To: user@test.com
+Subject: {mime_subject}
+Message-ID: <test@test.com>
+
+Test body
+"""
+        result = extractor.extract(email_text)
+
+        # After decoding and sanitization, newlines should be replaced with spaces
+        assert "\n" not in result["subject"]
+        assert "\r" not in result["subject"]
+        assert "Normal Subject" in result["subject"]
+        assert "Injected: Header" in result["subject"]
+
+    def test_mime_encoded_address_injection(self):
+        """Test that MIME-encoded addresses with injection attempts are sanitized"""
+        import base64
+
+        extractor = EmailExtractor()
+
+        # Create MIME-encoded from address with newline injection
+        malicious_text = "Sender Name\nBcc: victim@target.com"
+        encoded = base64.b64encode(malicious_text.encode("utf-8")).decode("ascii")
+        mime_from = f"=?utf-8?B?{encoded}?= <sender@example.com>"
+
+        email_text = f"""From: {mime_from}
+To: user@test.com
+Subject: Test
+Message-ID: <test@test.com>
+
+Test body
+"""
+        result = extractor.extract(email_text)
+
+        # After decoding and sanitization, newlines should be replaced with spaces
+        assert "\n" not in result["from"]
+        assert "\r" not in result["from"]

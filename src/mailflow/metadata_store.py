@@ -157,18 +157,27 @@ class MetadataStore:
 
     @contextmanager
     def get_connection(self):
-        """Get database connection with proper error handling."""
+        """Get database connection with proper transaction management."""
         conn = None
         try:
             conn = sqlite3.connect(str(self.db_path))
             conn.row_factory = sqlite3.Row
             yield conn
         except sqlite3.Error as e:
+            if conn:
+                try:
+                    conn.rollback()
+                    logger.debug("Rolled back database transaction due to error")
+                except Exception:
+                    pass
             logger.error(f"Database error: {e}")
             raise DataError(f"Database operation failed: {e}")
         finally:
             if conn:
-                conn.close()
+                try:
+                    conn.close()
+                except Exception:
+                    logger.warning("Failed to close database connection")
 
     def store_pdf_metadata(
         self,

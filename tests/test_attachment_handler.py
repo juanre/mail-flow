@@ -1,16 +1,20 @@
 """Test attachment extraction functionality"""
 
+import os
+import threading
 from email import encoders
 from email.message import EmailMessage
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
+from unittest.mock import patch
 
 from mailflow.attachment_handler import (
     extract_and_save_attachment,
     save_attachments_from_message,
 )
+from mailflow.exceptions import WorkflowError
 
 
 class TestAttachmentHandler:
@@ -117,7 +121,7 @@ class TestAttachmentHandler:
         save_dir = str(Path(temp_config_dir) / "pdfs")
 
         # Save only PDFs
-        count = save_attachments_from_message(
+        saved_count, failed_files = save_attachments_from_message(
             message_obj=msg,
             email_data=email_data,
             directory=save_dir,
@@ -126,7 +130,8 @@ class TestAttachmentHandler:
             store_metadata=False,
         )
 
-        assert count == 1
+        assert saved_count == 1
+        assert failed_files == []
         saved_files = list(Path(save_dir).glob("*"))
         assert len(saved_files) == 1
         assert saved_files[0].name.endswith("-invoice.pdf")
@@ -158,7 +163,7 @@ class TestAttachmentHandler:
         save_dir = str(Path(temp_config_dir) / "all")
 
         # Save all files
-        count = save_attachments_from_message(
+        saved_count, failed_files = save_attachments_from_message(
             message_obj=msg,
             email_data=email_data,
             directory=save_dir,
@@ -167,7 +172,8 @@ class TestAttachmentHandler:
             store_metadata=False,
         )
 
-        assert count == 3
+        assert saved_count == 3
+        assert failed_files == []
         saved_files = list(Path(save_dir).glob("*"))
         assert len(saved_files) == 3
 
@@ -187,7 +193,7 @@ class TestAttachmentHandler:
 
         email_data = {"attachments": []}
 
-        count = save_attachments_from_message(
+        saved_count, failed_files = save_attachments_from_message(
             message_obj=msg,
             email_data=email_data,
             directory=temp_config_dir,
@@ -196,4 +202,157 @@ class TestAttachmentHandler:
             store_metadata=False,
         )
 
-        assert count == 0
+        assert saved_count == 0
+        assert failed_files == []
+
+    def test_atomic_file_creation_race_condition(self, temp_config_dir):
+        """Test that concurrent saves to same filename don't cause race condition"""
+        msg, pdf_content = self.create_test_message_with_attachment()
+
+        # Get the attachment part
+        attachment_part = None
+        for part in msg.walk():
+            if part.get("Content-Disposition", "").startswith("attachment"):
+                attachment_part = part
+                break
+
+        save_dir = Path(temp_config_dir) / "attachments"
+        save_dir.mkdir()
+
+        # Simulate race condition by saving the same filename concurrently
+        results = []
+        errors = []
+
+        def save_attachment():
+            try:
+                path = extract_and_save_attachment(attachment_part, save_dir, "test.pdf")
+                results.append(path)
+            except Exception as e:
+                errors.append(e)
+
+        # Run 5 concurrent saves
+        threads = [threading.Thread(target=save_attachment) for _ in range(5)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # All saves should succeed without errors
+        assert len(errors) == 0, f"Errors occurred: {errors}"
+        assert len(results) == 5
+
+        # All paths should be unique
+        unique_paths = set(str(p) for p in results if p)
+        assert len(unique_paths) == 5, f"Expected 5 unique paths, got {len(unique_paths)}"
+
+        # All files should exist
+        for path in results:
+            assert path.exists()
+
+    def test_atomic_file_creation_enforces_limit(self, temp_config_dir):
+        """Test that atomic file creation fails after too many duplicates"""
+        msg, pdf_content = self.create_test_message_with_attachment()
+
+        attachment_part = None
+        for part in msg.walk():
+            if part.get("Content-Disposition", "").startswith("attachment"):
+                attachment_part = part
+                break
+
+        save_dir = Path(temp_config_dir) / "attachments"
+        save_dir.mkdir()
+
+        # Mock exists() to always return False, forcing counter to increment
+        # But open() with 'xb' will raise FileExistsError
+        with patch("pathlib.Path.exists", return_value=False):
+            with patch("builtins.open", side_effect=FileExistsError("File exists")):
+                # Should raise WorkflowError after hitting limit
+                try:
+                    extract_and_save_attachment(attachment_part, save_dir, "test.pdf")
+                    assert False, "Expected WorkflowError to be raised"
+                except WorkflowError as e:
+                    assert "too many duplicates" in str(e).lower()
+
+    def test_save_attachments_tracks_failures(self, temp_config_dir):
+        """Test that save_attachments_from_message tracks failed attachments"""
+        msg = MIMEMultipart()
+        msg["From"] = "sender@example.com"
+
+        # Add two PDF attachments
+        for i in range(2):
+            att = MIMEBase("application", "pdf")
+            att.set_payload(b"%PDF-1.4\nfake pdf")
+            att.add_header("Content-Disposition", f'attachment; filename="doc{i}.pdf"')
+            msg.attach(att)
+
+        email_data = {
+            "attachments": [
+                {"filename": "doc0.pdf", "original_filename": "doc0.pdf"},
+                {"filename": "doc1.pdf", "original_filename": "doc1.pdf"},
+            ]
+        }
+
+        save_dir = str(Path(temp_config_dir) / "pdfs")
+
+        # Mock extract_and_save_attachment to fail for second attachment
+        original_extract = extract_and_save_attachment
+
+        def mock_extract(part, directory, filename):
+            if "doc1" in filename:
+                return None  # Simulate failure
+            return original_extract(part, directory, filename)
+
+        with patch(
+            "mailflow.attachment_handler.extract_and_save_attachment", side_effect=mock_extract
+        ):
+            saved_count, failed_files = save_attachments_from_message(
+                message_obj=msg,
+                email_data=email_data,
+                directory=save_dir,
+                pattern="*.pdf",
+                use_year_dirs=False,
+                store_metadata=False,
+            )
+
+        # Should have saved 1, failed 1
+        assert saved_count == 1
+        assert len(failed_files) == 1
+        assert any("doc1" in f for f in failed_files)
+
+    def test_save_attachments_all_failures(self, temp_config_dir):
+        """Test that all failures are tracked when all attachments fail"""
+        msg = MIMEMultipart()
+        msg["From"] = "sender@example.com"
+
+        # Add two PDF attachments
+        for i in range(2):
+            att = MIMEBase("application", "pdf")
+            att.set_payload(b"%PDF-1.4\nfake pdf")
+            att.add_header("Content-Disposition", f'attachment; filename="doc{i}.pdf"')
+            msg.attach(att)
+
+        email_data = {
+            "attachments": [
+                {"filename": "doc0.pdf", "original_filename": "doc0.pdf"},
+                {"filename": "doc1.pdf", "original_filename": "doc1.pdf"},
+            ]
+        }
+
+        save_dir = str(Path(temp_config_dir) / "pdfs")
+
+        # Mock extract_and_save_attachment to always fail
+        with patch(
+            "mailflow.attachment_handler.extract_and_save_attachment", return_value=None
+        ):
+            saved_count, failed_files = save_attachments_from_message(
+                message_obj=msg,
+                email_data=email_data,
+                directory=save_dir,
+                pattern="*.pdf",
+                use_year_dirs=False,
+                store_metadata=False,
+            )
+
+        # Should have saved 0, failed 2
+        assert saved_count == 0
+        assert len(failed_files) == 2

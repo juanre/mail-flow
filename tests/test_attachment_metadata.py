@@ -25,7 +25,7 @@ def test_attachment_original_filename_and_size(temp_config_dir):
     assert email_data["attachments"][0]["size"] > 0
 
     # Save and persist metadata
-    saved = save_attachments_from_message(
+    saved_count, failed_files = save_attachments_from_message(
         message_obj=email_data["_message_obj"],
         email_data=email_data,
         directory=temp_config_dir,
@@ -33,4 +33,5 @@ def test_attachment_original_filename_and_size(temp_config_dir):
         store_metadata=True,
         use_year_dirs=False,
     )
-    assert saved == 1
+    assert saved_count == 1
+    assert failed_files == []
