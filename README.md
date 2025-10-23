@@ -1,4 +1,4 @@
-# pmail - Smart Email Processing for Mutt
+# mailflow - Smart Email Processing for Mutt
 
 Email processing tool for mutt that learns from your classification choices and suggests workflows using similarity matching and optional LLM assistance.
 
@@ -27,17 +27,17 @@ uv sync
 playwright install chromium
 
 # Initialize configuration
-uv run pmail init
+uv run mailflow init
 ```
 
 ## Quick Start
 
 ```bash
-# 1. Initialize pmail
-uv run pmail init
+# 1. Initialize mailflow
+uv run mailflow init
 
 # 2. Add to .muttrc
-macro index,pager \cp "<pipe-message>pmail<enter>" "Process with pmail"
+macro index,pager \cp "<pipe-message>mailflow<enter>" "Process with mailflow"
 
 # 3. Process emails
 # Press Ctrl-P in mutt, select or create workflows
@@ -47,26 +47,26 @@ macro index,pager \cp "<pipe-message>pmail<enter>" "Process with pmail"
 
 ```bash
 # Process email from stdin
-cat email.eml | uv run pmail
+cat email.eml | uv run mailflow
 
 # Enable LLM assistance (requires API key)
-cat email.eml | uv run pmail --llm
+cat email.eml | uv run mailflow --llm
 
 # Batch process directory
-uv run pmail batch ~/mail/archive --llm --dry-run
+uv run mailflow batch ~/mail/archive --llm --dry-run
 
 # Force reprocess already-processed emails
-uv run pmail --force < email.eml
+uv run mailflow --force < email.eml
 
 # Search saved PDFs
-uv run pmail search "invoice"
-uv run pmail search --directory ~/receipts --type invoice
+uv run mailflow search "invoice"
+uv run mailflow search --directory ~/receipts --type invoice
 
 # List workflows
-uv run pmail workflows
+uv run mailflow workflows
 
 # Show statistics
-uv run pmail stats
+uv run mailflow stats
 ```
 
 ## LLM Integration (Optional)
@@ -78,7 +78,7 @@ Enable AI-powered classification for better accuracy:
 export ANTHROPIC_API_KEY=sk-ant-...
 # or OPENAI_API_KEY or GOOGLE_GEMINI_API_KEY
 
-# 2. Enable in config (~/.pmail/config.json)
+# 2. Enable in config (~/.mailflow/config.json)
 {
   "llm": {
     "enabled": true,
@@ -87,7 +87,7 @@ export ANTHROPIC_API_KEY=sk-ant-...
 }
 
 # 3. Process emails with LLM
-cat email.eml | uv run pmail --llm
+cat email.eml | uv run mailflow --llm
 ```
 
 **How it works:**
@@ -99,7 +99,7 @@ cat email.eml | uv run pmail --llm
 
 ## Configuration
 
-Files in `~/.pmail/`:
+Files in `~/.mailflow/`:
 - `config.json`: Feature weights, UI settings, LLM configuration
 - `workflows.json`: Workflow definitions
 - `criteria_instances.json`: Learning history (training data)
@@ -118,10 +118,10 @@ Built-in workflow types:
 Process emails directly from Gmail:
 
 ```bash
-# Setup: Place OAuth 2.0 client JSON at ~/.pmail/gmail_client_secret.json
+# Setup: Place OAuth 2.0 client JSON at ~/.mailflow/gmail_client_secret.json
 
 # Process inbox
-uv run pmail gmail --query "label:INBOX newer_than:1d" --processed-label "pmail/processed"
+uv run mailflow gmail --query "label:INBOX newer_than:1d" --processed-label "mailflow/processed"
 ```
 
 ## Testing
@@ -134,7 +134,7 @@ uv run pytest -q
 
 Project structure:
 ```
-src/pmail/
+src/mailflow/
   config.py                     # Configuration
   email_extractor.py           # Email parsing
   similarity.py                # Similarity matching

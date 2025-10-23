@@ -6,7 +6,7 @@
 - Hybrid classification: similarity-based with LLM fallback for ambiguous cases
 - Confidence-based routing: high confidence uses similarity (free), low confidence uses LLM
 - Deduplication system: tracks processed emails by message-id and content hash
-- Batch processing: `pmail batch` command for processing directories
+- Batch processing: `mailflow batch` command for processing directories
 - CLI options: `--llm`, `--llm-model`, `--force` flags
 - Cost warnings and estimates for LLM usage
 - Input sanitization and workflow validation for LLM responses
@@ -25,5 +25,3 @@
 - Similarity features include `to` address for `to_address` weighting
 - Console logging level now reflects configured level; `readline` fallback when `gnureadline` is unavailable
 - README fix for repository path; moved `black` and `pytest` to dev deps
-
-

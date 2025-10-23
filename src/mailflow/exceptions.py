@@ -1,9 +1,8 @@
-"""Custom exceptions for pmail"""
+"""Custom exceptions for mailflow"""
 
 
-
-class PmailError(Exception):
-    """Base exception for all pmail errors"""
+class MailflowError(Exception):
+    """Base exception for all mailflow errors"""
 
     def __init__(self, message: str, recovery_hint: str | None = None):
         super().__init__(message)
@@ -16,43 +15,43 @@ class PmailError(Exception):
         return base
 
 
-class ConfigError(PmailError):
+class ConfigError(MailflowError):
     """Configuration related errors"""
 
     pass
 
 
-class DataError(PmailError):
+class DataError(MailflowError):
     """Data storage/retrieval errors"""
 
     pass
 
 
-class WorkflowError(PmailError):
+class WorkflowError(MailflowError):
     """Workflow execution errors"""
 
     pass
 
 
-class EmailParsingError(PmailError):
+class EmailParsingError(MailflowError):
     """Email parsing errors"""
 
     pass
 
 
-class SimilarityError(PmailError):
+class SimilarityError(MailflowError):
     """Similarity calculation errors"""
 
     pass
 
 
-class UIError(PmailError):
+class UIError(MailflowError):
     """User interface errors"""
 
     pass
 
 
-class ValidationError(PmailError):
+class ValidationError(MailflowError):
     """Validation errors"""
 
     pass

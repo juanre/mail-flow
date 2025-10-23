@@ -8,9 +8,9 @@ from dotenv import load_dotenv
 # Load API keys from .env
 load_dotenv()
 
-from pmail.config import Config
-from pmail.models import CriteriaInstance, WorkflowDefinition
-from pmail.similarity import SimilarityEngine
+from mailflow.config import Config
+from mailflow.models import CriteriaInstance, WorkflowDefinition
+from mailflow.similarity import SimilarityEngine
 
 
 @pytest.fixture
@@ -21,13 +21,13 @@ def sample_workflows():
             name="business-receipts",
             description="Save business receipts and expenses",
             action_type="save_pdf",
-            action_params={"directory": "~/Documents/pmail/business"},
+            action_params={"directory": "~/Documents/mailflow/business"},
         ),
         "personal-receipts": WorkflowDefinition(
             name="personal-receipts",
             description="Save personal receipts and expenses",
             action_type="save_pdf",
-            action_params={"directory": "~/Documents/pmail/personal"},
+            action_params={"directory": "~/Documents/mailflow/personal"},
         ),
     }
 
@@ -78,13 +78,13 @@ class TestHybridClassifierInit:
 
     def test_imports_hybrid_classifier(self):
         """Test that we can import the hybrid classifier module"""
-        from pmail.hybrid_classifier import HybridClassifier
+        from mailflow.hybrid_classifier import HybridClassifier
 
         assert HybridClassifier is not None
 
     def test_init_with_similarity_engine_only(self, config):
         """Test initialization with only similarity engine"""
-        from pmail.hybrid_classifier import HybridClassifier
+        from mailflow.hybrid_classifier import HybridClassifier
 
         similarity_engine = SimilarityEngine(config)
         classifier = HybridClassifier(similarity_engine)
@@ -94,8 +94,8 @@ class TestHybridClassifierInit:
 
     def test_init_with_llm_classifier(self, config):
         """Test initialization with LLM classifier"""
-        from pmail.hybrid_classifier import HybridClassifier
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.hybrid_classifier import HybridClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         similarity_engine = SimilarityEngine(config)
         llm_classifier = LLMClassifier(model_alias="fast")
@@ -106,7 +106,7 @@ class TestHybridClassifierInit:
 
     def test_init_tracks_stats(self, config):
         """Test that classifier initializes statistics"""
-        from pmail.hybrid_classifier import HybridClassifier
+        from mailflow.hybrid_classifier import HybridClassifier
 
         similarity_engine = SimilarityEngine(config)
         classifier = HybridClassifier(similarity_engine)
@@ -122,7 +122,7 @@ class TestHybridClassifierThresholds:
 
     def test_default_thresholds(self, config):
         """Test default confidence thresholds"""
-        from pmail.hybrid_classifier import HybridClassifier
+        from mailflow.hybrid_classifier import HybridClassifier
 
         similarity_engine = SimilarityEngine(config)
         classifier = HybridClassifier(similarity_engine)
@@ -139,17 +139,15 @@ class TestHybridClassifierWithRealComponents:
         self, config, sample_workflows, sample_criteria, sample_email
     ):
         """Test that high similarity confidence uses similarity only"""
-        from pmail.hybrid_classifier import HybridClassifier
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.hybrid_classifier import HybridClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         similarity_engine = SimilarityEngine(config)
         llm_classifier = LLMClassifier(model_alias="fast")
         classifier = HybridClassifier(similarity_engine, llm_classifier)
 
         # sample_email has AWS domain matching criteria, should get high confidence
-        result = await classifier.classify(
-            sample_email, sample_workflows, sample_criteria
-        )
+        result = await classifier.classify(sample_email, sample_workflows, sample_criteria)
 
         # With matching criteria, similarity should be high enough
         # that we don't need LLM
@@ -160,8 +158,8 @@ class TestHybridClassifierWithRealComponents:
 
     async def test_low_confidence_uses_llm(self, config, sample_workflows):
         """Test that low similarity confidence uses LLM"""
-        from pmail.hybrid_classifier import HybridClassifier
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.hybrid_classifier import HybridClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         # Create email that doesn't match any criteria (no criteria instances)
         unmatched_email = {
@@ -181,9 +179,7 @@ class TestHybridClassifierWithRealComponents:
         classifier = HybridClassifier(similarity_engine, llm_classifier)
 
         # With no criteria instances, similarity will be low
-        result = await classifier.classify(
-            unmatched_email, sample_workflows, []  # Empty criteria
-        )
+        result = await classifier.classify(unmatched_email, sample_workflows, [])  # Empty criteria
 
         # Should use LLM because similarity has no confidence
         assert result["method"] in ["llm", "similarity_fallback"]
@@ -195,8 +191,8 @@ class TestHybridClassifierWithRealComponents:
         self, config, sample_workflows, sample_criteria
     ):
         """Test that medium confidence offers LLM assist"""
-        from pmail.hybrid_classifier import HybridClassifier
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.hybrid_classifier import HybridClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         # Create email with partial match - should get medium confidence
         medium_email = {
@@ -215,9 +211,7 @@ class TestHybridClassifierWithRealComponents:
         llm_classifier = LLMClassifier(model_alias="fast")
         classifier = HybridClassifier(similarity_engine, llm_classifier)
 
-        result = await classifier.classify(
-            medium_email, sample_workflows, sample_criteria
-        )
+        result = await classifier.classify(medium_email, sample_workflows, sample_criteria)
 
         # Should use hybrid or similarity, depending on actual confidence
         assert result["method"] in ["similarity", "hybrid", "llm"]
@@ -228,8 +222,8 @@ class TestHybridClassifierWithRealComponents:
         self, config, sample_workflows, sample_criteria, sample_email
     ):
         """Test that statistics are tracked correctly"""
-        from pmail.hybrid_classifier import HybridClassifier
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.hybrid_classifier import HybridClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         similarity_engine = SimilarityEngine(config)
         llm_classifier = LLMClassifier(model_alias="fast")
@@ -247,8 +241,8 @@ class TestHybridClassifierWithRealComponents:
         self, config, sample_workflows, sample_criteria, sample_email
     ):
         """Test that use_llm=False uses similarity only"""
-        from pmail.hybrid_classifier import HybridClassifier
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.hybrid_classifier import HybridClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         similarity_engine = SimilarityEngine(config)
         llm_classifier = LLMClassifier(model_alias="fast")
@@ -265,7 +259,7 @@ class TestHybridClassifierWithRealComponents:
         self, config, sample_workflows, sample_criteria, sample_email
     ):
         """Test that missing LLM classifier uses similarity only"""
-        from pmail.hybrid_classifier import HybridClassifier
+        from mailflow.hybrid_classifier import HybridClassifier
 
         similarity_engine = SimilarityEngine(config)
         classifier = HybridClassifier(similarity_engine, llm_classifier=None)
@@ -277,8 +271,8 @@ class TestHybridClassifierWithRealComponents:
 
     async def test_llm_error_fallback(self, config, sample_workflows):
         """Test that LLM errors fall back to similarity"""
-        from pmail.hybrid_classifier import HybridClassifier
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.hybrid_classifier import HybridClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         # Create email that would trigger low confidence
         unmatched_email = {
@@ -298,9 +292,7 @@ class TestHybridClassifierWithRealComponents:
         llm_classifier = LLMClassifier(model_alias="nonexistent-model")
         classifier = HybridClassifier(similarity_engine, llm_classifier)
 
-        result = await classifier.classify(
-            unmatched_email, sample_workflows, []  # Empty criteria
-        )
+        result = await classifier.classify(unmatched_email, sample_workflows, [])  # Empty criteria
 
         # Should fall back to similarity
         assert result["method"] == "similarity_fallback"
@@ -309,8 +301,8 @@ class TestHybridClassifierWithRealComponents:
         self, config, sample_workflows, sample_criteria, sample_email
     ):
         """Test that multiple classifications track stats correctly"""
-        from pmail.hybrid_classifier import HybridClassifier
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.hybrid_classifier import HybridClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         similarity_engine = SimilarityEngine(config)
         llm_classifier = LLMClassifier(model_alias="fast")

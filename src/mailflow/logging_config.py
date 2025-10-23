@@ -1,4 +1,4 @@
-"""Logging configuration for pmail"""
+"""Logging configuration for mailflow"""
 
 import logging
 import logging.handlers
@@ -12,15 +12,15 @@ def setup_logging(
     log_dir: str | None = None,
 ) -> None:
     """
-    Set up logging configuration for pmail.
+    Set up logging configuration for mailflow.
 
     Args:
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         log_file: Log file name (if None, logs to stderr only)
-        log_dir: Directory for log files (if None, uses ~/.pmail/logs)
+        log_dir: Directory for log files (if None, uses ~/.mailflow/logs)
     """
     # Create logger
-    logger = logging.getLogger("pmail")
+    logger = logging.getLogger("mailflow")
     logger.setLevel(getattr(logging, log_level.upper()))
 
     # Remove existing handlers
@@ -44,7 +44,7 @@ def setup_logging(
     # File handler (if requested)
     if log_file:
         if log_dir is None:
-            log_dir = os.path.expanduser("~/.pmail/logs")
+            log_dir = os.path.expanduser("~/.mailflow/logs")
 
         log_path = Path(log_dir)
         log_path.mkdir(parents=True, exist_ok=True)

@@ -20,7 +20,7 @@ class ProcessedEmailsTracker:
     - Primary: message-id for fast lookup
     - Fallback: content hash for emails without message-id
 
-    Database stored at: ~/.pmail/processed_emails.db
+    Database stored at: ~/.mailflow/processed_emails.db
     """
 
     def __init__(self, config):
@@ -158,7 +158,9 @@ class ProcessedEmailsTracker:
             logger.error(f"Failed to check if processed: {e}")
             return False
 
-    def get_processed_info(self, email_content: str, message_id: str | None) -> dict[str, Any] | None:
+    def get_processed_info(
+        self, email_content: str, message_id: str | None
+    ) -> dict[str, Any] | None:
         """
         Get information about a processed email.
 

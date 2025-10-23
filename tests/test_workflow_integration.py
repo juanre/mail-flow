@@ -9,9 +9,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pmail.config import Config
-from pmail.email_extractor import EmailExtractor
-from pmail.workflow import save_attachment, save_email_pdf
+from mailflow.config import Config
+from mailflow.email_extractor import EmailExtractor
+from mailflow.workflow import save_attachment, save_email_pdf
 
 
 class TestWorkflowIntegration:
@@ -135,16 +135,16 @@ class TestWorkflowIntegration:
         # Receipt in email body
         body = """
         Order Confirmation
-        
+
         Order #98765
         Date: January 20, 2024
-        
+
         Items:
         - Widget A: $29.99
         - Widget B: $19.99
-        
+
         Total: $49.98
-        
+
         Thank you for your order!
         """
         msg.attach(MIMEText(body, "plain"))

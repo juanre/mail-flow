@@ -12,5 +12,5 @@ wheels/
 .DS_Store
 
 # Authentication and secrets
-pmail-auth/
-
+mailflow-auth/
+.emacs-bu

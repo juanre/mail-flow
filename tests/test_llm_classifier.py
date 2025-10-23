@@ -8,8 +8,8 @@ from dotenv import load_dotenv
 # Load API keys from .env
 load_dotenv()
 
-from pmail.config import Config
-from pmail.models import CriteriaInstance, DataStore, WorkflowDefinition
+from mailflow.config import Config
+from mailflow.models import CriteriaInstance, DataStore, WorkflowDefinition
 
 
 @pytest.fixture
@@ -20,13 +20,13 @@ def sample_workflows():
             name="business-receipts",
             description="Save business receipts and expenses",
             action_type="save_pdf",
-            action_params={"directory": "~/Documents/pmail/business"},
+            action_params={"directory": "~/Documents/mailflow/business"},
         ),
         "personal-receipts": WorkflowDefinition(
             name="personal-receipts",
             description="Save personal receipts and expenses",
             action_type="save_pdf",
-            action_params={"directory": "~/Documents/pmail/personal"},
+            action_params={"directory": "~/Documents/mailflow/personal"},
         ),
         "archive": WorkflowDefinition(
             name="archive",
@@ -95,13 +95,13 @@ class TestLLMClassifierPromptBuilding:
 
     def test_imports_llm_classifier(self):
         """Test that we can import the LLM classifier module"""
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         assert LLMClassifier is not None
 
     def test_sanitize_for_prompt_removes_null_bytes(self):
         """Test that sanitization removes null bytes"""
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         classifier = LLMClassifier()
         text = "Hello\x00World"
@@ -112,7 +112,7 @@ class TestLLMClassifierPromptBuilding:
 
     def test_sanitize_for_prompt_collapses_whitespace(self):
         """Test that sanitization collapses excessive whitespace"""
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         classifier = LLMClassifier()
         text = "Hello\n\n\n\nWorld\n\nFoo   Bar"
@@ -124,7 +124,7 @@ class TestLLMClassifierPromptBuilding:
 
     def test_sanitize_for_prompt_truncates(self):
         """Test that sanitization truncates to max_length"""
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         classifier = LLMClassifier()
         text = "A" * 1000
@@ -134,7 +134,7 @@ class TestLLMClassifierPromptBuilding:
 
     def test_sanitize_for_prompt_handles_empty_string(self):
         """Test that sanitization handles empty strings"""
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         classifier = LLMClassifier()
         result = classifier._sanitize_for_prompt("")
@@ -143,7 +143,7 @@ class TestLLMClassifierPromptBuilding:
 
     def test_sanitize_for_prompt_handles_none(self):
         """Test that sanitization handles None"""
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         classifier = LLMClassifier()
         result = classifier._sanitize_for_prompt(None)
@@ -152,7 +152,7 @@ class TestLLMClassifierPromptBuilding:
 
     def test_prompt_includes_workflow_names(self, sample_workflows, sample_criteria, sample_email):
         """Test that prompt includes all workflow names"""
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         classifier = LLMClassifier()
         prompt = classifier._build_prompt(sample_email, sample_workflows, sample_criteria, 3)
@@ -165,7 +165,7 @@ class TestLLMClassifierPromptBuilding:
         self, sample_workflows, sample_criteria, sample_email
     ):
         """Test that prompt includes workflow descriptions"""
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         classifier = LLMClassifier()
         prompt = classifier._build_prompt(sample_email, sample_workflows, sample_criteria, 3)
@@ -176,7 +176,7 @@ class TestLLMClassifierPromptBuilding:
 
     def test_prompt_includes_examples(self, sample_workflows, sample_criteria, sample_email):
         """Test that prompt includes past classification examples"""
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         classifier = LLMClassifier()
         prompt = classifier._build_prompt(sample_email, sample_workflows, sample_criteria, 3)
@@ -189,7 +189,7 @@ class TestLLMClassifierPromptBuilding:
         self, sample_workflows, sample_criteria, sample_email
     ):
         """Test that prompt limits examples per workflow"""
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         # Add many examples for one workflow
         many_criteria = sample_criteria + [
@@ -207,7 +207,9 @@ class TestLLMClassifierPromptBuilding:
         ]
 
         classifier = LLMClassifier()
-        prompt = classifier._build_prompt(sample_email, sample_workflows, many_criteria, max_examples=2)
+        prompt = classifier._build_prompt(
+            sample_email, sample_workflows, many_criteria, max_examples=2
+        )
 
         # Should only include 2 examples per workflow
         # Count occurrences of "Past examples" sections
@@ -217,7 +219,7 @@ class TestLLMClassifierPromptBuilding:
 
     def test_prompt_includes_current_email(self, sample_workflows, sample_criteria, sample_email):
         """Test that prompt includes the email to classify"""
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         classifier = LLMClassifier()
         prompt = classifier._build_prompt(sample_email, sample_workflows, sample_criteria, 3)
@@ -235,12 +237,10 @@ class TestLLMClassifierWithRealAPI:
         self, sample_workflows, sample_criteria, sample_email
     ):
         """Test that classify returns a WorkflowClassification object with real LLM"""
-        from pmail.llm_classifier import LLMClassifier, WorkflowClassification
+        from mailflow.llm_classifier import LLMClassifier, WorkflowClassification
 
         async with LLMClassifier(model_alias="fast") as classifier:
-            result = await classifier.classify(
-                sample_email, sample_workflows, sample_criteria
-            )
+            result = await classifier.classify(sample_email, sample_workflows, sample_criteria)
 
         assert isinstance(result, WorkflowClassification)
         assert result.workflow in sample_workflows
@@ -251,24 +251,20 @@ class TestLLMClassifierWithRealAPI:
         self, sample_workflows, sample_criteria, sample_email
     ):
         """Test that real LLM chooses the correct workflow based on context"""
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         # Sample email is an AWS invoice, should match business-receipts based on criteria
         async with LLMClassifier(model_alias="fast") as classifier:
-            result = await classifier.classify(
-                sample_email, sample_workflows, sample_criteria
-            )
+            result = await classifier.classify(sample_email, sample_workflows, sample_criteria)
 
         # AWS invoice should match business-receipts based on the past examples
         assert result.workflow == "business-receipts"
         assert result.confidence > 0.5
         assert len(result.reasoning) > 0
 
-    async def test_classify_with_different_email_types(
-        self, sample_workflows, sample_criteria
-    ):
+    async def test_classify_with_different_email_types(self, sample_workflows, sample_criteria):
         """Test classification with different email types"""
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         # Test with a personal expense email
         personal_email = {
@@ -284,9 +280,7 @@ class TestLLMClassifierWithRealAPI:
         }
 
         async with LLMClassifier(model_alias="fast") as classifier:
-            result = await classifier.classify(
-                personal_email, sample_workflows, sample_criteria
-            )
+            result = await classifier.classify(personal_email, sample_workflows, sample_criteria)
 
         # Netflix should match personal-receipts based on past examples
         assert result.workflow == "personal-receipts"
@@ -296,7 +290,7 @@ class TestLLMClassifierWithRealAPI:
         self, sample_workflows, sample_criteria, sample_email
     ):
         """Test that classification works with limited examples per workflow"""
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         async with LLMClassifier(model_alias="fast") as classifier:
             result = await classifier.classify(
@@ -310,7 +304,7 @@ class TestLLMClassifierWithRealAPI:
         self, sample_workflows, sample_criteria, sample_email
     ):
         """Test that classifier handles invalid model alias gracefully"""
-        from pmail.llm_classifier import LLMClassifier
+        from mailflow.llm_classifier import LLMClassifier
 
         async with LLMClassifier(model_alias="nonexistent-model") as classifier:
             with pytest.raises(Exception):
@@ -322,7 +316,7 @@ class TestWorkflowClassification:
 
     def test_workflow_classification_creation(self):
         """Test creating a WorkflowClassification object"""
-        from pmail.llm_classifier import WorkflowClassification
+        from mailflow.llm_classifier import WorkflowClassification
 
         classification = WorkflowClassification(
             workflow="test-workflow", confidence=0.85, reasoning="Test reasoning"

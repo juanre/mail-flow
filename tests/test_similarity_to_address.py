@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from pmail.models import CriteriaInstance
-from pmail.similarity import SimilarityEngine
-from pmail.config import Config
+from mailflow.models import CriteriaInstance
+from mailflow.similarity import SimilarityEngine
+from mailflow.config import Config
 
 
 def test_to_address_similarity_included(temp_config_dir):
@@ -37,5 +37,3 @@ def test_to_address_similarity_included(temp_config_dir):
     score_diff = engine.calculate_similarity(email_features, diff_to)
 
     assert score_same >= score_diff
-
-

@@ -1,4 +1,3 @@
-
 import os
 from datetime import datetime
 
@@ -67,7 +66,7 @@ class LineInput:
         self.matches = []
 
         if with_history:
-            history_dir = os.path.expanduser("~/.pmail/history")
+            history_dir = os.path.expanduser("~/.mailflow/history")
             if not os.path.exists(history_dir):
                 os.makedirs(history_dir)
             self.history_file = os.path.join(

@@ -6,7 +6,7 @@ from typing import Any
 
 from llmring import LLMRequest, LLMRing, Message
 
-from pmail.models import CriteriaInstance, WorkflowDefinition
+from mailflow.models import CriteriaInstance, WorkflowDefinition
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +105,10 @@ class LLMClassifier:
             temperature=0.3,  # Lower for consistency
             response_format={
                 "type": "json_schema",
-                "json_schema": {"name": "workflow_classification", "schema": self.CLASSIFICATION_SCHEMA},
+                "json_schema": {
+                    "name": "workflow_classification",
+                    "schema": self.CLASSIFICATION_SCHEMA,
+                },
                 "strict": True,
             },
         )
@@ -152,9 +155,9 @@ class LLMClassifier:
 
         # Remove any potentially malicious characters/sequences
         # Remove null bytes
-        text = text.replace('\x00', '')
+        text = text.replace("\x00", "")
         # Remove excessive newlines
-        text = ' '.join(text.split())
+        text = " ".join(text.split())
 
         return text
 
@@ -167,7 +170,7 @@ class LLMClassifier:
     ) -> str:
         """Build classification prompt with all context"""
 
-        prompt = """You are an email classification assistant for pmail.
+        prompt = """You are an email classification assistant for mailflow.
 
 Your task: Suggest which workflow should process this email based on workflow definitions and past examples.
 

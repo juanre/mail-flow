@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 """
-Search tool for pmail metadata databases.
+Search tool for mailflow metadata databases.
 """
 import argparse
 import sys
 from pathlib import Path
 
-from pmail.metadata_store import MetadataStore
+from mailflow.metadata_store import MetadataStore
 
 
 def search_pdfs(directory: str, query: str = None, limit: int = 20, doc_type: str = None):
@@ -110,7 +110,7 @@ def check_duplicate(directory: str, message_id: str):
 def main():
     """Main entry point for search tool."""
     parser = argparse.ArgumentParser(
-        description="Search pmail PDF metadata",
+        description="Search mailflow PDF metadata",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

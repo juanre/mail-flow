@@ -4,11 +4,11 @@
 import logging
 from typing import TYPE_CHECKING, Any
 
-from pmail.models import CriteriaInstance, WorkflowDefinition
-from pmail.similarity import SimilarityEngine
+from mailflow.models import CriteriaInstance, WorkflowDefinition
+from mailflow.similarity import SimilarityEngine
 
 if TYPE_CHECKING:
-    from pmail.llm_classifier import LLMClassifier
+    from mailflow.llm_classifier import LLMClassifier
 
 logger = logging.getLogger(__name__)
 

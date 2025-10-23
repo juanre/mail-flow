@@ -12,8 +12,8 @@ from typing import Any
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 
-from pmail.exceptions import WorkflowError
-from pmail.security import sanitize_filename, validate_path
+from mailflow.exceptions import WorkflowError
+from mailflow.security import sanitize_filename, validate_path
 
 logger = logging.getLogger(__name__)
 
@@ -394,7 +394,7 @@ def save_email_as_pdf(
         # Store metadata if requested
         if store_metadata:
             try:
-                from pmail.metadata_store import MetadataStore
+                from mailflow.metadata_store import MetadataStore
 
                 store = MetadataStore(str(base_dir))
 

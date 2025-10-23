@@ -2,8 +2,8 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from pmail.models import CriteriaInstance
-from pmail.similarity import SimilarityEngine
+from mailflow.models import CriteriaInstance
+from mailflow.similarity import SimilarityEngine
 
 
 class TestSimilarityEngine:

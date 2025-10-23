@@ -11,25 +11,26 @@ logger = logging.getLogger(__name__)
 
 class Config:
     """
-    Configuration management for pmail.
+    Configuration management for mailflow.
 
     Configuration directory (platform-specific):
-    - Linux: ~/.config/pmail
-    - macOS: ~/Library/Application Support/pmail
-    - Windows: %LOCALAPPDATA%\\pmail
+    - Linux: ~/.config/mailflow
+    - macOS: ~/Library/Application Support/mailflow
+    - Windows: %LOCALAPPDATA%\\mailflow
 
-    Legacy location ~/.pmail is still supported for backward compatibility.
+    Legacy location ~/.mailflow is still supported for backward compatibility.
     """
+
     def __init__(self, config_dir: str | None = None):
         if config_dir is None:
             # Check for legacy location first (backward compatibility)
-            legacy_dir = Path.home() / ".pmail"
+            legacy_dir = Path.home() / ".mailflow"
             if legacy_dir.exists():
                 config_dir = str(legacy_dir)
                 logger.info(f"Using legacy config directory: {config_dir}")
             else:
                 # Use platform-appropriate config directory
-                config_dir = user_config_dir("pmail", "pmail")
+                config_dir = user_config_dir("mailflow", "mailflow")
                 logger.info(f"Using platform config directory: {config_dir}")
 
         # Validate config directory path

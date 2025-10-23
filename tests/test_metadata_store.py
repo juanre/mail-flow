@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from pmail.exceptions import DataError
-from pmail.metadata_store import MetadataStore
+from mailflow.exceptions import DataError
+from mailflow.metadata_store import MetadataStore
 
 
 class TestMetadataStore:

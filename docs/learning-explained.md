@@ -1,8 +1,8 @@
-# How pmail Learns
+# How mailflow Learns
 
 ## Classification Strategy
 
-pmail uses a **hybrid approach** combining similarity matching and optional LLM classification:
+mailflow uses a **hybrid approach** combining similarity matching and optional LLM classification:
 
 ### 1. Similarity-Based Learning
 - Extracts features from each email: sender domain, subject keywords, attachments, body content

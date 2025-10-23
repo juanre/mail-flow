@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pmail.config import Config
-from pmail.process import process
+from mailflow.config import Config
+from mailflow.process import process
 
 
 @pytest.fixture
@@ -35,7 +35,7 @@ class TestProcessDeduplication:
     def test_process_tracks_processed_emails(self, temp_config, sample_email):
         """Test that successfully processed emails are tracked"""
         # Create a workflow first
-        from pmail.models import DataStore, WorkflowDefinition
+        from mailflow.models import DataStore, WorkflowDefinition
 
         data_store = DataStore(temp_config)
         workflow = WorkflowDefinition(
@@ -47,14 +47,14 @@ class TestProcessDeduplication:
         data_store.add_workflow(workflow)
 
         # Mock the UI to select a workflow
-        with patch("pmail.ui.WorkflowSelector.select_workflow") as mock_select:
+        with patch("mailflow.ui.WorkflowSelector.select_workflow") as mock_select:
             mock_select.return_value = "test-workflow"
 
             # Process the email (workflow will actually execute)
             process(sample_email, config=temp_config)
 
             # Verify the email was tracked
-            from pmail.processed_emails_tracker import ProcessedEmailsTracker
+            from mailflow.processed_emails_tracker import ProcessedEmailsTracker
 
             tracker = ProcessedEmailsTracker(temp_config)
             assert tracker.is_processed(sample_email, "<test123@example.com>")
@@ -62,7 +62,7 @@ class TestProcessDeduplication:
     def test_process_skips_duplicate_emails(self, temp_config, sample_email):
         """Test that duplicate emails are skipped"""
         # Create a workflow first
-        from pmail.models import DataStore, WorkflowDefinition
+        from mailflow.models import DataStore, WorkflowDefinition
 
         data_store = DataStore(temp_config)
         workflow = WorkflowDefinition(
@@ -74,10 +74,10 @@ class TestProcessDeduplication:
         data_store.add_workflow(workflow)
 
         # First, process the email successfully
-        with patch("pmail.ui.WorkflowSelector.select_workflow") as mock_select:
+        with patch("mailflow.ui.WorkflowSelector.select_workflow") as mock_select:
             mock_select.return_value = "test-workflow"
 
-            with patch("pmail.workflow.Workflows") as mock_workflows:
+            with patch("mailflow.workflow.Workflows") as mock_workflows:
                 mock_action = MagicMock()
                 mock_workflows.__getitem__.return_value = mock_action
 
@@ -94,7 +94,7 @@ class TestProcessDeduplication:
     def test_process_force_reprocesses_emails(self, temp_config, sample_email):
         """Test that force flag allows reprocessing"""
         # Create a workflow first
-        from pmail.models import DataStore, WorkflowDefinition
+        from mailflow.models import DataStore, WorkflowDefinition
 
         data_store = DataStore(temp_config)
         workflow = WorkflowDefinition(
@@ -106,7 +106,7 @@ class TestProcessDeduplication:
         data_store.add_workflow(workflow)
 
         # First, process the email
-        with patch("pmail.ui.WorkflowSelector.select_workflow") as mock_select:
+        with patch("mailflow.ui.WorkflowSelector.select_workflow") as mock_select:
             mock_select.return_value = "test-workflow"
 
             # Track how many times select_workflow was called
@@ -125,14 +125,14 @@ class TestProcessDeduplication:
     def test_process_does_not_track_skipped_workflows(self, temp_config, sample_email):
         """Test that emails are not tracked when user skips workflow selection"""
         # Mock UI to return None (user skipped)
-        with patch("pmail.ui.WorkflowSelector.select_workflow") as mock_select:
+        with patch("mailflow.ui.WorkflowSelector.select_workflow") as mock_select:
             mock_select.return_value = None
 
             # Process the email
             process(sample_email, config=temp_config)
 
             # Verify the email was NOT tracked
-            from pmail.processed_emails_tracker import ProcessedEmailsTracker
+            from mailflow.processed_emails_tracker import ProcessedEmailsTracker
 
             tracker = ProcessedEmailsTracker(temp_config)
             assert not tracker.is_processed(sample_email, "<test123@example.com>")

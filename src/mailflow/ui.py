@@ -2,8 +2,8 @@ import asyncio
 import logging
 from datetime import datetime
 
-from pmail.linein import LineInput
-from pmail.models import CriteriaInstance, WorkflowDefinition
+from mailflow.linein import LineInput
+from mailflow.models import CriteriaInstance, WorkflowDefinition
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +27,11 @@ class WorkflowSelector:
         if self.hybrid_classifier:
             try:
                 # Note: hybrid_classifier.classify() manages async context internally
-                result = asyncio.run(self.hybrid_classifier.classify(
-                    email_data,
-                    self.data_store.workflows,
-                    criteria_instances
-                ))
+                result = asyncio.run(
+                    self.hybrid_classifier.classify(
+                        email_data, self.data_store.workflows, criteria_instances
+                    )
+                )
                 rankings = result["rankings"]
                 llm_suggestion = result.get("llm_suggestion")
             except Exception as e:
@@ -156,7 +156,7 @@ class WorkflowSelector:
         # Check if user wants to use a template
         use_template = LineInput("Use a workflow template?", typical=["no", "yes"])
         if use_template.ask(default="no") == "yes":
-            from pmail.workflow_templates import WORKFLOW_TEMPLATES
+            from mailflow.workflow_templates import WORKFLOW_TEMPLATES
 
             print("\nAvailable templates:")
             for key, template in WORKFLOW_TEMPLATES.items():

@@ -1,4 +1,4 @@
-"""pmail command-line interface"""
+"""mailflow command-line interface"""
 
 import logging
 import sys
@@ -6,12 +6,12 @@ from pathlib import Path
 
 import click
 
-from pmail.config import Config
-from pmail.gmail_api import poll_and_process as gmail_poll
-from pmail.logging_config import setup_logging
-from pmail.models import DataStore, WorkflowDefinition
-from pmail.process import process as process_email
-from pmail.processed_emails_tracker import ProcessedEmailsTracker
+from mailflow.config import Config
+from mailflow.gmail_api import poll_and_process as gmail_poll
+from mailflow.logging_config import setup_logging
+from mailflow.models import DataStore, WorkflowDefinition
+from mailflow.process import process as process_email
+from mailflow.processed_emails_tracker import ProcessedEmailsTracker
 
 logger = logging.getLogger(__name__)
 
@@ -19,19 +19,21 @@ logger = logging.getLogger(__name__)
 @click.group(invoke_without_command=True)
 @click.pass_context
 @click.option("--debug", is_flag=True, help="Enable debug logging")
-@click.option("--llm/--no-llm", default=None, help="Enable/disable LLM classification (overrides config)")
+@click.option(
+    "--llm/--no-llm", default=None, help="Enable/disable LLM classification (overrides config)"
+)
 @click.option("--llm-model", default=None, help="LLM model alias: fast, balanced, or deep")
 @click.option("--force", is_flag=True, help="Reprocess already processed emails")
 def cli(ctx, debug, llm, llm_model, force):
-    """pmail - Smart Email Processing for Mutt
+    """mailflow - Smart Email Processing for Mutt
 
     When invoked without a subcommand, processes email from stdin.
     """
     # Store options in context for process_stdin to use
     ctx.ensure_object(dict)
-    ctx.obj['llm'] = llm
-    ctx.obj['llm_model'] = llm_model
-    ctx.obj['force'] = force
+    ctx.obj["llm"] = llm
+    ctx.obj["llm_model"] = llm_model
+    ctx.obj["force"] = force
 
     # Setup logging
     log_level = "DEBUG" if debug else "INFO"
@@ -52,9 +54,9 @@ def process_stdin(ctx):
             sys.exit(1)
 
         # Get options from context
-        llm_enabled = ctx.obj.get('llm')
-        llm_model = ctx.obj.get('llm_model')
-        force = ctx.obj.get('force', False)
+        llm_enabled = ctx.obj.get("llm")
+        llm_model = ctx.obj.get("llm_model")
+        force = ctx.obj.get("force", False)
 
         process_email(email_content, llm_enabled=llm_enabled, llm_model=llm_model, force=force)
     except KeyboardInterrupt:
@@ -68,14 +70,16 @@ def process_stdin(ctx):
 @cli.command()
 @click.option("--query", "query", default="", help="Gmail search query (e.g., label:INBOX)")
 @click.option("--label", "label", default=None, help="Only process messages with this Gmail label")
-@click.option("--processed-label", default="pmail/processed", help="Label to add after processing")
+@click.option(
+    "--processed-label", default="mailflow/processed", help="Label to add after processing"
+)
 @click.option("--max-results", default=20, help="Maximum Gmail messages to process per run")
 @click.option("--remove-from-inbox", is_flag=True, help="Remove from INBOX after processing")
 def gmail(query, label, processed_label, max_results, remove_from_inbox):
     """Process emails directly from Gmail via the Gmail API.
 
     Requirements:
-      - Place OAuth client JSON at ~/.pmail/gmail_client_secret.json
+      - Place OAuth client JSON at ~/.mailflow/gmail_client_secret.json
       - Install dependencies: uv add google-api-python-client google-auth google-auth-oauthlib
     """
     config = Config()
@@ -102,7 +106,9 @@ def gmail(query, label, processed_label, max_results, remove_from_inbox):
 @click.argument("directory", type=click.Path(exists=True))
 @click.option("--llm/--no-llm", default=None, help="Enable/disable LLM (overrides config)")
 @click.option("--llm-model", default=None, help="LLM model: fast, balanced, or deep")
-@click.option("--auto-threshold", default=0.85, type=float, help="Auto-process above this confidence")
+@click.option(
+    "--auto-threshold", default=0.85, type=float, help="Auto-process above this confidence"
+)
 @click.option("--dry-run", is_flag=True, help="Preview without executing workflows")
 @click.option("--max-emails", default=None, type=int, help="Limit number of emails to process")
 @click.option("--force", is_flag=True, help="Reprocess already processed emails")
@@ -114,15 +120,15 @@ def batch(directory, llm, llm_model, auto_threshold, dry_run, max_emails, force)
     Others are presented for review.
 
     Example:
-        pmail batch ~/mail/archive --llm --auto-threshold 0.9
+        mailflow batch ~/mail/archive --llm --auto-threshold 0.9
     """
     from pathlib import Path
 
-    from pmail.email_extractor import EmailExtractor
-    from pmail.hybrid_classifier import HybridClassifier
-    from pmail.llm_classifier import LLMClassifier
-    from pmail.models import DataStore
-    from pmail.similarity import SimilarityEngine
+    from mailflow.email_extractor import EmailExtractor
+    from mailflow.hybrid_classifier import HybridClassifier
+    from mailflow.llm_classifier import LLMClassifier
+    from mailflow.models import DataStore
+    from mailflow.similarity import SimilarityEngine
 
     config = Config()
 
@@ -191,25 +197,28 @@ def batch(directory, llm, llm_model, auto_threshold, dry_run, max_emails, force)
             # Check if already processed (unless --force)
             if not force and tracker.is_processed(email_content, message_id):
                 processed_info = tracker.get_processed_info(email_content, message_id)
-                prev_workflow = processed_info.get("workflow_name", "unknown") if processed_info else "unknown"
-                click.echo(f"[{i}/{len(email_files)}] ⊘ {email_file.name}: Already processed ({prev_workflow})")
+                prev_workflow = (
+                    processed_info.get("workflow_name", "unknown") if processed_info else "unknown"
+                )
+                click.echo(
+                    f"[{i}/{len(email_files)}] ⊘ {email_file.name}: Already processed ({prev_workflow})"
+                )
                 stats["skipped"] += 1
                 continue
 
             # Classify
             if hybrid_classifier:
                 import asyncio
-                result = asyncio.run(hybrid_classifier.classify(
-                    email_data,
-                    data_store.workflows,
-                    data_store.get_recent_criteria()
-                ))
+
+                result = asyncio.run(
+                    hybrid_classifier.classify(
+                        email_data, data_store.workflows, data_store.get_recent_criteria()
+                    )
+                )
                 rankings = result["rankings"]
             else:
                 rankings = similarity_engine.rank_workflows(
-                    email_data["features"],
-                    data_store.get_recent_criteria(),
-                    top_n=5
+                    email_data["features"], data_store.get_recent_criteria(), top_n=5
                 )
 
             if rankings:
@@ -217,13 +226,15 @@ def batch(directory, llm, llm_model, auto_threshold, dry_run, max_emails, force)
 
                 # Progress display
                 status = "✓" if confidence >= auto_threshold else "?"
-                click.echo(f"[{i}/{len(email_files)}] {status} {email_file.name}: {workflow_name} ({confidence:.0%})")
+                click.echo(
+                    f"[{i}/{len(email_files)}] {status} {email_file.name}: {workflow_name} ({confidence:.0%})"
+                )
 
                 if confidence >= auto_threshold:
                     stats["auto"] += 1
                     if not dry_run:
                         # Execute the workflow
-                        from pmail.workflow import Workflows
+                        from mailflow.workflow import Workflows
 
                         workflow_def = data_store.workflows.get(workflow_name)
                         if workflow_def and workflow_def.action_type in Workflows:
@@ -266,12 +277,12 @@ def batch(directory, llm, llm_model, auto_threshold, dry_run, max_emails, force)
 @cli.command()
 @click.option("--reset", is_flag=True, help="Reset configuration (backup existing)")
 def init(reset):
-    """Initialize pmail configuration with default workflows"""
-    config_dir = Path.home() / ".pmail"
+    """Initialize mailflow configuration with default workflows"""
+    config_dir = Path.home() / ".mailflow"
 
     # Handle existing configuration
     if config_dir.exists() and reset:
-        backup_dir = config_dir.with_suffix(".pmail.backup")
+        backup_dir = config_dir.with_suffix(".mailflow.backup")
         if backup_dir.exists():
             import shutil
 
@@ -284,7 +295,7 @@ def init(reset):
         return
 
     # Initialize configuration
-    click.echo("\nInitializing pmail configuration...")
+    click.echo("\nInitializing mailflow configuration...")
     config = Config()
     data_store = DataStore(config)
 
@@ -295,7 +306,7 @@ def init(reset):
             "description": "Save receipts and invoices as PDFs",
             "action_type": "save_pdf",
             "action_params": {
-                "directory": "~/Documents/pmail/receipts",
+                "directory": "~/Documents/mailflow/receipts",
                 "filename_template": "{date}-{from}-{subject}",
             },
         },
@@ -323,12 +334,12 @@ def init(reset):
     click.echo(f"  Learning examples: {len(data_store.criteria_instances)}")
 
     click.echo("\n📝 Add to your .muttrc:")
-    click.echo('  macro index,pager \\cp "<pipe-message>pmail<enter>" "Process with pmail"')
+    click.echo('  macro index,pager \\cp "<pipe-message>mailflow<enter>" "Process with mailflow"')
     click.echo("\n🚀 Press Ctrl-P in mutt to start processing emails!")
 
     # Show LLM setup instructions
     click.echo("\n🤖 Optional: Enable AI-Powered Classification")
-    click.echo("  pmail can use LLM to improve classification accuracy.")
+    click.echo("  mailflow can use LLM to improve classification accuracy.")
     click.echo("")
     click.echo("  To enable:")
     click.echo("  1. Set up API key (NEVER commit to git!):")
@@ -336,7 +347,7 @@ def init(reset):
     click.echo("     # Add to ~/.bashrc or ~/.zshrc, NOT to config.json")
     click.echo("     # or OPENAI_API_KEY or GOOGLE_GEMINI_API_KEY")
     click.echo("")
-    click.echo("  2. Edit ~/.pmail/config.json:")
+    click.echo("  2. Edit ~/.mailflow/config.json:")
     click.echo('     "llm": { "enabled": true }')
     click.echo("")
     click.echo("  3. (Optional) Initialize llmring:")
@@ -346,7 +357,7 @@ def init(reset):
     click.echo("  Do NOT put API keys in config.json or commit them to git!")
     click.echo("")
     click.echo("  Cost: ~$0.003 per email with balanced model")
-    click.echo("  See docs for details: https://github.com/juanre/pmail")
+    click.echo("  See docs for details: https://github.com/juanre/mailflow")
 
 
 @cli.command()
@@ -385,7 +396,7 @@ def stats():
     config = Config()
     data_store = DataStore(config)
 
-    click.echo("\n📊 pmail Statistics\n")
+    click.echo("\n📊 mailflow Statistics\n")
     click.echo(f"Total workflows: {len(data_store.workflows)}")
     click.echo(f"Total examples: {len(data_store.criteria_instances)}")
 
@@ -417,7 +428,7 @@ def stats():
 @click.option("--type", "-t", help="Filter by document type (invoice, receipt, etc.)")
 def search(query, directory, limit, type):
     """Search stored PDFs"""
-    from pmail.metadata_store import MetadataStore
+    from mailflow.metadata_store import MetadataStore
 
     try:
         store = MetadataStore(Path(directory).expanduser())
@@ -462,12 +473,12 @@ def data(filepath):
     If only a filename is provided, it will search all workflow directories.
 
     Examples:
-        pmail data receipts/2025/2025-07-29-dropbox.com-subscription.pdf
-        pmail data 2025-07-29-dropbox.com-subscription.pdf
+        mailflow data receipts/2025/2025-07-29-dropbox.com-subscription.pdf
+        mailflow data 2025-07-29-dropbox.com-subscription.pdf
     """
     import json
 
-    from pmail.metadata_store import MetadataStore
+    from mailflow.metadata_store import MetadataStore
 
     # Try different workflow directories
     config = Config()
@@ -482,7 +493,7 @@ def data(filepath):
             base_dirs.add(dir_path)
 
     # Also try common locations
-    base_dirs.add(Path("~/Documents/pmail").expanduser())
+    base_dirs.add(Path("~/Documents/mailflow").expanduser())
     base_dirs.add(Path("~/receipts").expanduser())
 
     result = None
@@ -625,7 +636,9 @@ def setup_workflows():
 
     entities = []
     while True:
-        entity_code = click.prompt("Entity code (short, e.g., 'biz')", default="", show_default=False)
+        entity_code = click.prompt(
+            "Entity code (short, e.g., 'biz')", default="", show_default=False
+        )
         if not entity_code:
             break
         entity_name = click.prompt(f"  Full name for '{entity_code}'", default=entity_code)
@@ -642,7 +655,9 @@ def setup_workflows():
 
     doc_types = []
     while True:
-        doc_code = click.prompt("Document type code (e.g., 'expense')", default="", show_default=False)
+        doc_code = click.prompt(
+            "Document type code (e.g., 'expense')", default="", show_default=False
+        )
         if not doc_code:
             break
         doc_desc = click.prompt(f"  Description for '{doc_code}'", default=doc_code + "s")
@@ -663,7 +678,7 @@ def setup_workflows():
                 description=f"Save {entity_name} {doc_desc}",
                 action_type="save_pdf",
                 action_params={
-                    "directory": f"~/Documents/pmail/{entity_code}/{doc_code}",
+                    "directory": f"~/Documents/mailflow/{entity_code}/{doc_code}",
                     "filename_template": "{date}-{from}-{subject}",
                 },
             )
@@ -682,7 +697,7 @@ def setup_workflows():
     click.echo(f"\nCreating directories...")
     for entity_code, _ in entities:
         for doc_code, _ in doc_types:
-            dir_path = Path(f"~/Documents/pmail/{entity_code}/{doc_code}").expanduser()
+            dir_path = Path(f"~/Documents/mailflow/{entity_code}/{doc_code}").expanduser()
             try:
                 dir_path.mkdir(parents=True, exist_ok=True)
                 click.echo(f"  ✓ {dir_path}")
@@ -698,10 +713,10 @@ def setup_workflows():
 
 @cli.command()
 def version():
-    """Show pmail version"""
-    from pmail import __version__
+    """Show mailflow version"""
+    from mailflow import __version__
 
-    click.echo(f"pmail version {__version__}")
+    click.echo(f"mailflow version {__version__}")
 
 
 if __name__ == "__main__":

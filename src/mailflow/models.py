@@ -3,9 +3,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from pmail.exceptions import DataError, ValidationError
-from pmail.security import validate_path
-from pmail.utils import atomic_json_write, file_lock, safe_json_load
+from mailflow.exceptions import DataError, ValidationError
+from mailflow.security import validate_path
+from mailflow.utils import atomic_json_write, file_lock, safe_json_load
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +176,10 @@ class DataStore:
                 name="save-receipts",
                 description="Save receipts: PDF attachments or convert email to PDF",
                 action_type="save_pdf",
-                action_params={"directory": "~/receipts", "filename_template": "{date}_{from}_{subject}"},
+                action_params={
+                    "directory": "~/receipts",
+                    "filename_template": "{date}_{from}_{subject}",
+                },
             )
             defaults["archive"] = WorkflowDefinition(
                 name="archive",

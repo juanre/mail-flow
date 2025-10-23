@@ -8,11 +8,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pmail.config import Config
-from pmail.email_extractor import EmailExtractor
-from pmail.models import CriteriaInstance, DataStore
-from pmail.similarity import SimilarityEngine
-from pmail.ui import WorkflowSelector
+from mailflow.config import Config
+from mailflow.email_extractor import EmailExtractor
+from mailflow.models import CriteriaInstance, DataStore
+from mailflow.similarity import SimilarityEngine
+from mailflow.ui import WorkflowSelector
 
 
 class TestIntegration:
@@ -43,7 +43,7 @@ class TestIntegration:
             email_data = extractor.extract(sample_emails["amazon_invoice"])
 
             # Mock user input to create new workflow
-            with patch("pmail.linein.LineInput.ask") as mock_ask:
+            with patch("mailflow.linein.LineInput.ask") as mock_ask:
                 # User selects "new" then creates invoice workflow
                 mock_ask.side_effect = [
                     "new",  # Select new workflow
@@ -77,7 +77,7 @@ class TestIntegration:
         ]
 
         # Create workflows
-        from pmail.models import WorkflowDefinition
+        from mailflow.models import WorkflowDefinition
 
         workflows = {
             "save-invoices": WorkflowDefinition(
@@ -123,7 +123,7 @@ class TestIntegration:
             email_data = extractor.extract(sample_emails["cloudflare_invoice"])
 
             # Mock user selecting the suggested workflow
-            with patch("pmail.linein.LineInput.ask") as mock_ask:
+            with patch("mailflow.linein.LineInput.ask") as mock_ask:
                 mock_ask.return_value = "1"  # Select first suggestion
 
                 # Capture printed output
@@ -150,7 +150,7 @@ class TestIntegration:
         similarity_engine = SimilarityEngine(config)
 
         # Create invoice workflow
-        from pmail.models import WorkflowDefinition
+        from mailflow.models import WorkflowDefinition
 
         invoice_workflow = WorkflowDefinition(
             name="save-invoices",
@@ -203,11 +203,11 @@ class TestIntegration:
 
     def test_workflow_execution(self, temp_config_dir, sample_emails):
         """Test that workflows can be executed"""
-        from pmail.process import process
+        from mailflow.process import process
 
         # Mock the workflow execution
-        with patch("pmail.workflow.save_attachment") as mock_save:
-            with patch("pmail.linein.LineInput.ask") as mock_ask:
+        with patch("mailflow.workflow.save_attachment") as mock_save:
+            with patch("mailflow.linein.LineInput.ask") as mock_ask:
                 # Simulate user selecting to skip
                 mock_ask.return_value = "skip"
 

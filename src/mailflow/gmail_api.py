@@ -14,8 +14,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List, Optional
 
-from pmail.config import Config
-from pmail.process import process as process_email
+from mailflow.config import Config
+from mailflow.process import process as process_email
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ def _require_google_libs():
 def get_gmail_service(config: Config):
     """Authenticate and return a Gmail API service client.
 
-    Requires a client secrets JSON at ~/.pmail/gmail_client_secret.json.
+    Requires a client secrets JSON at ~/.mailflow/gmail_client_secret.json.
     """
     build, HttpError, Request, Credentials, InstalledAppFlow = _require_google_libs()
 
@@ -90,12 +90,17 @@ def get_gmail_service(config: Config):
     return service
 
 
-def list_message_ids(service, query: str = "", label_ids: Optional[List[str]] = None, max_results: int = 50) -> List[str]:
+def list_message_ids(
+    service, query: str = "", label_ids: Optional[List[str]] = None, max_results: int = 50
+) -> List[str]:
     """List message IDs matching the query/labels."""
     label_ids = label_ids or []
-    response = service.users().messages().list(
-        userId="me", q=query, labelIds=label_ids, maxResults=max_results
-    ).execute()
+    response = (
+        service.users()
+        .messages()
+        .list(userId="me", q=query, labelIds=label_ids, maxResults=max_results)
+        .execute()
+    )
     msgs = response.get("messages", [])
     return [m["id"] for m in msgs]
 
@@ -125,7 +130,9 @@ def ensure_label(service, label_name: str) -> str:
     return created["id"]
 
 
-def modify_labels(service, message_id: str, add_labels: Iterable[str] = (), remove_labels: Iterable[str] = ()) -> None:
+def modify_labels(
+    service, message_id: str, add_labels: Iterable[str] = (), remove_labels: Iterable[str] = ()
+) -> None:
     service.users().messages().modify(
         userId="me",
         id=message_id,
@@ -137,7 +144,7 @@ def poll_and_process(
     config: Config,
     query: str = "",
     label: Optional[str] = None,
-    processed_label: str = "pmail/processed",
+    processed_label: str = "mailflow/processed",
     max_results: int = 20,
     remove_from_inbox: bool = False,
 ) -> int:
@@ -187,5 +194,3 @@ def poll_and_process(
             continue
 
     return count
-
-

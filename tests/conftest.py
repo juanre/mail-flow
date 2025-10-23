@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from pmail.config import Config
+from mailflow.config import Config
 
 
 @pytest.fixture

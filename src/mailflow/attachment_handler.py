@@ -1,4 +1,4 @@
-"""Attachment extraction handler for pmail"""
+"""Attachment extraction handler for mailflow"""
 
 import logging
 import os
@@ -6,8 +6,8 @@ from email.message import Message
 from pathlib import Path
 from typing import Any
 
-from pmail.exceptions import WorkflowError
-from pmail.security import sanitize_filename, validate_path
+from mailflow.exceptions import WorkflowError
+from mailflow.security import sanitize_filename, validate_path
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +150,7 @@ def save_attachments_from_message(
                     # Store metadata if requested
                     if store_metadata:
                         try:
-                            from pmail.metadata_store import MetadataStore
+                            from mailflow.metadata_store import MetadataStore
 
                             store = MetadataStore(str(base_dir))
 
@@ -179,4 +179,3 @@ def save_attachments_from_message(
             f"Failed to save attachments: {e}",
             recovery_hint="Check directory permissions and available disk space",
         )
-

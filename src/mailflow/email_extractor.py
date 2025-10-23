@@ -5,8 +5,8 @@ from email.header import decode_header
 from email.message import Message
 from typing import Any
 
-from pmail.exceptions import EmailParsingError
-from pmail.security import (
+from mailflow.exceptions import EmailParsingError
+from mailflow.security import (
     MAX_ATTACHMENT_COUNT,
     MAX_BODY_PREVIEW_LENGTH,
     MAX_EMAIL_SIZE_MB,
@@ -14,7 +14,7 @@ from pmail.security import (
     sanitize_filename,
     validate_message_id,
 )
-from pmail.utils import truncate_string
+from mailflow.utils import truncate_string
 
 logger = logging.getLogger(__name__)
 

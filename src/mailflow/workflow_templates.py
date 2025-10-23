@@ -9,7 +9,7 @@ WORKFLOW_TEMPLATES = {
         "description": "Save receipts and invoices as PDFs",
         "action_type": "save_pdf",
         "action_params": {
-            "directory": "~/Documents/pmail/receipts",
+            "directory": "~/Documents/mailflow/receipts",
             "filename_template": "{date}-{from}-{subject}",
         },
     },
@@ -18,7 +18,7 @@ WORKFLOW_TEMPLATES = {
         "description": "Archive newsletter as PDF",
         "action_type": "save_email_as_pdf",
         "action_params": {
-            "directory": "~/Documents/pmail/newsletters",
+            "directory": "~/Documents/mailflow/newsletters",
             "filename_template": "{date}-{from}-newsletter",
         },
     },
@@ -26,7 +26,7 @@ WORKFLOW_TEMPLATES = {
         "name": "save-attachments",
         "description": "Save PDF attachments only",
         "action_type": "save_attachment",
-        "action_params": {"directory": "~/Documents/pmail/attachments", "pattern": "*.pdf"},
+        "action_params": {"directory": "~/Documents/mailflow/attachments", "pattern": "*.pdf"},
     },
 }
 

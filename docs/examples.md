@@ -1,4 +1,4 @@
-# pmail Workflow Examples
+# mailflow Workflow Examples
 
 ## Receipts and Invoices
 
@@ -63,7 +63,7 @@ Filename template: {date}_{from}_{subject}
 ```
 
 ### Direct Edit
-Edit `~/.pmail/workflows.json` directly with your favorite editor.
+Edit `~/.mailflow/workflows.json` directly with your favorite editor.
 
 ## Multi-Entity Organization
 
@@ -71,7 +71,7 @@ For managing multiple entities (business, personal, etc.):
 
 ```bash
 # Use the interactive setup
-uv run pmail setup-workflows
+uv run mailflow setup-workflows
 
 # Example: Enter entities like "biz" and "personal"
 # Example: Enter doc types like "expense" and "tax-doc"
@@ -79,7 +79,7 @@ uv run pmail setup-workflows
 
 Example directory structure:
 ```
-~/Documents/pmail/
+~/Documents/mailflow/
   ├── business/
   │   ├── expense/
   │   └── tax-doc/

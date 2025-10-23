@@ -1,5 +1,5 @@
 [project]
-name = "pmail"
+name = "mailflow"
 version = "0.3.0"
 description = "Smart email processing for mutt with similarity learning and optional LLM classification"
 readme = "README.md"
@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.scripts]
-pmail = "pmail.cli:cli"
+mailflow = "mailflow.cli:cli"
 
 [build-system]
 requires = ["hatchling"]

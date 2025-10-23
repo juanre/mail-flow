@@ -1,4 +1,4 @@
-"""pmail - Smart Email Processing for Mutt"""
+"""mailflow - Smart Email Processing for Mutt"""
 
 __version__ = "0.2.0"
 

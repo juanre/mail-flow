@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from pmail.config import Config
+from mailflow.config import Config
 
 
 @pytest.fixture
@@ -45,13 +45,13 @@ class TestProcessedEmailsTracker:
 
     def test_imports_tracker(self):
         """Test that we can import the tracker module"""
-        from pmail.processed_emails_tracker import ProcessedEmailsTracker
+        from mailflow.processed_emails_tracker import ProcessedEmailsTracker
 
         assert ProcessedEmailsTracker is not None
 
     def test_tracker_initialization(self, temp_config):
         """Test tracker creates database and schema"""
-        from pmail.processed_emails_tracker import ProcessedEmailsTracker
+        from mailflow.processed_emails_tracker import ProcessedEmailsTracker
 
         tracker = ProcessedEmailsTracker(temp_config)
 
@@ -61,7 +61,7 @@ class TestProcessedEmailsTracker:
 
     def test_tracker_schema_creation(self, temp_config):
         """Test that tracker creates correct database schema"""
-        from pmail.processed_emails_tracker import ProcessedEmailsTracker
+        from mailflow.processed_emails_tracker import ProcessedEmailsTracker
 
         tracker = ProcessedEmailsTracker(temp_config)
 
@@ -74,7 +74,7 @@ class TestProcessedEmailsTracker:
 
     def test_mark_as_processed_with_message_id(self, temp_config, sample_email_content):
         """Test marking email as processed using message-id"""
-        from pmail.processed_emails_tracker import ProcessedEmailsTracker
+        from mailflow.processed_emails_tracker import ProcessedEmailsTracker
 
         tracker = ProcessedEmailsTracker(temp_config)
 
@@ -92,7 +92,7 @@ class TestProcessedEmailsTracker:
 
     def test_mark_as_processed_without_message_id(self, temp_config, sample_email_no_message_id):
         """Test marking email as processed without message-id (uses content hash)"""
-        from pmail.processed_emails_tracker import ProcessedEmailsTracker
+        from mailflow.processed_emails_tracker import ProcessedEmailsTracker
 
         tracker = ProcessedEmailsTracker(temp_config)
 
@@ -107,7 +107,7 @@ class TestProcessedEmailsTracker:
 
     def test_is_processed_with_message_id(self, temp_config, sample_email_content):
         """Test checking if email is processed using message-id"""
-        from pmail.processed_emails_tracker import ProcessedEmailsTracker
+        from mailflow.processed_emails_tracker import ProcessedEmailsTracker
 
         tracker = ProcessedEmailsTracker(temp_config)
 
@@ -124,7 +124,7 @@ class TestProcessedEmailsTracker:
 
     def test_is_processed_with_content_hash_only(self, temp_config, sample_email_no_message_id):
         """Test checking if email is processed using content hash when no message-id"""
-        from pmail.processed_emails_tracker import ProcessedEmailsTracker
+        from mailflow.processed_emails_tracker import ProcessedEmailsTracker
 
         tracker = ProcessedEmailsTracker(temp_config)
 
@@ -139,7 +139,7 @@ class TestProcessedEmailsTracker:
 
     def test_duplicate_message_id_same_content(self, temp_config, sample_email_content):
         """Test that same message-id is detected as duplicate"""
-        from pmail.processed_emails_tracker import ProcessedEmailsTracker
+        from mailflow.processed_emails_tracker import ProcessedEmailsTracker
 
         tracker = ProcessedEmailsTracker(temp_config)
 
@@ -153,7 +153,7 @@ class TestProcessedEmailsTracker:
 
     def test_duplicate_content_different_message_id(self, temp_config, sample_email_content):
         """Test that identical content with different message-id is detected"""
-        from pmail.processed_emails_tracker import ProcessedEmailsTracker
+        from mailflow.processed_emails_tracker import ProcessedEmailsTracker
 
         tracker = ProcessedEmailsTracker(temp_config)
 
@@ -165,7 +165,7 @@ class TestProcessedEmailsTracker:
 
     def test_get_statistics(self, temp_config, sample_email_content):
         """Test getting tracker statistics"""
-        from pmail.processed_emails_tracker import ProcessedEmailsTracker
+        from mailflow.processed_emails_tracker import ProcessedEmailsTracker
 
         tracker = ProcessedEmailsTracker(temp_config)
 
@@ -181,7 +181,7 @@ class TestProcessedEmailsTracker:
 
     def test_force_reprocess(self, temp_config, sample_email_content):
         """Test that we can get info about processed email for force reprocessing"""
-        from pmail.processed_emails_tracker import ProcessedEmailsTracker
+        from mailflow.processed_emails_tracker import ProcessedEmailsTracker
 
         tracker = ProcessedEmailsTracker(temp_config)
 
@@ -197,7 +197,7 @@ class TestProcessedEmailsTracker:
 
     def test_content_hash_calculation(self, temp_config):
         """Test that content hash is deterministic"""
-        from pmail.processed_emails_tracker import ProcessedEmailsTracker
+        from mailflow.processed_emails_tracker import ProcessedEmailsTracker
 
         tracker = ProcessedEmailsTracker(temp_config)
 

@@ -3,7 +3,7 @@ from datetime import datetime
 
 import pytest
 
-from pmail.models import CriteriaInstance, DataStore, WorkflowDefinition
+from mailflow.models import CriteriaInstance, DataStore, WorkflowDefinition
 
 
 class TestCriteriaInstance:

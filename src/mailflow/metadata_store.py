@@ -11,7 +11,7 @@ from contextlib import contextmanager, suppress
 from pathlib import Path
 from typing import Any
 
-from pmail.exceptions import DataError
+from mailflow.exceptions import DataError
 
 logger = logging.getLogger(__name__)
 

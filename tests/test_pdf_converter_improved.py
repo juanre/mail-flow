@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pmail.pdf_converter import (
+from mailflow.pdf_converter import (
     extract_best_html_from_message,
     save_email_as_pdf,
     wrap_email_html,

@@ -4,10 +4,10 @@ import os
 from pathlib import Path
 from typing import Any
 
-from pmail.attachment_handler import save_attachments_from_message
-from pmail.exceptions import WorkflowError
-from pmail.pdf_converter import save_email_as_pdf
-from pmail.security import validate_path
+from mailflow.attachment_handler import save_attachments_from_message
+from mailflow.exceptions import WorkflowError
+from mailflow.pdf_converter import save_email_as_pdf
+from mailflow.security import validate_path
 
 logger = logging.getLogger(__name__)
 

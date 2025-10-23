@@ -3,17 +3,17 @@
 import logging
 import sys
 
-from pmail.config import Config
-from pmail.email_extractor import EmailExtractor
-from pmail.exceptions import EmailParsingError, PmailError, WorkflowError
-from pmail.hybrid_classifier import HybridClassifier
-from pmail.llm_classifier import LLMClassifier
-from pmail.logging_config import setup_logging
-from pmail.models import DataStore
-from pmail.processed_emails_tracker import ProcessedEmailsTracker
-from pmail.similarity import SimilarityEngine
-from pmail.ui import WorkflowSelector
-from pmail.workflow import Workflows
+from mailflow.config import Config
+from mailflow.email_extractor import EmailExtractor
+from mailflow.exceptions import EmailParsingError, MailflowError, WorkflowError
+from mailflow.hybrid_classifier import HybridClassifier
+from mailflow.llm_classifier import LLMClassifier
+from mailflow.logging_config import setup_logging
+from mailflow.models import DataStore
+from mailflow.processed_emails_tracker import ProcessedEmailsTracker
+from mailflow.similarity import SimilarityEngine
+from mailflow.ui import WorkflowSelector
+from mailflow.workflow import Workflows
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ def process(
     force: bool = False,
 ) -> None:
     """
-    Process an email message through the pmail workflow.
+    Process an email message through the mailflow workflow.
 
     Args:
         message: Email message text
@@ -148,9 +148,9 @@ def process(
         print(f"\n✗ Email parsing error: {e}")
         logger.error(f"Failed to parse email: {e}")
         sys.exit(1)
-    except PmailError as e:
+    except MailflowError as e:
         print(f"\n✗ Error: {e}")
-        logger.error(f"pmail error: {e}")
+        logger.error(f"mailflow error: {e}")
         sys.exit(1)
     except KeyboardInterrupt:
         print("\n\n✓ Operation cancelled by user.")
@@ -163,16 +163,16 @@ def process(
 
 
 def main():
-    """Main entry point for pmail"""
+    """Main entry point for mailflow"""
     # Set up logging
     log_level = "INFO"  # Could be made configurable
     if "--debug" in sys.argv:
         log_level = "DEBUG"
         sys.argv.remove("--debug")
 
-    setup_logging(log_level=log_level, log_file="pmail.log")
+    setup_logging(log_level=log_level, log_file="mailflow.log")
 
-    logger.info("pmail started")
+    logger.info("mailflow started")
 
     try:
         if len(sys.argv) == 2:
@@ -203,7 +203,7 @@ def main():
         logger.exception("Failed to read email")
         sys.exit(1)
     finally:
-        logger.info("pmail finished")
+        logger.info("mailflow finished")
 
 
 if __name__ == "__main__":

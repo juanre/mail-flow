@@ -1,6 +1,6 @@
 import pytest
 
-from pmail.email_extractor import EmailExtractor
+from mailflow.email_extractor import EmailExtractor
 
 
 class TestEmailExtractor:

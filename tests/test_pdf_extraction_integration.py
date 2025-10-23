@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from pmail.attachment_handler import save_attachments_from_message
-from pmail.email_extractor import EmailExtractor
-from pmail.metadata_store import DocumentCategory, DocumentType, MetadataStore
+from mailflow.attachment_handler import save_attachments_from_message
+from mailflow.email_extractor import EmailExtractor
+from mailflow.metadata_store import DocumentCategory, DocumentType, MetadataStore
 
 
 class TestPDFExtractionIntegration:
@@ -136,7 +136,7 @@ class TestPDFExtractionIntegration:
 
     def test_no_pdf_attachment_creates_pdf(self, temp_config_dir, amazon_email):
         """Test that emails without PDF attachments can be converted to PDF."""
-        from pmail.pdf_converter import save_email_as_pdf
+        from mailflow.pdf_converter import save_email_as_pdf
 
         # Extract email
         extractor = EmailExtractor()
