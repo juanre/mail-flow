@@ -1,37 +1,48 @@
+# ABOUTME: Configuration management using XDG Base Directory specification
+# ABOUTME: Handles config files, data storage, state/logs, and cache directories
 import json
 import logging
 import os
 from pathlib import Path
 from typing import Any
 
-from platformdirs import user_config_dir
-
 logger = logging.getLogger(__name__)
 
 
 class Config:
     """
-    Configuration management for mailflow.
+    Configuration management for mailflow using XDG Base Directory specification.
 
-    Configuration directory (platform-specific):
-    - Linux: ~/.config/mailflow
-    - macOS: ~/Library/Application Support/mailflow
-    - Windows: %LOCALAPPDATA%\\mailflow
-
-    Legacy location ~/.mailflow is still supported for backward compatibility.
+    Directories (following XDG standard):
+    - Config: $XDG_CONFIG_HOME/mailflow (default: ~/.config/mailflow)
+    - Data: $XDG_DATA_HOME/mailflow (default: ~/.local/share/mailflow)
+    - State: $XDG_STATE_HOME/mailflow (default: ~/.local/state/mailflow)
+    - Cache: $XDG_CACHE_HOME/mailflow (default: ~/.cache/mailflow)
     """
 
     def __init__(self, config_dir: str | None = None):
         if config_dir is None:
-            # Check for legacy location first (backward compatibility)
-            legacy_dir = Path.home() / ".mailflow"
-            if legacy_dir.exists():
-                config_dir = str(legacy_dir)
-                logger.info(f"Using legacy config directory: {config_dir}")
-            else:
-                # Use platform-appropriate config directory
-                config_dir = user_config_dir("mailflow", "mailflow")
-                logger.info(f"Using platform config directory: {config_dir}")
+            # Use XDG Base Directory specification
+            xdg_config_home = os.environ.get('XDG_CONFIG_HOME', os.path.expanduser('~/.config'))
+            config_dir = os.path.join(xdg_config_home, 'mailflow')
+            logger.info(f"Using XDG config directory: {config_dir}")
+
+            # Use XDG paths for other directories
+            xdg_data_home = os.environ.get('XDG_DATA_HOME', os.path.expanduser('~/.local/share'))
+            self.data_dir = Path(xdg_data_home) / 'mailflow'
+
+            xdg_state_home = os.environ.get('XDG_STATE_HOME', os.path.expanduser('~/.local/state'))
+            self.state_dir = Path(xdg_state_home) / 'mailflow'
+
+            xdg_cache_home = os.environ.get('XDG_CACHE_HOME', os.path.expanduser('~/.cache'))
+            self.cache_dir = Path(xdg_cache_home) / 'mailflow'
+        else:
+            # When config_dir is explicitly provided (e.g., in tests),
+            # derive all other directories from it to keep everything isolated
+            logger.info(f"Using custom config directory: {config_dir}")
+            self.data_dir = Path(config_dir) / 'data'
+            self.state_dir = Path(config_dir) / 'state'
+            self.cache_dir = Path(config_dir) / 'cache'
 
         # Validate config directory path
         self.config_dir = Path(config_dir).resolve()
@@ -45,15 +56,23 @@ class Config:
         self._load_config()
 
     def _ensure_directories(self):
-        """Create necessary directories"""
+        """Create necessary XDG directories"""
         try:
-            self.config_dir.mkdir(exist_ok=True, mode=0o700)  # Private directory
-            # Subdirectories used by the app and tests
-            (self.config_dir / "history").mkdir(exist_ok=True, mode=0o700)
+            # Create all XDG base directories
+            self.config_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+            self.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+            self.state_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+            self.cache_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+
+            # Config subdirectories
             (self.config_dir / "workflows").mkdir(exist_ok=True, mode=0o700)
             (self.config_dir / "backups").mkdir(exist_ok=True, mode=0o700)
+
+            # State subdirectories (for logs and history)
+            (self.state_dir / "history").mkdir(exist_ok=True, mode=0o700)
+            (self.state_dir / "logs").mkdir(exist_ok=True, mode=0o700)
         except Exception as e:
-            logger.error(f"Failed to create config directories: {e}")
+            logger.error(f"Failed to create directories: {e}")
             raise
 
     def _load_config(self):
@@ -174,10 +193,13 @@ class Config:
         return self.config_dir / "workflows.json"
 
     def get_criteria_instances_file(self) -> Path:
-        return self.config_dir / "criteria_instances.json"
+        return self.data_dir / "criteria_instances.json"
 
     def get_history_dir(self) -> Path:
-        return self.config_dir / "history"
+        return self.state_dir / "history"
+
+    def get_log_dir(self) -> Path:
+        return self.state_dir / "logs"
 
     def backup_file(self, file_path: Path) -> Path:
         """Backup a file into the backups directory with a timestamped name.

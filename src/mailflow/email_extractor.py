@@ -1,3 +1,5 @@
+# ABOUTME: Email parsing and feature extraction from RFC822 message text
+# ABOUTME: Decodes MIME headers, extracts attachments, and builds feature vectors
 import email
 import logging
 import re

@@ -1,32 +1,50 @@
-"""Pre-configured workflow templates for common use cases"""
+# ABOUTME: Pre-configured workflow templates for common email processing use cases.
+# ABOUTME: Provides practical defaults for receipts, bank statements, tax documents, contracts, and action items.
 
 from typing import Any
 
-# Generic workflow templates
 WORKFLOW_TEMPLATES = {
-    "receipts_general": {
-        "name": "save-receipts",
-        "description": "Save receipts and invoices as PDFs",
+    "receipts": {
+        "name": "receipts",
+        "description": "Save receipts and invoices (PDF attachments or convert email)",
         "action_type": "save_pdf",
         "action_params": {
-            "directory": "~/Documents/mailflow/receipts",
-            "filename_template": "{date}-{from}-{subject}",
+            "directory": "~/Documents/mailflow/personal/expense",
         },
     },
-    "newsletter_archive": {
-        "name": "archive-newsletter",
-        "description": "Archive newsletter as PDF",
-        "action_type": "save_email_as_pdf",
-        "action_params": {
-            "directory": "~/Documents/mailflow/newsletters",
-            "filename_template": "{date}-{from}-newsletter",
-        },
-    },
-    "attachments_only": {
-        "name": "save-attachments",
-        "description": "Save PDF attachments only",
+    "bank_statements": {
+        "name": "bank_statements",
+        "description": "Save bank statements and financial documents",
         "action_type": "save_attachment",
-        "action_params": {"directory": "~/Documents/mailflow/attachments", "pattern": "*.pdf"},
+        "action_params": {
+            "directory": "~/Documents/mailflow/personal/bank",
+            "pattern": "*.pdf",
+        },
+    },
+    "tax_documents": {
+        "name": "tax_documents",
+        "description": "Save tax-related documents",
+        "action_type": "save_pdf",
+        "action_params": {
+            "directory": "~/Documents/mailflow/personal/tax-doc",
+        },
+    },
+    "contracts": {
+        "name": "contracts",
+        "description": "Save contracts and legal documents",
+        "action_type": "save_attachment",
+        "action_params": {
+            "directory": "~/Documents/mailflow/business/contracts",
+            "pattern": "*.pdf",
+        },
+    },
+    "action_required": {
+        "name": "action_required",
+        "description": "Create todo for emails requiring action",
+        "action_type": "create_todo",
+        "action_params": {
+            "todo_file": "~/todos.txt",
+        },
     },
 }
 

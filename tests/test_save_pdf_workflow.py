@@ -6,8 +6,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
 
-import pytest
-
 from mailflow.email_extractor import EmailExtractor
 from mailflow.workflow import save_pdf
 

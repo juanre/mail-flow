@@ -1,3 +1,5 @@
+# ABOUTME: Data models for workflows, criteria instances, and execution history
+# ABOUTME: Provides dataclasses with validation for workflow definitions and tracking
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -65,7 +67,6 @@ class WorkflowDefinition:
         "create_todo",
         "save_email_as_pdf",
         "save_pdf",
-        "custom",
     }
 
     def __post_init__(self):

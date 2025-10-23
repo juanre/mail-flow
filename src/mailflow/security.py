@@ -1,3 +1,5 @@
+# ABOUTME: Security utilities for input validation and sanitization
+# ABOUTME: Validates paths, filenames, email addresses, and enforces size limits
 """Security utilities for input validation and sanitization"""
 
 import os

@@ -1,3 +1,5 @@
+# ABOUTME: Gmail API integration for fetching and processing emails via OAuth2
+# ABOUTME: Manages authentication, message retrieval, and label-based organization
 """Gmail API integration for fetching and processing emails without a local mailbox.
 
 This module intentionally keeps imports to Gmail libraries inside functions so the
@@ -59,7 +61,7 @@ def _require_google_libs():
 def get_gmail_service(config: Config):
     """Authenticate and return a Gmail API service client.
 
-    Requires a client secrets JSON at ~/.mailflow/gmail_client_secret.json.
+    Requires a client secrets JSON at ~/.config/mailflow/gmail_client_secret.json.
     """
     build, HttpError, Request, Credentials, InstalledAppFlow = _require_google_libs()
 

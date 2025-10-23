@@ -1,9 +1,11 @@
-"""Logging configuration for mailflow"""
-
+# ABOUTME: Logging configuration setup for mailflow application
+# ABOUTME: Configures console and file logging with rotation and exception handling
 import logging
 import logging.handlers
 import os
 from pathlib import Path
+
+from mailflow.config import Config
 
 
 def setup_logging(
@@ -17,7 +19,7 @@ def setup_logging(
     Args:
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         log_file: Log file name (if None, logs to stderr only)
-        log_dir: Directory for log files (if None, uses ~/.mailflow/logs)
+        log_dir: Directory for log files (if None, uses XDG state directory)
     """
     # Create logger
     logger = logging.getLogger("mailflow")
@@ -44,9 +46,10 @@ def setup_logging(
     # File handler (if requested)
     if log_file:
         if log_dir is None:
-            log_dir = os.path.expanduser("~/.mailflow/logs")
-
-        log_path = Path(log_dir)
+            config = Config()
+            log_path = config.get_log_dir()
+        else:
+            log_path = Path(log_dir)
         log_path.mkdir(parents=True, exist_ok=True)
 
         file_path = log_path / log_file

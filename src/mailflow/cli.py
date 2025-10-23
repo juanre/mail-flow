@@ -1,3 +1,5 @@
+# ABOUTME: Command-line interface for mailflow email processing workflows
+# ABOUTME: Provides commands for processing, searching, stats, and Gmail integration
 """mailflow command-line interface"""
 
 import logging
@@ -79,7 +81,7 @@ def gmail(query, label, processed_label, max_results, remove_from_inbox):
     """Process emails directly from Gmail via the Gmail API.
 
     Requirements:
-      - Place OAuth client JSON at ~/.mailflow/gmail_client_secret.json
+      - Place OAuth client JSON at ~/.config/mailflow/gmail_client_secret.json
       - Install dependencies: uv add google-api-python-client google-auth google-auth-oauthlib
     """
     config = Config()
@@ -278,25 +280,18 @@ def batch(directory, llm, llm_model, auto_threshold, dry_run, max_emails, force)
 @click.option("--reset", is_flag=True, help="Reset configuration (backup existing)")
 def init(reset):
     """Initialize mailflow configuration with default workflows"""
-    config_dir = Path.home() / ".mailflow"
-
-    # Handle existing configuration
-    if config_dir.exists() and reset:
-        backup_dir = config_dir.with_suffix(".mailflow.backup")
-        if backup_dir.exists():
-            import shutil
-
-            shutil.rmtree(backup_dir)
-        config_dir.rename(backup_dir)
-        click.echo(f"✓ Backed up existing configuration to {backup_dir}")
-    elif config_dir.exists() and not reset:
-        click.echo(f"Configuration already exists at {config_dir}")
-        click.echo("Use --reset to backup and create fresh configuration")
-        return
-
     # Initialize configuration
     click.echo("\nInitializing mailflow configuration...")
     config = Config()
+
+    # Handle existing configuration
+    if config.get_workflows_file().exists() and reset:
+        backup_path = config.backup_file(config.get_workflows_file())
+        click.echo(f"✓ Backed up existing workflows to {backup_path}")
+    elif config.get_workflows_file().exists() and not reset:
+        click.echo(f"Configuration already exists at {config.config_dir}")
+        click.echo("Use --reset to backup and create fresh configuration")
+        return
     data_store = DataStore(config)
 
     # Create only generic default workflows
@@ -347,7 +342,7 @@ def init(reset):
     click.echo("     # Add to ~/.bashrc or ~/.zshrc, NOT to config.json")
     click.echo("     # or OPENAI_API_KEY or GOOGLE_GEMINI_API_KEY")
     click.echo("")
-    click.echo("  2. Edit ~/.mailflow/config.json:")
+    click.echo("  2. Edit ~/.config/mailflow/config.json:")
     click.echo('     "llm": { "enabled": true }')
     click.echo("")
     click.echo("  3. (Optional) Initialize llmring:")

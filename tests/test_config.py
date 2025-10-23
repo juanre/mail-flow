@@ -1,7 +1,4 @@
-import json
 from pathlib import Path
-
-import pytest
 
 from mailflow.config import Config
 
@@ -10,11 +7,15 @@ class TestConfig:
     def test_config_creates_directories(self, temp_config_dir):
         config = Config(config_dir=temp_config_dir)
 
-        # Check all directories are created
+        # Check all XDG directories are created
         assert Path(temp_config_dir).exists()
         assert (Path(temp_config_dir) / "workflows").exists()
-        assert (Path(temp_config_dir) / "history").exists()
         assert (Path(temp_config_dir) / "backups").exists()
+        assert (Path(temp_config_dir) / "data").exists()
+        assert (Path(temp_config_dir) / "state").exists()
+        assert (Path(temp_config_dir) / "state" / "history").exists()
+        assert (Path(temp_config_dir) / "state" / "logs").exists()
+        assert (Path(temp_config_dir) / "cache").exists()
 
     def test_default_settings(self, temp_config_dir):
         config = Config(config_dir=temp_config_dir)

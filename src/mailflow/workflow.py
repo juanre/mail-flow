@@ -1,3 +1,5 @@
+# ABOUTME: Workflow action implementations for mailflow email processing.
+# ABOUTME: Provides functions to save attachments, create PDFs, and generate todos from emails.
 import datetime
 import logging
 import os
@@ -27,7 +29,6 @@ def save_attachment(
         if not message_obj:
             # Fallback to old behavior if no Message object
             logger.warning("No Message object available for attachment extraction")
-            print("\n⚠️  Attachment extraction requires the full email object")
             return
 
         # Use the attachment handler to save attachments
@@ -41,9 +42,9 @@ def save_attachment(
         )
 
         if saved_count == 0:
-            print(f"\n  ℹ️  No attachments matching '{pattern}' found")
+            logger.info(f"No attachments matching '{pattern}' found")
         else:
-            print(f"\n✓ Saved {saved_count} attachment(s) to {directory}")
+            logger.info(f"Saved {saved_count} attachment(s) to {directory}")
 
     except Exception as e:
         raise WorkflowError(
@@ -68,20 +69,20 @@ def create_todo(message: dict[str, Any], todo_file: str = "~/todos.txt"):
         date = datetime.datetime.now().strftime("%Y-%m-%d")
         message_id = message.get("message_id", "")[:100]
 
-        # Create todo entry
-        todo_entry = f"[ ] {date} - Email from {from_addr}: {subject}\n"
+        # Determine format based on file extension
+        file_ext = todo_path.suffix.lower()
+        if file_ext in [".org", ".orgmode"]:
+            # Orgmode format
+            todo_entry = f"* TODO {date} - Email from {from_addr}: {subject}\n"
+        else:
+            # Markdown format (default)
+            todo_entry = f"[ ] {date} - Email from {from_addr}: {subject}\n"
 
         # Append to file
         with open(todo_path, "a", encoding="utf-8") as f:
             f.write(todo_entry)
 
-        print(f"\n✓ Added todo to {todo_path}:")
-        print(f"  {todo_entry.strip()}")
-
-        if message_id:
-            print(f"\nMessage ID: {message_id}")
-
-        logger.info(f"Created todo for message {message_id}")
+        logger.info(f"Created todo for message {message_id} at {todo_path}: {todo_entry.strip()}")
 
     except Exception as e:
         raise WorkflowError(
@@ -158,7 +159,7 @@ def save_pdf(
 
         if pdf_attachments:
             # Has PDF attachments - save them
-            print(f"  ℹ️  Found {len(pdf_attachments)} PDF attachment(s)")
+            logger.info(f"Found {len(pdf_attachments)} PDF attachment(s)")
             save_attachment(
                 message,
                 directory=directory,
@@ -168,7 +169,7 @@ def save_pdf(
             )
         else:
             # No PDF attachments - convert email to PDF
-            print("  ℹ️  No PDF attachments found, converting email to PDF")
+            logger.info("No PDF attachments found, converting email to PDF")
             # Ensure template doesn't already end with .pdf
             if not filename_template.endswith(".pdf"):
                 filename_template = filename_template + ".pdf"

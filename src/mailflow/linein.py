@@ -1,5 +1,9 @@
+# ABOUTME: Interactive line input with history, completion, and validation
+# ABOUTME: Provides readline-based input for CLI with typical value suggestions
 import os
 from datetime import datetime
+
+from mailflow.config import Config
 
 try:
     import gnureadline as readline
@@ -66,12 +70,10 @@ class LineInput:
         self.matches = []
 
         if with_history:
-            history_dir = os.path.expanduser("~/.mailflow/history")
-            if not os.path.exists(history_dir):
-                os.makedirs(history_dir)
-            self.history_file = os.path.join(
-                history_dir, "history-" + prompt.lower().replace(" ", "-")
-            )
+            config = Config()
+            history_dir = config.get_history_dir()
+            self.history_file = history_dir / f"history-{prompt.lower().replace(' ', '-')}"
+            self.history_file = str(self.history_file)
 
             # When typical is not set we initialize it with the history
             if not typical and os.path.exists(self.history_file):

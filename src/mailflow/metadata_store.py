@@ -1,3 +1,5 @@
+# ABOUTME: SQLite-backed metadata storage for saved PDFs from email workflows
+# ABOUTME: Tracks email origins, document classification, and provides FTS5 search
 """
 Metadata storage for PDF workflows using SQLite.
 Tracks email origins, content, and enables full-text search.

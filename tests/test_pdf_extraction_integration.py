@@ -1,6 +1,5 @@
 """Integration tests for PDF extraction from real emails."""
 
-from email import message_from_string
 from pathlib import Path
 
 import pytest

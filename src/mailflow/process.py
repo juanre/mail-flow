@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# ABOUTME: Main email processing orchestration for mailflow CLI.
+# ABOUTME: Coordinates email extraction, classification, workflow selection, and execution.
 
 import logging
 import sys

@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 
-import pytest
 
 from mailflow.models import CriteriaInstance
 from mailflow.similarity import SimilarityEngine

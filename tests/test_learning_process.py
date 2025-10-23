@@ -3,7 +3,6 @@ Test the learning process with real emails.
 This test demonstrates how the system learns from user selections.
 """
 
-import os
 import shutil
 import tempfile
 from datetime import datetime

@@ -1,3 +1,5 @@
+# ABOUTME: Interactive UI for workflow selection and creation in mailflow.
+# ABOUTME: Handles user interaction for classifying and processing emails with workflows.
 import asyncio
 import logging
 from datetime import datetime
@@ -179,7 +181,6 @@ class WorkflowSelector:
                     "save_email_as_pdf",
                     "save_pdf",
                     "create_todo",
-                    "custom",
                 ]
                 action_input = LineInput("Action type", typical=action_types, only_typical=True)
                 action_type = action_input.ask()
@@ -190,7 +191,6 @@ class WorkflowSelector:
                 "save_email_as_pdf",
                 "save_pdf",
                 "create_todo",
-                "custom",
             ]
             action_input = LineInput("Action type", typical=action_types, only_typical=True)
             action_type = action_input.ask()
@@ -199,14 +199,29 @@ class WorkflowSelector:
         # Configure action parameters if not using template
         if action_type == "save_attachment" and not action_params:
             dir_input = LineInput(
-                "Directory", typical=["~/Downloads", "~/Documents", "~/invoices"]
+                "Directory",
+                typical=[
+                    "~/Documents/mailflow/jro/expense",
+                    "~/Documents/mailflow/tsm/expense",
+                    "~/Documents/mailflow/gsk/expense",
+                    "~/Documents/mailflow/jro/invoice",
+                    "~/receipts",
+                ],
             )
             action_params["directory"] = dir_input.ask()
             pattern_input = LineInput("File pattern", typical=["*.pdf", "*.*", "*.jpg", "*.png"])
             action_params["pattern"] = pattern_input.ask(default="*.*")
 
         elif action_type == "save_email_as_pdf" and not action_params:
-            dir_input = LineInput("Directory", typical=["~/receipts", "~/invoices", "~/Documents"])
+            dir_input = LineInput(
+                "Directory",
+                typical=[
+                    "~/Documents/mailflow/jro/doc",
+                    "~/Documents/mailflow/tsm/doc",
+                    "~/Documents/mailflow/gsk/doc",
+                    "~/invoices",
+                ],
+            )
             action_params["directory"] = dir_input.ask(default="~/receipts")
             template_input = LineInput(
                 "Filename template", typical=["{date}_{from}_{subject}.pdf"]
@@ -219,10 +234,12 @@ class WorkflowSelector:
             dir_input = LineInput(
                 "Directory",
                 typical=[
+                    "~/Documents/mailflow/jro/expense",
+                    "~/Documents/mailflow/tsm/expense",
+                    "~/Documents/mailflow/gsk/expense",
+                    "~/Documents/mailflow/jro/invoice",
+                    "~/Documents/mailflow/tsm/invoice",
                     "~/receipts",
-                    "~/receipts/personal",
-                    "~/receipts/business",
-                    "~/invoices",
                 ],
             )
             action_params["directory"] = dir_input.ask()

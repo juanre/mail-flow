@@ -1,3 +1,5 @@
+# ABOUTME: Handles extraction and saving of email attachments with metadata storage.
+# ABOUTME: Supports pattern matching, year-based directory organization, and SQLite metadata tracking.
 """Attachment extraction handler for mailflow"""
 
 import logging
@@ -145,7 +147,7 @@ def save_attachments_from_message(
                 saved_path = extract_and_save_attachment(part, dir_path, final_filename)
                 if saved_path:
                     saved_count += 1
-                    print(f"  ✓ Saved: {final_filename} to {saved_path}")
+                    logger.info(f"Saved attachment: {final_filename} to {saved_path}")
 
                     # Store metadata if requested
                     if store_metadata:

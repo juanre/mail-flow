@@ -1,5 +1,3 @@
-import pytest
-
 from mailflow.email_extractor import EmailExtractor
 
 

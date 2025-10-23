@@ -1,3 +1,5 @@
+# ABOUTME: Common utility functions for atomic file operations and JSON handling
+# ABOUTME: Provides file locking, safe writes, hashing, and retry logic with backoff
 """Utility functions for mailflow"""
 
 import hashlib

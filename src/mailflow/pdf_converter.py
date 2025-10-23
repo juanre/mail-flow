@@ -1,3 +1,5 @@
+# ABOUTME: Converts emails to PDF format using Playwright, preserving HTML and inline images.
+# ABOUTME: Extracts email content, wraps with headers, and generates searchable PDFs with metadata.
 """Convert emails to PDF format - preserving original content"""
 
 import base64
@@ -389,7 +391,7 @@ def save_email_as_pdf(
         # Convert to PDF
         convert_email_to_pdf(html_content, output_path)
 
-        print(f"  ✓ Saved email as PDF: {output_path}")
+        logger.info(f"Saved email as PDF: {output_path}")
 
         # Store metadata if requested
         if store_metadata:

@@ -20,7 +20,8 @@ class ProcessedEmailsTracker:
     - Primary: message-id for fast lookup
     - Fallback: content hash for emails without message-id
 
-    Database stored at: ~/.mailflow/processed_emails.db
+    Database location: config_dir/processed_emails.db
+    (typically ~/.config/mailflow/processed_emails.db)
     """
 
     def __init__(self, config):

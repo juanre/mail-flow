@@ -78,7 +78,7 @@ Enable AI-powered classification for better accuracy:
 export ANTHROPIC_API_KEY=sk-ant-...
 # or OPENAI_API_KEY or GOOGLE_GEMINI_API_KEY
 
-# 2. Enable in config (~/.mailflow/config.json)
+# 2. Enable in config (~/.config/mailflow/config.json)
 {
   "llm": {
     "enabled": true,
@@ -99,11 +99,20 @@ cat email.eml | uv run mailflow --llm
 
 ## Configuration
 
-Files in `~/.mailflow/`:
+mailflow follows the XDG Base Directory specification:
+
+**Config** (`~/.config/mailflow/` or `$XDG_CONFIG_HOME/mailflow/`):
 - `config.json`: Feature weights, UI settings, LLM configuration
 - `workflows.json`: Workflow definitions
-- `criteria_instances.json`: Learning history (training data)
 - `processed_emails.db`: Deduplication tracking
+- `gmail_client_secret.json`: OAuth credentials (if using Gmail API)
+
+**Data** (`~/.local/share/mailflow/` or `$XDG_DATA_HOME/mailflow/`):
+- `criteria_instances.json`: Learning history (training data)
+
+**State/Logs** (`~/.local/state/mailflow/` or `$XDG_STATE_HOME/mailflow/`):
+- `logs/`: Application logs
+- `history/`: Command history
 
 ## Workflows
 
@@ -118,7 +127,7 @@ Built-in workflow types:
 Process emails directly from Gmail:
 
 ```bash
-# Setup: Place OAuth 2.0 client JSON at ~/.mailflow/gmail_client_secret.json
+# Setup: Place OAuth 2.0 client JSON at ~/.config/mailflow/gmail_client_secret.json
 
 # Process inbox
 uv run mailflow gmail --query "label:INBOX newer_than:1d" --processed-label "mailflow/processed"

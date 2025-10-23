@@ -1,3 +1,5 @@
+# ABOUTME: Custom exception hierarchy for mailflow error handling
+# ABOUTME: Provides specialized exceptions with recovery hints for each module
 """Custom exceptions for mailflow"""
 
 

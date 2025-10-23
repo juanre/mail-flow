@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# ABOUTME: Command-line search tool for querying mailflow PDF metadata databases
+# ABOUTME: Supports full-text search, type filtering, statistics, and duplicates
 """
 Search tool for mailflow metadata databases.
 """

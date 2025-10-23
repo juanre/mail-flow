@@ -1,3 +1,5 @@
+# ABOUTME: Similarity scoring between emails and learned workflow criteria
+# ABOUTME: Uses weighted Jaccard similarity on domains, subjects, and attachments
 from typing import Any
 
 

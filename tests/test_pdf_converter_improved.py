@@ -1,8 +1,6 @@
 """Test the improved PDF converter that preserves original email content"""
 
 from email import message_from_string
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 

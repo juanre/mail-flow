@@ -1,3 +1,5 @@
+# ABOUTME: Package initialization for mailflow email processing system
+# ABOUTME: Defines version and sets up package-level logging configuration
 """mailflow - Smart Email Processing for Mutt"""
 
 __version__ = "0.2.0"

@@ -8,8 +8,7 @@ from dotenv import load_dotenv
 # Load API keys from .env
 load_dotenv()
 
-from mailflow.config import Config
-from mailflow.models import CriteriaInstance, DataStore, WorkflowDefinition
+from mailflow.models import CriteriaInstance, WorkflowDefinition
 
 
 @pytest.fixture

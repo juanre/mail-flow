@@ -63,7 +63,7 @@ Filename template: {date}_{from}_{subject}
 ```
 
 ### Direct Edit
-Edit `~/.mailflow/workflows.json` directly with your favorite editor.
+Edit `~/.config/mailflow/workflows.json` directly with your favorite editor.
 
 ## Multi-Entity Organization
 

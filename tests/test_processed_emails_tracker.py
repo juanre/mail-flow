@@ -1,9 +1,6 @@
 """Test processed emails tracking and deduplication"""
 
-import hashlib
 import tempfile
-from datetime import datetime
-from pathlib import Path
 
 import pytest
 
