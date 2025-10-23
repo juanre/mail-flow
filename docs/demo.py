@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Demo script showing the pmail learning workflow
+Demo script showing the mailflow learning workflow
 """
 import sys
 import os
@@ -10,11 +10,11 @@ from datetime import datetime
 # Add src to path for demo
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
-from pmail.config import Config
-from pmail.email_extractor import EmailExtractor
-from pmail.models import DataStore, CriteriaInstance, WorkflowDefinition
-from pmail.similarity import SimilarityEngine
-from pmail.ui import WorkflowSelector
+from mailflow.config import Config
+from mailflow.email_extractor import EmailExtractor
+from mailflow.models import DataStore, CriteriaInstance, WorkflowDefinition
+from mailflow.similarity import SimilarityEngine
+from mailflow.ui import WorkflowSelector
 
 
 def load_sample_emails():
@@ -165,7 +165,7 @@ def interactive_demo(config, emails):
         print("\nProcessing: GitHub notification email")
 
         # Import and use the process function with our demo config
-        from pmail.process import process
+        from mailflow.process import process
 
         # Process the email (this will show UI and execute the workflow)
         process(emails["github_notification"], config=config)
@@ -173,8 +173,8 @@ def interactive_demo(config, emails):
 
 def main():
     """Run the complete demo"""
-    print("=== pmail Learning Demo ===")
-    print("This demo shows how pmail learns from your email classification choices.")
+    print("=== mailflow Learning Demo ===")
+    print("This demo shows how mailflow learns from your email classification choices.")
 
     # Load sample emails
     emails = load_sample_emails()
@@ -199,7 +199,7 @@ def main():
         interactive_demo(config, emails)
 
     print("\n=== Demo Complete ===")
-    print("In real usage, pmail would:")
+    print("In real usage, mailflow would:")
     print("  1. Learn from every email you classify")
     print("  2. Get better at predicting the right workflow over time")
     print("  3. Execute the selected workflow (save attachments, flag emails, etc.)")

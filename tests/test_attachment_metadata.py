@@ -2,8 +2,8 @@ from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email import encoders
 
-from pmail.email_extractor import EmailExtractor
-from pmail.attachment_handler import save_attachments_from_message
+from mailflow.email_extractor import EmailExtractor
+from mailflow.attachment_handler import save_attachments_from_message
 
 
 def test_attachment_original_filename_and_size(temp_config_dir):
@@ -34,5 +34,3 @@ def test_attachment_original_filename_and_size(temp_config_dir):
         use_year_dirs=False,
     )
     assert saved == 1
-
-

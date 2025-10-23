@@ -1,1 +1,1 @@
-# Tests for pmail
+# Tests for mailflow

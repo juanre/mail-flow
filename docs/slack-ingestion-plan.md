@@ -13,7 +13,7 @@
 - **Phase 3**: Google Docs adapter (export .md/.pdf), Local docs adapter, parallelized safe downloads, tests and docs.
 
 ## Directory Layout
-Base directory (configurable): `~/Documents/pmail/slack/{entity}/`
+Base directory (configurable): `~/Documents/mailflow/slack/{entity}/`
 
 - `auth/user_token` — Slack user/bot token (xoxp-/xoxb-)
 - `raw/{channel}/YYYY-MM-DD-{channel}.json` — raw message batches per day
@@ -25,14 +25,14 @@ Notes:
 - All paths created atomically; filenames are date-prefixed and sanitized.
 
 ## Configuration
-Add a `slack` section to `~/.pmail/config.json` (reuses existing config loader):
+Add a `slack` section to `~/.config/mailflow/config.json` (reuses existing config loader):
 
 ```json
 {
   "slack": {
-    "base_dir": "~/Documents/pmail/slack",
+    "base_dir": "~/Documents/mailflow/slack",
     "entities": {
-      "jro": { "token_path": "~/.pmail/slack/jro/user_token" }
+      "jro": { "token_path": "~/.config/mailflow/slack/jro/user_token" }
     },
     "ignore_channels": [],
     "rate_limit_min_interval_secs": 1
@@ -48,7 +48,7 @@ Add a `slack` section to `~/.pmail/config.json` (reuses existing config loader):
 ```
 
 Token placement per entity:
-- `~/.pmail/slack/{entity}/user_token` (file content is the Slack token)
+- `~/.config/mailflow/slack/{entity}/user_token` (file content is the Slack token)
 
 Required OAuth scopes (user or bot):
 - `channels:history`, `channels:read`, `groups:history`, `groups:read`, `im:history`, `im:read`, `mpim:history`, `mpim:read`, `users:read`, `team:read`, `files:read`.
@@ -96,7 +96,7 @@ Required OAuth scopes (user or bot):
   - Replies as nested `### Reply by …` blocks in time order
 
 ## CLI
-Add `pmail slack` command with options:
+Add `mailflow slack` command with options:
 - `--entity <id>` (required)
 - `--info` list channels/users and workspace domain
 - `--channel <name|C…>` sync a single channel by name or id
@@ -108,12 +108,12 @@ Add `pmail slack` command with options:
 - `--debug`, `--silent`
 
 ## Modules and Responsibilities
-- `pmail/slack/client.py` — token loading, WebClient creation, API helpers (history, replies, users, channels, workspace info).
-- `pmail/slack/storage.py` — directory resolution, filename normalization, atomic writes (JSON/MD), attachment saving with hashing and collision handling.
-- `pmail/slack/markdown.py` — render message trees to markdown, resolve mentions, build permalinks.
-- `pmail/slack/ingest.py` — orchestrate fetch → store → index; incremental sync.
-- `pmail/text_extract.py` — minimal text extraction for `.md/.txt` and `.pdf`.
-- `pmail/cli.py` — register `slack` command and options.
+- `mailflow/slack/client.py` — token loading, WebClient creation, API helpers (history, replies, users, channels, workspace info).
+- `mailflow/slack/storage.py` — directory resolution, filename normalization, atomic writes (JSON/MD), attachment saving with hashing and collision handling.
+- `mailflow/slack/markdown.py` — render message trees to markdown, resolve mentions, build permalinks.
+- `mailflow/slack/ingest.py` — orchestrate fetch → store → index; incremental sync.
+- `mailflow/text_extract.py` — minimal text extraction for `.md/.txt` and `.pdf`.
+- `mailflow/cli.py` — register `slack` command and options.
 
 ## Attachment Handling
 - Prefer `url_private_download`, fallback `url_private` with `Authorization: Bearer <token>`.
@@ -121,7 +121,7 @@ Add `pmail slack` command with options:
 - Google Docs detection (Phase 2/3): URLs containing `docs.google.com/document/` handled by GoogleDocsAdapter to produce `.md` and `.pdf`, returning canonical local paths used in transcript links.
 
 ## Memory Indexing
-- Reuse `~/.pmail/config.json.llmemory` settings. Index only when `enabled == true`.
+- Reuse `~/.config/mailflow/config.json.llmemory` settings. Index only when `enabled == true`.
 - Transcripts:
   - `DocumentType.CHAT`, `id_at_origin` = relative path to markdown.
   - Content = filtered markdown (header stripped), metadata: `relative_path`, `channel`, `workspace`, `date`, `file_hash`.
@@ -157,7 +157,7 @@ Add `pmail slack` command with options:
   - DM resolution flow.
   - Rate limit/backoff behavior.
 - Manual runbook:
-  - `pmail slack --entity jro --channel general --since 2025-01-01`.
+  - `mailflow slack --entity jro --channel general --since 2025-01-01`.
   - Verify output folders and llmemory entries (if enabled).
 
 ## Timeline and Tasks
@@ -168,18 +168,18 @@ Add `pmail slack` command with options:
 3. Attachments
    - Download/save; basic text extraction; link in transcripts.
 4. Ingestion orchestration + CLI
-   - `ingest.py` incremental sync; register `pmail slack` command.
+   - `ingest.py` incremental sync; register `mailflow slack` command.
 5. llmemory indexing (guarded by config)
    - Index transcripts and attachments; de-dupe by hash.
 6. Tests + docs
    - Unit/integration tests; README/usage docs.
 
 ## Acceptance Criteria
-- Running `pmail slack --entity <id> --channel <name> --since <date>`:
+- Running `mailflow slack --entity <id> --channel <name> --since <date>`:
   - Creates `raw/` JSON and `md/` transcript files per day.
   - Downloads all referenced attachments to `attachments/` with sanitized, date-prefixed filenames.
   - Transcripts include message text, permalinks, attachments, and threaded replies in order.
-  - When `llmemory.enabled=true`, both transcripts and attachments are searchable via `pmail msearch`.
+  - When `llmemory.enabled=true`, both transcripts and attachments are searchable via `mailflow msearch`.
   - Re-running with the same date range is idempotent and incremental (no duplicates; unchanged files not re-indexed).
 
 ## Future Work
@@ -187,6 +187,6 @@ Add `pmail slack` command with options:
 - Local docs adapter: folder ingestion into canonical structure + memory.
 - Per-channel state files for faster resume.
 - Parallelized downloads with concurrency limits.
-- Optional SQLite metadata for Slack files similar to `pmail` PDFs.
+- Optional SQLite metadata for Slack files similar to `mailflow` PDFs.
 
 

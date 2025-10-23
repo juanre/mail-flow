@@ -1,9 +1,0 @@
-class Command:
-    def __init__(
-        self,
-        from_address=None,
-        to_address=None,
-        with_pdf_attachment=None,
-        in_subject=None,
-    ):
-        self.from_address = from_address

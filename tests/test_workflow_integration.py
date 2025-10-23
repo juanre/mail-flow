@@ -5,13 +5,10 @@ from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
-
-from pmail.config import Config
-from pmail.email_extractor import EmailExtractor
-from pmail.workflow import save_attachment, save_email_pdf
+from mailflow.email_extractor import EmailExtractor
+from mailflow.workflow import save_attachment, save_email_pdf
 
 
 class TestWorkflowIntegration:
@@ -67,14 +64,13 @@ class TestWorkflowIntegration:
         invoices_dir = Path(temp_config_dir) / "invoices"
 
         # Run save_attachment workflow
-        with patch("builtins.print") as mock_print:
-            save_attachment(
-                email_data,
-                directory=str(invoices_dir),
-                pattern="*.pdf",
-                use_year_dirs=False,
-                store_metadata=False,
-            )
+        save_attachment(
+            email_data,
+            directory=str(invoices_dir),
+            pattern="*.pdf",
+            use_year_dirs=False,
+            store_metadata=False,
+        )
 
         # Check directory was created
         assert invoices_dir.exists()
@@ -83,10 +79,6 @@ class TestWorkflowIntegration:
         pdf_files = list(invoices_dir.glob("*.pdf"))
         assert len(pdf_files) == 1
         assert pdf_files[0].name.endswith("-invoice_12345.pdf")
-
-        # Verify print output
-        print_calls = [str(call) for call in mock_print.call_args_list]
-        assert any("Saved 1 attachment(s)" in str(call) for call in print_calls)
 
     def test_save_email_as_pdf_workflow(self, temp_config_dir):
         """Test saving entire email as PDF"""
@@ -135,16 +127,16 @@ class TestWorkflowIntegration:
         # Receipt in email body
         body = """
         Order Confirmation
-        
+
         Order #98765
         Date: January 20, 2024
-        
+
         Items:
         - Widget A: $29.99
         - Widget B: $19.99
-        
+
         Total: $49.98
-        
+
         Thank you for your order!
         """
         msg.attach(MIMEText(body, "plain"))

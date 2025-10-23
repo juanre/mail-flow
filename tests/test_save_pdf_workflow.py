@@ -6,10 +6,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
 
-import pytest
-
-from pmail.email_extractor import EmailExtractor
-from pmail.workflow import save_pdf
+from mailflow.email_extractor import EmailExtractor
+from mailflow.workflow import save_pdf
 
 
 class TestSaveReceiptWorkflow:

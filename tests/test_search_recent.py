@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pmail.metadata_store import MetadataStore
+from mailflow.metadata_store import MetadataStore
 
 
 def test_search_recent_returns_latest(temp_config_dir):
@@ -28,5 +28,3 @@ def test_search_recent_returns_latest(temp_config_dir):
     assert len(results) == 2
     # Ensure the most recent two are returned (by saved_at DESC)
     assert results[0]["filename"].startswith("file-")
-
-

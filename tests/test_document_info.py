@@ -1,13 +1,9 @@
 """Test document info and classification functionality."""
 
 import json
-from datetime import datetime
 from pathlib import Path
 
-import pytest
-
-from pmail.exceptions import DataError
-from pmail.metadata_store import DocumentCategory, DocumentType, MetadataStore
+from mailflow.metadata_store import DocumentCategory, DocumentType, MetadataStore
 
 
 class TestDocumentInfo:

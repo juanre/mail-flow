@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pmail.exceptions import WorkflowError
-from pmail.pdf_converter import (
+from mailflow.exceptions import WorkflowError
+from mailflow.pdf_converter import (
     convert_email_to_pdf,
     extract_best_html_from_message,
     save_email_as_pdf,
@@ -151,7 +151,7 @@ class TestPDFConverter:
         assert pdf_files[0].exists()
         assert pdf_files[0].stat().st_size > 1000
 
-    @patch("pmail.pdf_converter.sync_playwright")
+    @patch("mailflow.pdf_converter.sync_playwright")
     def test_convert_email_to_pdf_with_playwright(self, mock_playwright, temp_config_dir):
         """Test PDF conversion with Playwright"""
         # Mock Playwright
@@ -177,7 +177,7 @@ class TestPDFConverter:
         mock_page.pdf.assert_called_once()
         mock_browser.close.assert_called_once()
 
-    @patch("pmail.pdf_converter.sync_playwright")
+    @patch("mailflow.pdf_converter.sync_playwright")
     def test_convert_email_to_pdf_no_browser(self, mock_playwright, temp_config_dir):
         """Test helpful error when Playwright browser not installed"""
         # Mock Playwright throwing browser error

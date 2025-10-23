@@ -7,9 +7,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
 
-import pytest
-
-from pmail.attachment_handler import (
+from mailflow.attachment_handler import (
     extract_and_save_attachment,
     save_attachments_from_message,
 )

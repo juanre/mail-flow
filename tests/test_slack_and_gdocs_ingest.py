@@ -4,11 +4,11 @@ from datetime import datetime
 
 import pytest
 
-from pmail.config import Config
-from pmail.slack import ingest as slack_ingest
-from pmail.slack.storage import SlackArchivePaths
-from pmail.slack.migrate_contextual import migrate_contextual_slack
-from pmail.gdocs import ingest as gdocs_ingest
+from mailflow.config import Config
+from mailflow.slack import ingest as slack_ingest
+from mailflow.slack.storage import SlackArchivePaths
+from mailflow.slack.migrate_contextual import migrate_contextual_slack
+from mailflow.gdocs import ingest as gdocs_ingest
 
 
 class FakeSlackClient:
@@ -52,7 +52,7 @@ class FakeSlackClient:
 
 
 def _temp_config(tmp_path: Path) -> Config:
-    cfg = Config(config_dir=str(tmp_path / ".pmail-test"))
+    cfg = Config(config_dir=str(tmp_path / ".mailflow-test"))
     # Set base dirs to tmp
     cfg.settings.setdefault("slack", {})
     cfg.settings["slack"]["base_dir"] = str(tmp_path / "slack-archive")
@@ -71,7 +71,7 @@ def test_slack_ingest_happy_path(tmp_path, monkeypatch):
     monkeypatch.setattr(slack_ingest, "SlackClient", FakeSlackClient)
 
     # Create a dummy token file to satisfy constructor path checks
-    token_file = tmp_path / ".pmail-test" / "slack" / "ent" / "user_token"
+    token_file = tmp_path / ".mailflow-test" / "slack" / "ent" / "user_token"
     token_file.parent.mkdir(parents=True, exist_ok=True)
     token_file.write_text("xoxp-TEST", encoding="utf-8")
 

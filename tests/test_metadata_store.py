@@ -1,13 +1,9 @@
 """Test metadata storage functionality."""
 
-import json
-from datetime import datetime
 from pathlib import Path
 
-import pytest
 
-from pmail.exceptions import DataError
-from pmail.metadata_store import MetadataStore
+from mailflow.metadata_store import MetadataStore
 
 
 class TestMetadataStore:

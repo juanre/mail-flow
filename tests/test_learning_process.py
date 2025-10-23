@@ -3,7 +3,6 @@ Test the learning process with real emails.
 This test demonstrates how the system learns from user selections.
 """
 
-import os
 import shutil
 import tempfile
 from datetime import datetime
@@ -11,10 +10,10 @@ from pathlib import Path
 
 import pytest
 
-from pmail.config import Config
-from pmail.email_extractor import EmailExtractor
-from pmail.models import CriteriaInstance, DataStore, WorkflowDefinition
-from pmail.similarity import SimilarityEngine
+from mailflow.config import Config
+from mailflow.email_extractor import EmailExtractor
+from mailflow.models import CriteriaInstance, DataStore, WorkflowDefinition
+from mailflow.similarity import SimilarityEngine
 
 
 class TestLearningProcess:
@@ -34,15 +33,15 @@ class TestLearningProcess:
         return emails
 
     @pytest.fixture
-    def temp_pmail_dir(self):
-        """Create a temporary pmail directory"""
+    def temp_mailflow_dir(self):
+        """Create a temporary mailflow directory"""
         temp_dir = tempfile.mkdtemp()
         yield temp_dir
         shutil.rmtree(temp_dir)
 
-    def test_initial_workflow_setup(self, temp_pmail_dir):
+    def test_initial_workflow_setup(self, temp_mailflow_dir):
         """Test setting up initial workflows"""
-        config = Config(config_dir=temp_pmail_dir)
+        config = Config(config_dir=temp_mailflow_dir)
         data_store = DataStore(config)
 
         # Add invoice-specific workflow
@@ -73,19 +72,19 @@ class TestLearningProcess:
         data_store.add_workflow(update_workflow)
 
         # Verify workflows were saved
-        assert len(data_store.workflows) >= 6  # 3 default + 3 new
+        assert len(data_store.workflows) == 3  # 3 new workflows (no defaults)
         assert "save-invoices" in data_store.workflows
         assert "save-errors" in data_store.workflows
         assert "create-update-todos" in data_store.workflows
 
-    def test_first_learning_phase(self, temp_pmail_dir, real_emails):
+    def test_first_learning_phase(self, temp_mailflow_dir, real_emails):
         """Test the first phase of learning - training the system"""
-        config = Config(config_dir=temp_pmail_dir)
+        config = Config(config_dir=temp_mailflow_dir)
         data_store = DataStore(config)
         extractor = EmailExtractor()
 
         # Set up workflows first
-        self.test_initial_workflow_setup(temp_pmail_dir)
+        self.test_initial_workflow_setup(temp_mailflow_dir)
         data_store = DataStore(config)  # Reload to get new workflows
 
         # Process emails and simulate user selections
@@ -125,13 +124,13 @@ class TestLearningProcess:
         error_criteria = data_store.get_criteria_for_workflow("save-errors")
         assert len(error_criteria) >= 1
 
-    def test_similarity_learning(self, temp_pmail_dir, real_emails):
+    def test_similarity_learning(self, temp_mailflow_dir, real_emails):
         """Test that the system learns to recognize similar emails"""
         # First, train the system
-        self.test_first_learning_phase(temp_pmail_dir, real_emails)
+        self.test_first_learning_phase(temp_mailflow_dir, real_emails)
 
         # Now test with a new email
-        config = Config(config_dir=temp_pmail_dir)
+        config = Config(config_dir=temp_mailflow_dir)
         data_store = DataStore(config)
         extractor = EmailExtractor()
         similarity_engine = SimilarityEngine(config)
@@ -157,9 +156,9 @@ class TestLearningProcess:
             )
             assert len(explanations) > 0
 
-    def test_cross_validation(self, temp_pmail_dir, real_emails):
+    def test_cross_validation(self, temp_mailflow_dir, real_emails):
         """Test learning with leave-one-out cross validation"""
-        config = Config(config_dir=temp_pmail_dir)
+        config = Config(config_dir=temp_mailflow_dir)
         extractor = EmailExtractor()
 
         # Extract all emails
@@ -187,7 +186,7 @@ class TestLearningProcess:
 
             # Create fresh data store for this test
             data_store = DataStore(config)
-            self.test_initial_workflow_setup(temp_pmail_dir)
+            self.test_initial_workflow_setup(temp_mailflow_dir)
             data_store = DataStore(config)  # Reload
 
             # Train on all other emails
@@ -224,9 +223,9 @@ class TestLearningProcess:
         print(f"\nOverall accuracy: {accuracy:.1%} ({correct_predictions}/{total_tests})")
         assert accuracy >= 0.5  # At least 50% accuracy
 
-    def test_feature_importance(self, temp_pmail_dir, real_emails):
+    def test_feature_importance(self, temp_mailflow_dir, real_emails):
         """Test which features are most important for classification"""
-        config = Config(config_dir=temp_pmail_dir)
+        config = Config(config_dir=temp_mailflow_dir)
         extractor = EmailExtractor()
 
         # Extract features from all emails
