@@ -567,25 +567,35 @@ class MetadataStore:
     ):
         """Update document classification for a saved PDF."""
         with self.get_connection() as conn:
-            updates = []
-            params = {"message_id": message_id, "filename": filename}
-
-            if document_type is not None:
-                updates.append("document_type = :document_type")
-                params["document_type"] = document_type
-
-            if document_category is not None:
-                updates.append("document_category = :document_category")
-                params["document_category"] = document_category
-
-            if updates:
-                query = f"""
+            if document_type is not None and document_category is not None:
+                conn.execute(
+                    """
                     UPDATE pdf_metadata
-                    SET {", ".join(updates)}
-                    WHERE email_message_id = :message_id AND filename = :filename
-                """
-                conn.execute(query, params)
-                conn.commit()
+                    SET document_type = ?, document_category = ?
+                    WHERE email_message_id = ? AND filename = ?
+                    """,
+                    (document_type, document_category, message_id, filename),
+                )
+            elif document_type is not None:
+                conn.execute(
+                    """
+                    UPDATE pdf_metadata
+                    SET document_type = ?
+                    WHERE email_message_id = ? AND filename = ?
+                    """,
+                    (document_type, message_id, filename),
+                )
+            elif document_category is not None:
+                conn.execute(
+                    """
+                    UPDATE pdf_metadata
+                    SET document_category = ?
+                    WHERE email_message_id = ? AND filename = ?
+                    """,
+                    (document_category, message_id, filename),
+                )
+
+            conn.commit()
 
     def update_document_info(self, message_id: str, filename: str, document_info: dict[str, Any]):
         """Update extracted document information for a saved PDF.

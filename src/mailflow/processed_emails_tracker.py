@@ -81,15 +81,15 @@ class ProcessedEmailsTracker:
 
     def _calculate_content_hash(self, email_content: str) -> str:
         """
-        Calculate MD5 hash of email content.
+        Calculate SHA-256 hash of email content.
 
         Args:
             email_content: Raw email content
 
         Returns:
-            32-character hex string (MD5 hash)
+            64-character hex string (SHA-256 hash)
         """
-        return hashlib.md5(email_content.encode("utf-8")).hexdigest()
+        return hashlib.sha256(email_content.encode("utf-8")).hexdigest()
 
     def mark_as_processed(
         self, email_content: str, message_id: str | None, workflow_name: str

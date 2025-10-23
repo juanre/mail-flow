@@ -42,31 +42,40 @@ def validate_path(user_path: str, allowed_base_dirs: list[str] | None = None) ->
     if not user_path:
         raise PathSecurityError("Empty path provided")
 
-    # Check for suspicious patterns
-    suspicious_patterns = [
-        "..",  # Path traversal
+    # Check for null bytes and newlines before path operations
+    # These should never appear in valid paths
+    immediate_checks = [
         "\x00",  # Null bytes
+        "\n",
+        "\r",  # Newlines
+    ]
+
+    for pattern in immediate_checks:
+        if pattern in user_path:
+            raise PathSecurityError(f"Suspicious pattern in path")
+
+    # Expand user home directory and resolve to absolute path FIRST
+    # This handles ".." and other path traversal attempts naturally
+    try:
+        expanded = os.path.expanduser(user_path)
+        resolved = Path(expanded).resolve()
+    except (OSError, RuntimeError) as e:
+        raise PathSecurityError(f"Invalid path: {e}")
+
+    # Check resolved path for shell metacharacters
+    # After resolution, these indicate suspicious usage
+    resolved_str = str(resolved)
+    shell_metacharacters = [
         "|",
         "&",
         ";",
         "$",
         "`",  # Shell metacharacters
-        "\n",
-        "\r",  # Newlines
     ]
 
-    for pattern in suspicious_patterns:
-        if pattern in user_path:
-            raise PathSecurityError(f"Suspicious pattern '{pattern}' in path")
-
-    # Expand user home directory
-    expanded = os.path.expanduser(user_path)
-
-    # Resolve to absolute path
-    try:
-        resolved = Path(expanded).resolve()
-    except (OSError, RuntimeError) as e:
-        raise PathSecurityError(f"Invalid path: {e}")
+    for pattern in shell_metacharacters:
+        if pattern in resolved_str:
+            raise PathSecurityError(f"Suspicious pattern in path")
 
     # Set default allowed directories
     if allowed_base_dirs is None:
@@ -105,12 +114,18 @@ def validate_email_address(email: str) -> str:
     if not email:
         return ""
 
-    # Basic email regex (simplified)
-    email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-
     # Extract email from "Name <email@domain>" format
     match = re.search(r"<([^>]+)>", email)
     email_part = match.group(1) if match else email.strip()
+
+    # Check for consecutive dots anywhere in the email
+    if ".." in email_part:
+        raise InputValidationError("Invalid email address format")
+
+    # Email regex that prevents leading/trailing dots in local and domain parts
+    # Local part: cannot start/end with dot, dots must be separated by other chars
+    # Domain part: cannot start/end with dot, dots must be separated by other chars
+    email_pattern = r"^[a-zA-Z0-9_%+-]+(?:\.[a-zA-Z0-9_%+-]+)*@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$"
 
     if not re.match(email_pattern, email_part):
         # Don't reveal the exact email in error message

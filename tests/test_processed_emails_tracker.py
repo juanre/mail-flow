@@ -213,4 +213,4 @@ class TestProcessedEmailsTracker:
         assert hash1 != hash3
 
         # Hash should be hex string
-        assert len(hash1) == 32  # MD5 produces 32 hex chars
+        assert len(hash1) == 64  # SHA-256 produces 64 hex chars
