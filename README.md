@@ -33,14 +33,19 @@ uv run mailflow init
 ## Quick Start
 
 ```bash
-# 1. Initialize mailflow
+# 1. Initialize mailflow (interactive setup)
 uv run mailflow init
+
+# This will ask you to define:
+# - Your entities (e.g., jro, tsm, gsk)
+# - Document types (e.g., expense, invoice, tax-doc)
+# And create workflows for each combination
 
 # 2. Add to .muttrc
 macro index,pager \cp "<pipe-message>mailflow<enter>" "Process with mailflow"
 
 # 3. Process emails
-# Press Ctrl-P in mutt, select or create workflows
+# Press Ctrl-P in mutt, mailflow learns from your choices
 ```
 
 ## Commands

@@ -279,9 +279,15 @@ def batch(directory, llm, llm_model, auto_threshold, dry_run, max_emails, force)
 @cli.command()
 @click.option("--reset", is_flag=True, help="Reset configuration (backup existing)")
 def init(reset):
-    """Initialize mailflow configuration with default workflows"""
+    """Initialize mailflow with interactive workflow setup
+
+    Guides you through creating custom workflows for organizing emails.
+    Creates workflows for different entities (companies, personal) and
+    document types (expenses, tax documents, general documents).
+    """
     # Initialize configuration
-    click.echo("\nInitializing mailflow configuration...")
+    click.echo("\n🚀 mailflow Initialization")
+    click.echo("=" * 60)
     config = Config()
 
     # Handle existing configuration
@@ -292,67 +298,106 @@ def init(reset):
         click.echo(f"Configuration already exists at {config.config_dir}")
         click.echo("Use --reset to backup and create fresh configuration")
         return
+
+    click.echo(f"✓ Configuration directory: {config.config_dir}")
     data_store = DataStore(config)
 
-    # Create only generic default workflows
-    default_workflows = [
-        {
-            "name": "save-receipts",
-            "description": "Save receipts and invoices as PDFs",
-            "action_type": "save_pdf",
-            "action_params": {
-                "directory": "~/Documents/mailflow/receipts",
-                "filename_template": "{date}-{from}-{subject}",
-            },
-        },
-        {
-            "name": "create-todo",
-            "description": "Create a todo item from email",
-            "action_type": "create_todo",
-            "action_params": {"todo_file": "~/todos.txt"},
-        },
-    ]
-
-    click.echo("\nCreating default workflows...")
-    for workflow_data in default_workflows:
-        try:
-            workflow = WorkflowDefinition(**workflow_data)
-            if workflow.name not in data_store.workflows:
-                data_store.add_workflow(workflow)
-                click.echo(f"  ✓ {workflow.name}: {workflow.description}")
-        except Exception as e:
-            click.echo(f"  ✗ Failed to create {workflow_data['name']}: {e}", err=True)
-
-    # Show summary
-    click.echo(f"\n✓ Configuration initialized at {config.config_dir}")
-    click.echo(f"  Workflows: {len(data_store.workflows)}")
-    click.echo(f"  Learning examples: {len(data_store.criteria_instances)}")
-
-    click.echo("\n📝 Add to your .muttrc:")
-    click.echo('  macro index,pager \\cp "<pipe-message>mailflow<enter>" "Process with mailflow"')
-    click.echo("\n🚀 Press Ctrl-P in mutt to start processing emails!")
-
-    # Show LLM setup instructions
-    click.echo("\n🤖 Optional: Enable AI-Powered Classification")
-    click.echo("  mailflow can use LLM to improve classification accuracy.")
+    # Interactive workflow setup
+    click.echo("\n📋 Workflow Setup")
+    click.echo("=" * 60)
+    click.echo("\nThis will help you create workflows for organizing emails.")
+    click.echo("You can define entities (companies, personal) and document types.")
     click.echo("")
-    click.echo("  To enable:")
-    click.echo("  1. Set up API key (NEVER commit to git!):")
+
+    # Ask about entities
+    click.echo("Step 1: Define your entities")
+    click.echo("Examples: jro (Juan Reyero), tsm (TheStarMaps), gsk (GreaterSkies)")
+    click.echo("Leave blank when done.\n")
+
+    entities = []
+    while True:
+        entity_code = click.prompt(
+            "Entity code (short, e.g., 'jro')", default="", show_default=False
+        )
+        if not entity_code:
+            break
+        entity_name = click.prompt(f"  Full name for '{entity_code}'", default=entity_code)
+        entities.append((entity_code, entity_name))
+
+    if not entities:
+        click.echo("\n⚠️  No entities defined. Creating generic workflows only.")
+        entities = [("general", "General")]
+
+    # Ask about document types
+    click.echo("\nStep 2: Define document types")
+    click.echo("Examples: expense, tax-doc, invoice, receipt, doc")
+    click.echo("Leave blank when done.\n")
+
+    doc_types = []
+    while True:
+        doc_code = click.prompt(
+            "Document type code (e.g., 'expense')", default="", show_default=False
+        )
+        if not doc_code:
+            break
+        doc_desc = click.prompt(f"  Description for '{doc_code}'", default=doc_code + "s")
+        doc_types.append((doc_code, doc_desc))
+
+    if not doc_types:
+        doc_types = [("doc", "documents")]
+
+    # Create workflows
+    click.echo(f"\nStep 3: Creating {len(entities) * len(doc_types)} workflows...")
+
+    created_count = 0
+    for entity_code, entity_name in entities:
+        for doc_code, doc_desc in doc_types:
+            workflow_name = f"{entity_code}-{doc_code}"
+            workflow = WorkflowDefinition(
+                name=workflow_name,
+                description=f"Save {entity_name} {doc_desc}",
+                action_type="save_pdf",
+                action_params={
+                    "directory": f"~/Documents/mailflow/{entity_code}/{doc_code}",
+                    "filename_template": "{date}-{from}-{subject}",
+                },
+            )
+
+            try:
+                if workflow.name not in data_store.workflows:
+                    data_store.add_workflow(workflow)
+                    click.echo(f"  ✓ {workflow_name}: {workflow.description}")
+                    created_count += 1
+                else:
+                    click.echo(f"  ⊘ {workflow_name}: Already exists")
+            except Exception as e:
+                click.echo(f"  ✗ {workflow_name}: Failed - {e}", err=True)
+
+    # Create directories
+    click.echo(f"\nCreating directories...")
+    for entity_code, _ in entities:
+        for doc_code, _ in doc_types:
+            dir_path = Path(f"~/Documents/mailflow/{entity_code}/{doc_code}").expanduser()
+            try:
+                dir_path.mkdir(parents=True, exist_ok=True)
+                click.echo(f"  ✓ {dir_path}")
+            except Exception as e:
+                click.echo(f"  ✗ Failed to create {dir_path}: {e}", err=True)
+
+    # Summary
+    click.echo(f"\n{'='*60}")
+    click.echo(f"✓ Created {created_count} new workflows")
+    click.echo(f"  Total workflows: {len(data_store.workflows)}")
+    click.echo(f"  Config location: {config.config_dir}")
+
+    click.echo("\n📝 Next Steps:")
+    click.echo("  1. Add to your .muttrc:")
+    click.echo('     macro index,pager \\cp "<pipe-message>mailflow<enter>" "Process with mailflow"')
+    click.echo("\n  2. Press Ctrl-P in mutt to process emails")
+    click.echo("\n  3. (Optional) Enable LLM for better classification:")
     click.echo("     export ANTHROPIC_API_KEY=sk-ant-...")
-    click.echo("     # Add to ~/.bashrc or ~/.zshrc, NOT to config.json")
-    click.echo("     # or OPENAI_API_KEY or GOOGLE_GEMINI_API_KEY")
-    click.echo("")
-    click.echo("  2. Edit ~/.config/mailflow/config.json:")
-    click.echo('     "llm": { "enabled": true }')
-    click.echo("")
-    click.echo("  3. (Optional) Initialize llmring:")
-    click.echo("     llmring lock init")
-    click.echo("")
-    click.echo("  ⚠️  Security: Keep API keys in environment variables or .env file")
-    click.echo("  Do NOT put API keys in config.json or commit them to git!")
-    click.echo("")
-    click.echo("  Cost: ~$0.003 per email with balanced model")
-    click.echo("  See docs for details: https://github.com/juanre/mailflow")
+    click.echo("     Edit ~/.config/mailflow/config.json: \"llm\": { \"enabled\": true }")
+    click.echo(f"\n💡 Tip: Run 'mailflow setup-workflows' anytime to add more workflows")
 
 
 @cli.command()
