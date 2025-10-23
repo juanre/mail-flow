@@ -1,12 +1,12 @@
 [project]
 name = "pmail"
-version = "0.2.0"
-description = "Add your description here"
+version = "0.3.0"
+description = "Smart email processing for mutt with similarity learning and optional LLM classification"
 readme = "README.md"
 authors = [
     { name = "Juan Reyero", email = "juan@juanreyero.com" }
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "beautifulsoup4>=4.13.4",
     "click>=8.2.1",
@@ -14,6 +14,8 @@ dependencies = [
     "google-api-python-client>=2.178.0",
     "google-auth>=2.40.3",
     "google-auth-oauthlib>=1.2.2",
+    "llmring",
+    "platformdirs>=4.3.8",
     "playwright>=1.54.0",
     "python-dateutil>=2.9.0.post0",
 ]
@@ -30,8 +32,9 @@ dev = [
     "black>=25.1.0",
     "isort>=6.0.1",
     "mypy>=1.17.1",
-    "ruff>=0.12.7",
+    "pytest-asyncio>=0.26.0",
     "pytest>=8.4.1",
+    "ruff>=0.12.7",
 ]
 
 [tool.black]
@@ -62,3 +65,14 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["B", "SIM"]  # Allow assert statements and complexity in tests
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+norecursedirs = ["llmring"]
+
+[tool.uv.sources]
+llmring = { path = "../llmring-all/llmring" }

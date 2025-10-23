@@ -67,9 +67,6 @@ class LineInput:
         self.matches = []
 
         if with_history:
-            #! from jro.config import get_config
-            #! config = get_config()
-            #! history_dir = str(config.get_linein_history_dir())
             history_dir = os.path.expanduser("~/.pmail/history")
             if not os.path.exists(history_dir):
                 os.makedirs(history_dir)
@@ -246,12 +243,12 @@ class DateInput(LineInput):
 
 
 if __name__ == "__main__":
-    in_ent = LineInput("Entity", ["gsk", "gsm"])
+    in_cat = LineInput("Category", ["personal", "business"])
     in_cur = LineInput("Currency", ["eur", "gbp", "usd"])
     in_date = DateInput("Date")
     in_amount = FloatInput("Amount")
     for _ in range(10):
-        print(in_ent.ask())
+        print(in_cat.ask())
         print(in_cur.ask())
         print(in_amount.ask())
         print(in_date.ask())

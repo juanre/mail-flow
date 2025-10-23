@@ -6,8 +6,11 @@ import sys
 from pmail.config import Config
 from pmail.email_extractor import EmailExtractor
 from pmail.exceptions import EmailParsingError, PmailError, WorkflowError
+from pmail.hybrid_classifier import HybridClassifier
+from pmail.llm_classifier import LLMClassifier
 from pmail.logging_config import setup_logging
 from pmail.models import DataStore
+from pmail.processed_emails_tracker import ProcessedEmailsTracker
 from pmail.similarity import SimilarityEngine
 from pmail.ui import WorkflowSelector
 from pmail.workflow import Workflows
@@ -15,28 +18,76 @@ from pmail.workflow import Workflows
 logger = logging.getLogger(__name__)
 
 
-def process(message: str, config: Config | None = None) -> None:
+def process(
+    message: str,
+    config: Config | None = None,
+    llm_enabled: bool | None = None,
+    llm_model: str | None = None,
+    force: bool = False,
+) -> None:
     """
     Process an email message through the pmail workflow.
 
     Args:
         message: Email message text
         config: Optional configuration object
+        llm_enabled: Override config to enable/disable LLM classification
+        llm_model: Override config LLM model alias (fast, balanced, deep)
+        force: Force reprocessing of already processed emails
     """
     try:
         # Initialize components
         if config is None:
             config = Config()
 
+        # Initialize processed emails tracker
+        tracker = ProcessedEmailsTracker(config)
+
+        # Override LLM settings from CLI if provided
+        if llm_enabled is not None:
+            config.settings["llm"]["enabled"] = llm_enabled
+        if llm_model is not None:
+            config.settings["llm"]["model_alias"] = llm_model
+
         extractor = EmailExtractor()
         data_store = DataStore(config)
         similarity_engine = SimilarityEngine(config)
-        ui = WorkflowSelector(config, data_store, similarity_engine)
+
+        # Setup hybrid classifier with LLM if enabled
+        hybrid_classifier = None
+        llm_classifier = None
+        if config.settings.get("llm", {}).get("enabled", False):
+            try:
+                model_alias = config.settings["llm"].get("model_alias", "balanced")
+                # Note: LLMClassifier context management is handled in hybrid_classifier.classify()
+                # via async context manager which properly manages the LLM service lifecycle
+                llm_classifier = LLMClassifier(model_alias=model_alias)
+                hybrid_classifier = HybridClassifier(similarity_engine, llm_classifier)
+                logger.info(f"LLM classification enabled (model: {model_alias})")
+            except Exception as e:
+                logger.warning(f"Failed to initialize LLM: {e}, using similarity only")
+                hybrid_classifier = None
+
+        ui = WorkflowSelector(config, data_store, similarity_engine, hybrid_classifier)
 
         # Extract email data
         logger.debug("Extracting email features")
         email_data = extractor.extract(message)
+        message_id = email_data.get("message_id", "")
         logger.info(f"Processing email from {email_data.get('from', 'unknown')}")
+
+        # Check if already processed (unless force)
+        if not force and tracker.is_processed(message, message_id):
+            processed_info = tracker.get_processed_info(message, message_id)
+            if processed_info:
+                prev_workflow = processed_info.get("workflow_name", "unknown")
+                prev_date = processed_info.get("processed_at", "unknown")
+                print(f"\n⊘ Email already processed:")
+                print(f"  Workflow: {prev_workflow}")
+                print(f"  Date: {prev_date}")
+                print(f"\nUse --force to reprocess")
+                logger.info(f"Email {message_id} already processed, skipping")
+                return
 
         # Let user select workflow
         selected_workflow = ui.select_workflow(email_data)
@@ -70,6 +121,9 @@ def process(message: str, config: Config | None = None) -> None:
                         action_func(email_data, **workflow_def.action_params)
                         print(f"\n✓ Workflow '{selected_workflow}' completed!")
                         logger.info(f"Workflow '{selected_workflow}' completed successfully")
+
+                        # Mark as processed
+                        tracker.mark_as_processed(message, message_id, selected_workflow)
                     except WorkflowError as e:
                         print(f"\n✗ Workflow error: {e}")
                         logger.error(f"Workflow execution failed: {e}")

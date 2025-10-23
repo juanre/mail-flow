@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime
 
@@ -10,21 +11,40 @@ logger = logging.getLogger(__name__)
 class WorkflowSelector:
     """Interactive UI for selecting workflows"""
 
-    def __init__(self, config, data_store, similarity_engine):
+    def __init__(self, config, data_store, similarity_engine, hybrid_classifier=None):
         self.config = config
         self.data_store = data_store
         self.similarity_engine = similarity_engine
+        self.hybrid_classifier = hybrid_classifier
         self.max_suggestions = config.settings["ui"]["max_suggestions"]
         self.show_confidence = config.settings["ui"]["show_confidence"]
 
     def select_workflow(self, email_data: dict) -> str | None:
         """Present workflow options and get user selection"""
 
-        # Get ranked workflows
+        # Get ranked workflows (use hybrid classifier if available)
         criteria_instances = self.data_store.get_recent_criteria()
-        rankings = self.similarity_engine.rank_workflows(
-            email_data["features"], criteria_instances, self.max_suggestions
-        )
+        if self.hybrid_classifier:
+            try:
+                # Note: hybrid_classifier.classify() manages async context internally
+                result = asyncio.run(self.hybrid_classifier.classify(
+                    email_data,
+                    self.data_store.workflows,
+                    criteria_instances
+                ))
+                rankings = result["rankings"]
+                llm_suggestion = result.get("llm_suggestion")
+            except Exception as e:
+                logger.warning(f"Hybrid classification failed: {e}, falling back to similarity")
+                rankings = self.similarity_engine.rank_workflows(
+                    email_data["features"], criteria_instances, self.max_suggestions
+                )
+                llm_suggestion = None
+        else:
+            rankings = self.similarity_engine.rank_workflows(
+                email_data["features"], criteria_instances, self.max_suggestions
+            )
+            llm_suggestion = None
 
         # Store rankings in email_data for later use
         email_data["_rankings"] = rankings
@@ -38,6 +58,13 @@ class WorkflowSelector:
             for att in email_data["attachments"][:3]:
                 print(f"  - {att['filename']}")
         print("=" * 60 + "\n")
+
+        # Display LLM suggestion if available and confident
+        if llm_suggestion and llm_suggestion.confidence > 0.7:
+            print("\n🤖 AI Suggestion:")
+            print(f"  → {llm_suggestion.workflow} ({llm_suggestion.confidence:.0%} confidence)")
+            print(f"     {llm_suggestion.reasoning}")
+            print()
 
         # Build options list - include all workflow names for tab completion
         options = ["skip", "new"]
