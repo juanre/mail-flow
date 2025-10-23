@@ -82,20 +82,25 @@ class TestDataStore:
     def test_datastore_initialization(self, test_config):
         store = DataStore(test_config)
 
-        # Should have default workflows
-        assert len(store.workflows) > 0
-        assert "save-attachments" in store.workflows
-        assert "save-receipts" in store.workflows
-
-        # Should start with no criteria instances
+        # DataStore should start empty (users run 'init' to create workflows)
+        assert len(store.workflows) == 0
         assert len(store.criteria_instances) == 0
 
     def test_add_criteria_instance(self, test_config):
         store = DataStore(test_config)
 
+        # First create a test workflow
+        workflow = WorkflowDefinition(
+            name="test-workflow",
+            description="Test workflow",
+            action_type="save_pdf",
+            action_params={"directory": "~/test"},
+        )
+        store.add_workflow(workflow)
+
         instance = CriteriaInstance(
             email_id="test123",
-            workflow_name="archive",
+            workflow_name="test-workflow",
             timestamp=datetime.now(),
             email_features={"from_domain": "example.com"},
         )
@@ -138,20 +143,36 @@ class TestDataStore:
     def test_get_criteria_for_workflow(self, test_config):
         store = DataStore(test_config)
 
+        # Create test workflows
+        workflow1 = WorkflowDefinition(
+            name="test-workflow-1",
+            description="Test workflow 1",
+            action_type="save_pdf",
+            action_params={"directory": "~/test1"},
+        )
+        workflow2 = WorkflowDefinition(
+            name="test-workflow-2",
+            description="Test workflow 2",
+            action_type="save_pdf",
+            action_params={"directory": "~/test2"},
+        )
+        store.add_workflow(workflow1)
+        store.add_workflow(workflow2)
+
         # Add some criteria instances
         for i in range(3):
             instance = CriteriaInstance(
                 email_id=f"test{i}",
-                workflow_name="save-attachments" if i < 2 else "save-receipts",
+                workflow_name="test-workflow-1" if i < 2 else "test-workflow-2",
                 timestamp=datetime.now(),
                 email_features={},
             )
             store.add_criteria_instance(instance)
 
-        # Get criteria for save-attachments workflow
-        attach_criteria = store.get_criteria_for_workflow("save-attachments")
-        assert len(attach_criteria) == 2
+        # Get criteria for test-workflow-1
+        criteria1 = store.get_criteria_for_workflow("test-workflow-1")
+        assert len(criteria1) == 2
 
-        # Get criteria for save-receipts workflow
-        receipt_criteria = store.get_criteria_for_workflow("save-receipts")
-        assert len(receipt_criteria) == 1
+        # Get criteria for test-workflow-2
+        criteria2 = store.get_criteria_for_workflow("test-workflow-2")
+        assert len(criteria2) == 1

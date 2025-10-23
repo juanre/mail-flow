@@ -70,7 +70,10 @@ Edit `~/.config/mailflow/workflows.json` directly with your favorite editor.
 For managing multiple entities (business, personal, etc.):
 
 ```bash
-# Use the interactive setup
+# First time: Use init (it includes interactive workflow setup)
+uv run mailflow init
+
+# Add more workflows later:
 uv run mailflow setup-workflows
 
 # Example: Enter entities like "biz" and "personal"

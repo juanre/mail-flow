@@ -72,7 +72,7 @@ class TestLearningProcess:
         data_store.add_workflow(update_workflow)
 
         # Verify workflows were saved
-        assert len(data_store.workflows) >= 6  # 3 default + 3 new
+        assert len(data_store.workflows) == 3  # 3 new workflows (no defaults)
         assert "save-invoices" in data_store.workflows
         assert "save-errors" in data_store.workflows
         assert "create-update-todos" in data_store.workflows

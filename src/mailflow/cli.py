@@ -3,6 +3,7 @@
 """mailflow command-line interface"""
 
 import logging
+import re
 import sys
 from pathlib import Path
 
@@ -276,33 +277,22 @@ def batch(directory, llm, llm_model, auto_threshold, dry_run, max_emails, force)
         click.echo("Processing complete")
 
 
-@cli.command()
-@click.option("--reset", is_flag=True, help="Reset configuration (backup existing)")
-def init(reset):
-    """Initialize mailflow with interactive workflow setup
+def _interactive_workflow_setup(config: Config, data_store: DataStore) -> tuple[int, int]:
+    """Shared interactive workflow setup logic.
 
-    Guides you through creating custom workflows for organizing emails.
-    Creates workflows for different entities (companies, personal) and
-    document types (expenses, tax documents, general documents).
+    Prompts user for entities and document types, creates workflows and directories.
+
+    Args:
+        config: Config instance
+        data_store: DataStore instance
+
+    Returns:
+        tuple: (created_count, total_workflows)
+
+    Raises:
+        KeyboardInterrupt: If user cancels with Ctrl+C
+        EOFError: If user cancels with Ctrl+D
     """
-    # Initialize configuration
-    click.echo("\n🚀 mailflow Initialization")
-    click.echo("=" * 60)
-    config = Config()
-
-    # Handle existing configuration
-    if config.get_workflows_file().exists() and reset:
-        backup_path = config.backup_file(config.get_workflows_file())
-        click.echo(f"✓ Backed up existing workflows to {backup_path}")
-    elif config.get_workflows_file().exists() and not reset:
-        click.echo(f"Configuration already exists at {config.config_dir}")
-        click.echo("Use --reset to backup and create fresh configuration")
-        return
-
-    click.echo(f"✓ Configuration directory: {config.config_dir}")
-    data_store = DataStore(config)
-
-    # Interactive workflow setup
     click.echo("\n📋 Workflow Setup")
     click.echo("=" * 60)
     click.echo("\nThis will help you create workflows for organizing emails.")
@@ -312,7 +302,7 @@ def init(reset):
     # Ask about entities
     click.echo("Step 1: Define your entities")
     click.echo("Examples: jro (Juan Reyero), tsm (TheStarMaps), gsk (GreaterSkies)")
-    click.echo("Leave blank when done.\n")
+    click.echo("Press Enter without input when done.\n")
 
     entities = []
     while True:
@@ -321,6 +311,12 @@ def init(reset):
         )
         if not entity_code:
             break
+
+        # Validate entity code
+        if not re.match(r'^[a-z0-9_-]+$', entity_code):
+            click.echo("  ✗ Entity code must contain only lowercase letters, numbers, hyphens, and underscores")
+            continue
+
         entity_name = click.prompt(f"  Full name for '{entity_code}'", default=entity_code)
         entities.append((entity_code, entity_name))
 
@@ -331,7 +327,7 @@ def init(reset):
     # Ask about document types
     click.echo("\nStep 2: Define document types")
     click.echo("Examples: expense, tax-doc, invoice, receipt, doc")
-    click.echo("Leave blank when done.\n")
+    click.echo("Press Enter without input when done.\n")
 
     doc_types = []
     while True:
@@ -340,14 +336,31 @@ def init(reset):
         )
         if not doc_code:
             break
-        doc_desc = click.prompt(f"  Description for '{doc_code}'", default=doc_code + "s")
+
+        # Validate doc code
+        if not re.match(r'^[a-z0-9_-]+$', doc_code):
+            click.echo("  ✗ Document type must contain only lowercase letters, numbers, hyphens, and underscores")
+            continue
+
+        doc_desc = click.prompt(
+            f"  Description for '{doc_code}'",
+            default=doc_code.replace('-', ' ')
+        )
         doc_types.append((doc_code, doc_desc))
 
     if not doc_types:
         doc_types = [("doc", "documents")]
 
+    # Confirmation for large batches
+    workflow_count = len(entities) * len(doc_types)
+    if workflow_count > 10:
+        click.echo(f"\n⚠️  This will create {workflow_count} workflows and directories.")
+        if not click.confirm("Continue?", default=True):
+            click.echo("Cancelled")
+            return (0, len(data_store.workflows))
+
     # Create workflows
-    click.echo(f"\nStep 3: Creating {len(entities) * len(doc_types)} workflows...")
+    click.echo(f"\nStep 3: Creating {workflow_count} workflows...")
 
     created_count = 0
     for entity_code, entity_name in entities:
@@ -375,19 +388,80 @@ def init(reset):
 
     # Create directories
     click.echo(f"\nCreating directories...")
+    failed_dirs = []
     for entity_code, _ in entities:
         for doc_code, _ in doc_types:
             dir_path = Path(f"~/Documents/mailflow/{entity_code}/{doc_code}").expanduser()
             try:
                 dir_path.mkdir(parents=True, exist_ok=True)
+                # Test that it's writable
+                test_file = dir_path / ".mailflow_test"
+                test_file.touch()
+                test_file.unlink()
                 click.echo(f"  ✓ {dir_path}")
+            except PermissionError:
+                click.echo(f"  ✗ Permission denied: {dir_path}", err=True)
+                failed_dirs.append(str(dir_path))
             except Exception as e:
                 click.echo(f"  ✗ Failed to create {dir_path}: {e}", err=True)
+                failed_dirs.append(str(dir_path))
+
+    if failed_dirs:
+        click.echo(f"\n⚠️  Warning: {len(failed_dirs)} director(ies) could not be created")
+        click.echo("These workflows may fail at runtime. Check permissions:")
+        for d in failed_dirs:
+            click.echo(f"  - {d}")
+
+    return (created_count, len(data_store.workflows))
+
+
+@cli.command()
+@click.option("--reset", is_flag=True, help="Reset configuration (backup existing)")
+def init(reset):
+    """Initialize mailflow with interactive workflow setup
+
+    Guides you through creating custom workflows for organizing emails.
+    Creates workflows for different entities (companies, personal) and
+    document types (expenses, tax documents, general documents).
+    """
+    # Initialize configuration
+    click.echo("\n🚀 mailflow Initialization")
+    click.echo("=" * 60)
+
+    try:
+        config = Config()
+    except Exception as e:
+        click.echo(f"\n✗ Failed to initialize config: {e}", err=True)
+        click.echo("Check that you have write permissions to ~/.config/")
+        sys.exit(1)
+
+    # Handle existing configuration
+    if config.get_workflows_file().exists() and reset:
+        backup_path = config.backup_file(config.get_workflows_file())
+        click.echo(f"✓ Backed up existing workflows to {backup_path}")
+    elif config.get_workflows_file().exists() and not reset:
+        click.echo(f"Configuration already exists at {config.config_dir}")
+        click.echo("Use --reset to backup and create fresh configuration")
+        return
+
+    click.echo(f"✓ Configuration directory: {config.config_dir}")
+    data_store = DataStore(config)
+
+    # Interactive workflow setup with error handling
+    try:
+        created_count, total_workflows = _interactive_workflow_setup(config, data_store)
+    except (KeyboardInterrupt, EOFError):
+        click.echo("\n\n✗ Setup cancelled by user")
+        click.echo("Run 'mailflow init' again to complete setup")
+        sys.exit(0)
+    except Exception as e:
+        click.echo(f"\n✗ Setup failed: {e}", err=True)
+        sys.exit(1)
 
     # Summary
     click.echo(f"\n{'='*60}")
     click.echo(f"✓ Created {created_count} new workflows")
-    click.echo(f"  Total workflows: {len(data_store.workflows)}")
+    click.echo(f"  Total workflows: {total_workflows}")
     click.echo(f"  Config location: {config.config_dir}")
 
     click.echo("\n📝 Next Steps:")
@@ -656,98 +730,37 @@ def data(filepath):
 def setup_workflows():
     """Interactive workflow setup assistant
 
-    Guides you through creating custom workflows for organizing emails.
-    Creates workflows for different entities (companies, personal) and
-    document types (expenses, tax documents, general documents).
+    Add more workflows to your existing configuration.
+    Use this after 'mailflow init' to create additional entity/document workflows.
     """
     config = Config()
     data_store = DataStore(config)
 
     click.echo("\n📋 Workflow Setup Assistant")
     click.echo("=" * 60)
-    click.echo("\nThis will help you create workflows for organizing emails.")
-    click.echo("You can define entities (companies, personal) and document types.")
-    click.echo("")
 
-    # Ask about entities
-    click.echo("Step 1: Define your entities")
-    click.echo("Examples: business, personal, company-name, etc.")
-    click.echo("Leave blank when done.\n")
+    # Show existing workflows if any
+    if data_store.workflows:
+        click.echo(f"\n✓ You currently have {len(data_store.workflows)} workflow(s)")
+        click.echo("Adding more workflows will merge with existing ones.")
+        if not click.confirm("Continue?", default=True):
+            return
 
-    entities = []
-    while True:
-        entity_code = click.prompt(
-            "Entity code (short, e.g., 'biz')", default="", show_default=False
-        )
-        if not entity_code:
-            break
-        entity_name = click.prompt(f"  Full name for '{entity_code}'", default=entity_code)
-        entities.append((entity_code, entity_name))
-
-    if not entities:
-        click.echo("\n⚠️  No entities defined. Creating generic workflows only.")
-        entities = [("general", "General")]
-
-    # Ask about document types
-    click.echo("\nStep 2: Define document types")
-    click.echo("Examples: expense, tax-doc, invoice, receipt, etc.")
-    click.echo("Leave blank when done.\n")
-
-    doc_types = []
-    while True:
-        doc_code = click.prompt(
-            "Document type code (e.g., 'expense')", default="", show_default=False
-        )
-        if not doc_code:
-            break
-        doc_desc = click.prompt(f"  Description for '{doc_code}'", default=doc_code + "s")
-        doc_types.append((doc_code, doc_desc))
-
-    if not doc_types:
-        doc_types = [("doc", "documents")]
-
-    # Create workflows
-    click.echo(f"\nStep 3: Creating {len(entities) * len(doc_types)} workflows...")
-
-    created_count = 0
-    for entity_code, entity_name in entities:
-        for doc_code, doc_desc in doc_types:
-            workflow_name = f"{entity_code}-{doc_code}"
-            workflow = WorkflowDefinition(
-                name=workflow_name,
-                description=f"Save {entity_name} {doc_desc}",
-                action_type="save_pdf",
-                action_params={
-                    "directory": f"~/Documents/mailflow/{entity_code}/{doc_code}",
-                    "filename_template": "{date}-{from}-{subject}",
-                },
-            )
-
-            try:
-                if workflow.name not in data_store.workflows:
-                    data_store.add_workflow(workflow)
-                    click.echo(f"  ✓ {workflow_name}: {workflow.description}")
-                    created_count += 1
-                else:
-                    click.echo(f"  ⊘ {workflow_name}: Already exists")
-            except Exception as e:
-                click.echo(f"  ✗ {workflow_name}: Failed - {e}", err=True)
-
-    # Create directories
-    click.echo(f"\nCreating directories...")
-    for entity_code, _ in entities:
-        for doc_code, _ in doc_types:
-            dir_path = Path(f"~/Documents/mailflow/{entity_code}/{doc_code}").expanduser()
-            try:
-                dir_path.mkdir(parents=True, exist_ok=True)
-                click.echo(f"  ✓ {dir_path}")
-            except Exception as e:
-                click.echo(f"  ✗ Failed to create {dir_path}: {e}", err=True)
+    # Use shared interactive setup with error handling
+    try:
+        created_count, total_workflows = _interactive_workflow_setup(config, data_store)
+    except (KeyboardInterrupt, EOFError):
+        click.echo("\n\n✗ Setup cancelled by user")
+        click.echo("Run 'mailflow setup-workflows' again to add workflows")
+        sys.exit(0)
+    except Exception as e:
+        click.echo(f"\n✗ Setup failed: {e}", err=True)
+        sys.exit(1)
 
     # Summary
     click.echo(f"\n{'='*60}")
     click.echo(f"✓ Created {created_count} new workflows")
-    click.echo(f"  Total workflows: {len(data_store.workflows)}")
+    click.echo(f"  Total workflows: {total_workflows}")
     click.echo(f"\nWorkflows saved to: {config.config_dir / 'workflows.json'}")
 
 
