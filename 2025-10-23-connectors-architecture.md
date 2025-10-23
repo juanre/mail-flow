@@ -35,34 +35,27 @@ The system has five layers:
   manifest.jsonl                  # optional append-only change stream
   entities/
     {entity}/
-      content/
-        mail/
-          {workflow}/             # e.g., jro-expense, jro-tax, jro-doc
-            {YYYY}/
-              {YYYY}-{MM}-{DD}-{filename}.pdf
-              {YYYY}-{MM}-{DD}-{filename}-attachment.png
-            raw_email/{YYYY}/
-              {YYYY}-{MM}-{DD}-{message-id}.eml (optional)
+      workflows/                  # Classified documents from any source
+        {workflow}/               # e.g., jro-expense, jro-invoice, jro-tax-doc
+          {YYYY}/
+            {YYYY}-{MM}-{DD}-{source}-{filename}.pdf
+            {YYYY}-{MM}-{DD}-{source}-{filename}-attachment.png
+      streams/                    # Unclassified message/conversation streams
         slack/
           {channel}/{YYYY}/
             {YYYY}-{MM}-{DD}.md
             {YYYY}-{MM}-{DD}.json
-            {YYYY}-{MM}-{DD}-{attachment}
-        gdocs/
-          {folder_hint}/{YYYY}/
-            {YYYY}-{MM}-{DD}-{doc-title}.pdf
-        localdocs/
-          {YYYY}/
-            {YYYY}-{MM}-{DD}-{filename}
+        mail/
+          raw/{YYYY}/
+            {YYYY}-{MM}-{DD}-{message-id}.eml (optional)
       metadata/
-        mail/{workflow}/{YYYY}/
-          {YYYY}-{MM}-{DD}-{filename}.json
-        slack/{channel}/{YYYY}/
-          {YYYY}-{MM}-{DD}.json
-        gdocs/{YYYY}/
-          {YYYY}-{MM}-{DD}-{doc-id}.json
-        localdocs/{YYYY}/
-          {YYYY}-{MM}-{DD}-{hash}.json
+        workflows/{workflow}/{YYYY}/
+          {YYYY}-{MM}-{DD}-{source}-{filename}.json
+        streams/
+          slack/{channel}/{YYYY}/
+            {YYYY}-{MM}-{DD}.json
+          mail/raw/{YYYY}/
+            {YYYY}-{MM}-{DD}-{message-id}.json
       indexes/
         fts.sqlite
         llmemory_checkpoints/
@@ -70,10 +63,12 @@ The system has five layers:
 
 **Key principles**
 
-- Content is organized per entity and per workflow (for mail) to preserve business semantics such as receipts, invoices, tax documents, etc.
-- Single-level year directories (yyyy/) with self-documenting filenames (yyyy-mm-dd-...) make files easy to browse and copy
-- Metadata JSON sidecars live alongside the content hierarchy, making it trivial to locate both data and provenance
-- Other connectors (Slack, GDocs, localdocs) keep their content under separate namespaces but may set the `workflow` field in metadata when a mapping exists
+- **workflows/** contains classified documents from any source, organized by workflow to preserve business semantics (receipts, invoices, tax documents)
+- **streams/** contains unclassified message/conversation streams organized by source (Slack channels, raw emails)
+- Single-level year directories (yyyy/) with self-documenting filenames (yyyy-mm-dd-source-...) make files easy to browse and copy
+- Source prefix in filenames (mail-, localdocs-, slack-) enables filtering while keeping workflow-centric organization
+- Metadata JSON sidecars mirror the workflows/ and streams/ structure
+- To find all jro expenses: browse workflows/jro-expense/; to find all from mail: filter by filename prefix
 
 ## Metadata Schema
 
@@ -102,19 +97,19 @@ A single JSON schema governs all connectors. An example for mail-sourced documen
     }
   },
   "content": {
-    "path": "../content/mail/jro-expense/2025/2025-10-23-acme-receipt.pdf",
+    "path": "../workflows/jro-expense/2025/2025-10-23-mail-acme-receipt.pdf",
     "hash": "sha256:abc...",
     "size_bytes": 123456,
     "mimetype": "application/pdf",
     "attachments": [
-      "../content/mail/jro-expense/2025/2025-10-23-acme-receipt-logo.png"
+      "../workflows/jro-expense/2025/2025-10-23-mail-acme-receipt-logo.png"
     ]
   },
   "tags": ["workflow:jro-expense", "mail", "receipt"],
   "relationships": [
     {
       "type": "derived_from_email",
-      "target_id": "mail=email/2025-10-23T13:45:01Z/sha256:def..."
+      "target_id": "mail=raw/2025-10-23T13:45:01Z/sha256:def..."
     }
   ],
   "ingest": {
@@ -138,34 +133,46 @@ Slack, GDocs, and localdocs populate the `origin.{source}` section with their ow
 ### Mailflow (email workflows)
 
 - Continues to provide the CLI/UI for processing email and choosing workflows.
-- When a workflow runs (e.g., `save_pdf`, `save_attachment`, custom actions), mailflow calls `RepositoryWriter.write_document()` with:
-  - `entity`
-  - `workflow_name`
+- When a workflow runs (e.g., `save_pdf`, `save_attachment`), mailflow calls `RepositoryWriter.write_document()` with:
+  - `entity` (parsed from workflow name, e.g., "jro" from "jro-expense")
+  - `workflow_name` (e.g., "jro-expense")
+  - `source` = "mail"
   - content bytes/paths
   - origin metadata (message headers, workflow output)
   - attachments information
-- `RepositoryWriter` writes to `content/mail/{workflow}/{YYYY}/{YYYY}-{MM}-{DD}-...` and emits metadata under `metadata/mail/{workflow}/{YYYY}/{YYYY}-{MM}-{DD}-....json`.
+- `RepositoryWriter` writes classified documents to `workflows/{workflow}/{YYYY}/{YYYY}-{MM}-{DD}-mail-...` and emits metadata under `metadata/workflows/{workflow}/{YYYY}/{YYYY}-{MM}-{DD}-mail-....json`.
 - `processed_emails_tracker` records the metadata `id` to maintain idempotency.
-- Optional raw email storage (`raw_email/{YYYY}/{YYYY}-{MM}-{DD}-{message-id}.eml`) preserves `.eml` files for legal/audit needs.
+- Optional raw email storage in `streams/mail/raw/{YYYY}/{YYYY}-{MM}-{DD}-{message-id}.eml` preserves `.eml` files for legal/audit needs (stored in streams/ since they're unclassified).
 
 ### Slack Ingestor
 
 - Standalone service/CLI (`slack-ingestor sync --entity jro --channel general`).
-- Fetches history, renders Markdown per day, saves raw JSON per day, and downloads attachments.
-- All files are saved under `content/slack/...`; metadata JSON references channel, timestamps, user IDs, etc.
-- If transcripts correspond to a known workflow (e.g., a Slack channel dedicated to “jro-expense”), the metadata can set `workflow` and even place a copy under the workflow directory. Otherwise, it stays under Slack’s namespace.
+- Fetches message history, renders Markdown per day, saves raw JSON per day.
+- **Message transcripts** go to `streams/slack/{channel}/{YYYY}/{YYYY}-{MM}-{DD}.md` (unclassified conversation streams).
+- **Attachments** can be classified:
+  - If attachment can be mapped to a workflow (e.g., PDF shared in #expenses channel), classify as "jro-expense"
+  - Write to `workflows/jro-expense/{YYYY}/{YYYY}-{MM}-{DD}-slack-{filename}.pdf`
+  - Metadata includes channel, message timestamp, user who shared it
+  - If attachment cannot be classified, store in `streams/slack/{channel}/attachments/`
+- Metadata references channel, timestamps, user IDs, thread context, etc.
 
 ### Google Docs Exporter
 
 - Standalone service using the Drive API.
-- Exports `.md` and `.pdf` to `content/gdocs/{folder_hint}/...`.
-- Metadata includes doc ID, title, modified time, owners, URL, etc.
-- Optional mapping rules can tag docs with workflows or copy them into workflow directories.
+- Exports `.md` and `.pdf` with classification:
+  - If doc can be mapped to a workflow (via folder, title pattern, or manual rules), write to `workflows/{workflow}/{YYYY}/{YYYY}-{MM}-{DD}-gdocs-{doc-title}.pdf`
+  - If unclassified, could store in `streams/gdocs/` or skip (TBD based on use case)
+- Metadata includes doc ID, title, modified time, owners, URL, folder path, etc.
 
 ### Local Docs Synchronizer
 
-- Watches or periodically scans directories.
-- Copies or hard-links files into `content/localdocs/...`, storing original path, hashes, and timestamps in metadata.
+- Watches or periodically scans directories for document ingestion.
+- Classifies documents to workflows based on:
+  - Source directory path (e.g., `~/Downloads/receipts/` → jro-expense)
+  - Filename patterns
+  - Manual classification UI
+- Writes classified docs to `workflows/{workflow}/{YYYY}/{YYYY}-{MM}-{DD}-localdocs-{filename}`
+- Metadata stores original path, hashes, timestamps, and classification confidence
 - Can respect `.mlignore`-style filters to avoid noise.
 
 ### Additional Connectors
@@ -207,7 +214,8 @@ This library is the shared "plumbing" that keeps connectors consistent.
 - **Modularity** – connectors run independently (different hosts, schedules, permission scopes).
 - **Extensibility** – new sources plug in via a documented schema instead of touching mailflow internals.
 - **Observability** – metadata and manifests provide a full audit trail.
-- **Consistency** – workflows remain first-class concepts; mailflow’s document outputs live in workflow-specific folders per entity.
+- **Workflow-centric organization** – all classified documents (regardless of source) live together in workflow-specific folders, making it easy to browse all jro expenses in one place.
+- **Source transparency** – filename prefixes (mail-, slack-, localdocs-) preserve source information while enabling workflow-first browsing.
 
 ## Implementation Plan
 
@@ -216,9 +224,10 @@ This library is the shared "plumbing" that keeps connectors consistent.
    - Implement `RepositoryWriter` and `RepositoryConfig` packages (Python module shared by connectors).
 2. **Mailflow Refactor**
    - Replace current filesystem writes with `RepositoryWriter` calls.
-   - Map current workflow directories (e.g., `~/Documents/mailflow/jro/expense`) to new repo structure (`~/Archive/entities/jro/content/mail/jro-expense/YYYY/YYYY-MM-DD-...`).
-   - Update filename generation to use yyyy-mm-dd- prefix format.
+   - Map current workflow directories (e.g., `~/Documents/mailflow/jro/expense`) to new repo structure (`~/Archive/entities/jro/workflows/jro-expense/YYYY/YYYY-MM-DD-mail-...`).
+   - Update filename generation to use yyyy-mm-dd-{source}- prefix format.
    - Ensure attachments, metadata, and processed tracker align with the new IDs.
+   - Parse entity from workflow name (jro-expense → entity: jro).
 3. **Connector Extraction**
    - Move Slack and GDocs ingestion into separate packages/services; reuse code but trim mailflow dependencies.
    - Provide CLI wrappers (`slack-ingestor`, `gdocs-ingestor`) and sample configs.
@@ -231,6 +240,12 @@ This library is the shared "plumbing" that keeps connectors consistent.
 
 ## Conclusion
 
-By separating ingestion connectors from mailflow and converging on a shared repository with rich metadata, we retain mailflow’s strengths in email automation while enabling a scalable “memory” platform. Workflow-specific directories remain intact for receipts, invoices, tax documents, and other classifications. The architecture supports future connectors, clearer deployment models, flexible indexing, and a consistent view of knowledge across all sources.
+By separating ingestion connectors from mailflow and converging on a shared repository with rich metadata, we retain mailflow's strengths in email automation while enabling a scalable "memory" platform.
+
+The **workflows/** and **streams/** distinction provides clarity:
+- Workflows contain classified documents from any source, organized by business purpose (receipts, invoices, tax documents)
+- Streams contain unclassified message/conversation flows, organized by source and channel
+
+Self-documenting filenames (yyyy-mm-dd-source-...) enable both workflow-centric browsing ("all jro expenses") and source filtering ("all from mail") without complex tooling. The architecture supports future connectors, clearer deployment models, flexible indexing, and a consistent view of knowledge across all sources.
 
 
