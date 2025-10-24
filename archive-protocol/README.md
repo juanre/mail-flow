@@ -2,9 +2,48 @@
 
 Shared protocol for multi-source document archiving with consistent metadata.
 
+## What Is This?
+
+Personal knowledge is scattered: email receipts, Slack conversations, Google Docs, scanned files. Each lives in its own silo with different storage, search, and metadata.
+
+**archive-protocol** solves this by providing a shared "plumbing" library that enables independent connectors (mailflow for email, slack-archive for Slack, etc.) to write to a **unified repository** with **consistent metadata**, making everything searchable through llmemory.
+
+## Vision
+
+Build a unified personal knowledge repository where you can:
+- Browse all expenses in one place (email receipts + scanned docs + Slack attachments)
+- Search semantically: "Find Acme contract mentions across all sources"
+- Preserve provenance: Know where each document came from
+- Install only what you need: Email-only? Just mailflow. Need Slack? Add slack-archive.
+
+## Why Separate Packages?
+
+The original mailflow became a monolith (email + Slack + GDocs all in one). This architecture separates concerns:
+
+```
+archive-protocol  ← Tiny shared library (this package, ~500 lines)
+    ↓
+mailflow         ← Email workflows (independent package)
+slack-archive    ← Slack ingestion (independent package)
+gdocs-archive    ← Google Docs (independent package)
+    ↓
+~/Archive/       ← Shared repository (filesystem)
+    ↓
+llmemory         ← Unified search (PostgreSQL + vector search)
+```
+
+Each connector is independent but writes compatible data. Install only what you need.
+
 ## Overview
 
-`archive-protocol` is a minimal library (~500 lines) that provides the "plumbing" for document archiving connectors. It ensures all connectors (mailflow, slack-archive, gdocs-archive, etc.) write to a consistent repository structure with validated metadata.
+`archive-protocol` is the minimal shared library that:
+- Defines repository structure (workflows/ + streams/ + metadata/)
+- Provides RepositoryWriter for atomic file operations
+- Enforces metadata schema via Pydantic
+- Generates self-documenting filenames (yyyy-mm-dd-source-)
+- Handles collisions, hashing, and validation
+
+**Total:** ~500 lines, 2 dependencies (pydantic, python-dateutil)
 
 ## Installation
 
@@ -142,10 +181,10 @@ metadata = builder.build(
 from archive_protocol import sanitize_filename, compute_hash, write_atomically
 
 # Sanitize filename
-safe_name = sanitize_filename("Receipt (2024).pdf")  # � "Receipt-2024.pdf"
+safe_name = sanitize_filename("Receipt (2024).pdf")  # � "Receipt-2024.pdf"
 
 # Compute SHA-256 hash
-hash_str = compute_hash(b"content")  # � "sha256:abc123..."
+hash_str = compute_hash(b"content")  # � "sha256:abc123..."
 
 # Write atomically
 write_atomically(Path("file.pdf"), pdf_bytes)  # Temp + fsync + rename
@@ -204,6 +243,25 @@ All 108 tests pass:
 - Metadata building (16 tests)
 - Repository writer (28 tests)
 
+## Documentation
+
+This package has comprehensive documentation:
+
+- **README.md** (this file) - Quick start and API reference
+- **ARCHITECTURE.md** - System design, vision, and data flow
+- **DEVELOPMENT.md** - Coding standards and development workflow
+- **INTEGRATION.md** - Guide for building connectors
+- **IMPLEMENTATION-PLAN-archive-protocol.md** - Detailed implementation timeline
+
+### For Users
+Start with README.md for API examples.
+
+### For Connector Developers
+Read INTEGRATION.md for patterns and examples.
+
+### For Core Contributors
+Read ARCHITECTURE.md and DEVELOPMENT.md for design decisions and standards.
+
 ## Development
 
 ```bash
@@ -215,10 +273,20 @@ uv sync
 # Run tests
 uv run pytest tests/ -v
 
-# Add dependencies
+# Add dependencies (never edit pyproject.toml manually)
 uv add <package>
 uv add --dev <dev-package>
 ```
+
+## Status
+
+**Current:** v0.1.0 - Production-ready core functionality
+- 108 tests passing
+- Complete metadata schema
+- Atomic write operations
+- Comprehensive validation
+
+**Next:** Integration into mailflow (Week 2 of implementation plan)
 
 ## License
 
