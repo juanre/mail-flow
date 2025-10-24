@@ -75,3 +75,8 @@ norecursedirs = ["llmring"]
 
 [tool.uv.sources]
 llmring = { path = "../llmring-all/llmring" }
+
+[tool.uv.workspace]
+members = [
+    "archive-protocol",
+]
