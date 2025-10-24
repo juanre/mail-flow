@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
+    "archive-protocol",
     "beautifulsoup4>=4.13.4",
     "click>=8.2.1",
     "gnureadline>=8.2.13",
@@ -75,6 +76,7 @@ norecursedirs = ["llmring"]
 
 [tool.uv.sources]
 llmring = { path = "../llmring-all/llmring" }
+archive-protocol = { workspace = true }
 
 [tool.uv.workspace]
 members = [

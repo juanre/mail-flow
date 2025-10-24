@@ -86,14 +86,9 @@ class WorkflowDefinition:
 
     def _validate_action_params(self):
         """Validate action parameters based on action type"""
-        if self.action_type == "save_attachment":
-            if "directory" not in self.action_params:
-                raise ValidationError("save_attachment requires 'directory' parameter")
-            # Validate directory path
-            try:
-                validate_path(self.action_params["directory"])
-            except Exception as e:
-                raise ValidationError(f"Invalid directory path: {e}")
+        # archive-protocol handles all path management
+        # No directory validation needed
+        pass
 
     def to_dict(self) -> dict[str, Any]:
         return {

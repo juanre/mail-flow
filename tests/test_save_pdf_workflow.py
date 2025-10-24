@@ -1,4 +1,4 @@
-"""Test the smart save_receipt workflow"""
+"""Test the smart save_pdf workflow"""
 
 from email import encoders
 from email.mime.base import MIMEBase
@@ -6,13 +6,14 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
 
+from mailflow.config import Config
 from mailflow.email_extractor import EmailExtractor
 from mailflow.workflow import save_pdf
 
 
 class TestSaveReceiptWorkflow:
     def test_save_receipt_with_pdf_attachment(self, temp_config_dir):
-        """Test that save_receipt saves PDF attachment when present"""
+        """Test that save_pdf saves PDF attachment when present"""
         # Create email with PDF attachment
         msg = MIMEMultipart()
         msg["From"] = "billing@company.com"
@@ -35,29 +36,32 @@ class TestSaveReceiptWorkflow:
         extractor = EmailExtractor()
         email_data = extractor.extract(msg.as_string())
 
-        # Run save_receipt workflow
-        receipts_dir = Path(temp_config_dir) / "receipts"
-        save_pdf(
-            email_data, directory=str(receipts_dir), use_year_dirs=False, store_metadata=False
+        # Create config with archive path
+        config = Config(config_dir=temp_config_dir)
+        archive_path = Path(temp_config_dir) / "Archive"
+        config.settings["archive"]["base_path"] = str(archive_path)
+
+        # Run save_pdf workflow
+        result = save_pdf(
+            message=email_data,
+            workflow="test-invoice",
+            config=config
         )
 
         # Should have saved the PDF attachment
-        pdf_files = list(receipts_dir.glob("*.pdf"))
-        assert len(pdf_files) == 1
-        # Check for date prefix (could be email date or today's date) and original filename
-        assert pdf_files[0].name.endswith("-invoice_12345.pdf")
-        # Verify it has a date prefix in YYYY-MM-DD format
-        import re
+        assert result["success"]
+        assert result["count"] == 1
+        assert len(result["documents"]) == 1
 
-        assert re.match(r"\d{4}-\d{2}-\d{2}-invoice_12345\.pdf", pdf_files[0].name)
+        # Check that file exists in archive
+        content_path = Path(result["documents"][0]["content_path"])
+        assert content_path.exists()
 
         # Verify content
-        with open(pdf_files[0], "rb") as f:
-            saved_content = f.read()
-        assert saved_content == pdf_content
+        assert content_path.read_bytes() == pdf_content
 
     def test_save_receipt_without_pdf_creates_pdf(self, temp_config_dir):
-        """Test that save_receipt converts email to PDF when no PDF attachment"""
+        """Test that save_pdf converts email to PDF when no PDF attachment"""
         # Create email without PDF attachment
         msg = MIMEMultipart()
         msg["From"] = "orders@store.com"
@@ -82,32 +86,34 @@ class TestSaveReceiptWorkflow:
         extractor = EmailExtractor()
         email_data = extractor.extract(msg.as_string())
 
-        # Run save_receipt workflow
-        receipts_dir = Path(temp_config_dir) / "receipts"
-        save_pdf(
-            email_data,
-            directory=str(receipts_dir),
-            filename_template="{date}_{from}_order",
-            use_year_dirs=False,
-            store_metadata=False,
+        # Create config with archive path
+        config = Config(config_dir=temp_config_dir)
+        archive_path = Path(temp_config_dir) / "Archive"
+        config.settings["archive"]["base_path"] = str(archive_path)
+
+        # Run save_pdf workflow
+        result = save_pdf(
+            message=email_data,
+            workflow="test-order",
+            config=config
         )
 
         # Should have created a PDF from the email
-        pdf_files = list(receipts_dir.glob("*.pdf"))
-        assert len(pdf_files) == 1
-        assert "store.com" in pdf_files[0].name
-        assert "order" in pdf_files[0].name
+        assert result["success"]
+        assert "document_id" in result
 
-        # PDF should exist and have content
-        assert pdf_files[0].exists()
-        assert pdf_files[0].stat().st_size > 1000
+        # Check that file exists in archive
+        content_path = Path(result["content_path"])
+        assert content_path.exists()
+        assert content_path.stat().st_size > 1000
 
     def test_save_receipt_with_multiple_pdfs(self, temp_config_dir):
-        """Test that save_receipt saves all PDF attachments"""
+        """Test that save_pdf saves all PDF attachments"""
         # Create email with multiple PDF attachments
         msg = MIMEMultipart()
         msg["From"] = "accounting@company.com"
         msg["Subject"] = "Monthly Documents"
+        msg["Date"] = "Mon, 15 Jan 2024 10:00:00 +0000"
 
         # Add multiple PDF attachments
         for i, (filename, content) in enumerate(
@@ -127,24 +133,30 @@ class TestSaveReceiptWorkflow:
         extractor = EmailExtractor()
         email_data = extractor.extract(msg.as_string())
 
-        # Run save_receipt workflow
-        receipts_dir = Path(temp_config_dir) / "receipts"
-        save_pdf(
-            email_data, directory=str(receipts_dir), use_year_dirs=False, store_metadata=False
+        # Create config with archive path
+        config = Config(config_dir=temp_config_dir)
+        archive_path = Path(temp_config_dir) / "Archive"
+        config.settings["archive"]["base_path"] = str(archive_path)
+
+        # Run save_pdf workflow
+        result = save_pdf(
+            message=email_data,
+            workflow="test-docs",
+            config=config
         )
 
         # Should have saved all PDF attachments
-        pdf_files = list(receipts_dir.glob("*.pdf"))
-        assert len(pdf_files) == 3
+        assert result["success"]
+        assert result["count"] == 3
+        assert len(result["documents"]) == 3
 
-        # Check that all expected files were saved (with date prefixes)
-        pdf_names = [f.name for f in pdf_files]
-        assert any("invoice_jan.pdf" in name for name in pdf_names)
-        assert any("receipt_jan.pdf" in name for name in pdf_names)
-        assert any("statement.pdf" in name for name in pdf_names)
+        # Check that all files exist
+        for doc in result["documents"]:
+            content_path = Path(doc["content_path"])
+            assert content_path.exists()
 
     def test_save_receipt_with_non_pdf_attachments(self, temp_config_dir):
-        """Test that save_receipt creates PDF when only non-PDF attachments exist"""
+        """Test that save_pdf creates PDF when only non-PDF attachments exist"""
         # Create email with non-PDF attachments
         msg = MIMEMultipart()
         msg["From"] = "receipts@store.com"
@@ -164,16 +176,23 @@ class TestSaveReceiptWorkflow:
         extractor = EmailExtractor()
         email_data = extractor.extract(msg.as_string())
 
-        # Run save_receipt workflow
-        receipts_dir = Path(temp_config_dir) / "receipts"
-        save_pdf(
-            email_data, directory=str(receipts_dir), use_year_dirs=False, store_metadata=False
+        # Create config with archive path
+        config = Config(config_dir=temp_config_dir)
+        archive_path = Path(temp_config_dir) / "Archive"
+        config.settings["archive"]["base_path"] = str(archive_path)
+
+        # Run save_pdf workflow
+        result = save_pdf(
+            message=email_data,
+            workflow="test-receipt",
+            config=config
         )
 
         # Should have created PDF from email (not saved the JPG)
-        pdf_files = list(receipts_dir.glob("*.pdf"))
-        jpg_files = list(receipts_dir.glob("*.jpg"))
+        assert result["success"]
+        assert "document_id" in result
 
-        assert len(pdf_files) == 1
-        assert len(jpg_files) == 0  # JPG not saved
-        assert "store.com" in pdf_files[0].name
+        # Check that PDF exists
+        content_path = Path(result["content_path"])
+        assert content_path.exists()
+        assert content_path.suffix == ".pdf"

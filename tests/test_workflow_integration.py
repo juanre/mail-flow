@@ -7,6 +7,7 @@ from email.mime.text import MIMEText
 from pathlib import Path
 from unittest.mock import patch
 
+from mailflow.config import Config
 from mailflow.email_extractor import EmailExtractor
 from mailflow.workflow import save_attachment, save_email_pdf
 
@@ -60,25 +61,27 @@ class TestWorkflowIntegration:
         assert "_message_obj" in email_data
         assert email_data["_message_obj"] is not None
 
-        # Set up directory
-        invoices_dir = Path(temp_config_dir) / "invoices"
+        # Create config with archive path
+        config = Config(config_dir=temp_config_dir)
+        archive_path = Path(temp_config_dir) / "Archive"
+        config.settings["archive"]["base_path"] = str(archive_path)
 
         # Run save_attachment workflow
-        save_attachment(
-            email_data,
-            directory=str(invoices_dir),
-            pattern="*.pdf",
-            use_year_dirs=False,
-            store_metadata=False,
+        result = save_attachment(
+            message=email_data,
+            workflow="test-invoice",
+            config=config,
+            pattern="*.pdf"
         )
 
-        # Check directory was created
-        assert invoices_dir.exists()
-
         # Check PDF was saved
-        pdf_files = list(invoices_dir.glob("*.pdf"))
-        assert len(pdf_files) == 1
-        assert pdf_files[0].name.endswith("-invoice_12345.pdf")
+        assert result["success"]
+        assert result["count"] == 1
+        assert len(result["documents"]) == 1
+
+        # Check that file exists
+        content_path = Path(result["documents"][0]["content_path"])
+        assert content_path.exists()
 
     def test_save_email_as_pdf_workflow(self, temp_config_dir):
         """Test saving entire email as PDF"""
@@ -89,31 +92,27 @@ class TestWorkflowIntegration:
         extractor = EmailExtractor()
         email_data = extractor.extract(email_text)
 
-        # Set up directory
-        receipts_dir = Path(temp_config_dir) / "receipts"
+        # Create config with archive path
+        config = Config(config_dir=temp_config_dir)
+        archive_path = Path(temp_config_dir) / "Archive"
+        config.settings["archive"]["base_path"] = str(archive_path)
 
         # Run save_email_pdf workflow
         with patch("builtins.print") as mock_print:
-            save_email_pdf(
-                email_data,
-                directory=str(receipts_dir),
-                filename_template="{date}_{from}_invoice.pdf",
-                use_year_dirs=False,
-                store_metadata=False,
+            result = save_email_pdf(
+                message=email_data,
+                workflow="test-receipt",
+                config=config
             )
 
-        # Check directory was created
-        assert receipts_dir.exists()
-
         # Check PDF was created
-        pdf_files = list(receipts_dir.glob("*.pdf"))
-        assert len(pdf_files) == 1
-        assert "company.com" in pdf_files[0].name
-        assert "invoice" in pdf_files[0].name
+        assert result["success"]
+        assert "document_id" in result
 
         # Check PDF exists and has content
-        assert pdf_files[0].exists()
-        assert pdf_files[0].stat().st_size > 1000  # Should be at least 1KB
+        content_path = Path(result["content_path"])
+        assert content_path.exists()
+        assert content_path.stat().st_size > 1000  # Should be at least 1KB
 
     def test_receipt_email_no_attachment(self, temp_config_dir):
         """Test handling receipt emails without attachments"""
@@ -145,28 +144,34 @@ class TestWorkflowIntegration:
         extractor = EmailExtractor()
         email_data = extractor.extract(msg.as_string())
 
-        # Save as PDF since no attachments
-        receipts_dir = Path(temp_config_dir) / "receipts"
+        # Create config with archive path
+        config = Config(config_dir=temp_config_dir)
+        archive_path = Path(temp_config_dir) / "Archive"
+        config.settings["archive"]["base_path"] = str(archive_path)
 
+        # Save as PDF since no attachments
         with patch("builtins.print") as mock_print:
-            save_email_pdf(
-                email_data, directory=str(receipts_dir), use_year_dirs=False, store_metadata=False
+            result = save_email_pdf(
+                message=email_data,
+                workflow="test-order",
+                config=config
             )
 
         # Check PDF was created
-        pdf_files = list(receipts_dir.glob("*.pdf"))
-        assert len(pdf_files) == 1
+        assert result["success"]
+        assert "document_id" in result
 
         # Verify PDF exists and has content
-        assert pdf_files[0].exists()
-        assert pdf_files[0].stat().st_size > 1000
-        assert "store.com" in pdf_files[0].name
+        content_path = Path(result["content_path"])
+        assert content_path.exists()
+        assert content_path.stat().st_size > 1000
 
     def test_multiple_attachments_filter(self, temp_config_dir):
         """Test filtering specific attachment types"""
         msg = MIMEMultipart()
         msg["From"] = "docs@company.com"
         msg["Subject"] = "Monthly Documents"
+        msg["Date"] = "Mon, 15 Jan 2024 10:00:00 +0000"
 
         # Add multiple attachments
         attachments = [
@@ -186,22 +191,26 @@ class TestWorkflowIntegration:
         extractor = EmailExtractor()
         email_data = extractor.extract(msg.as_string())
 
-        # Save only PDFs
-        docs_dir = Path(temp_config_dir) / "documents"
+        # Create config with archive path
+        config = Config(config_dir=temp_config_dir)
+        archive_path = Path(temp_config_dir) / "Archive"
+        config.settings["archive"]["base_path"] = str(archive_path)
 
-        save_attachment(
-            email_data,
-            directory=str(docs_dir),
-            pattern="*.pdf",
-            use_year_dirs=False,
-            store_metadata=False,
+        # Save only PDFs
+        result = save_attachment(
+            message=email_data,
+            workflow="test-docs",
+            config=config,
+            pattern="*.pdf"
         )
 
         # Check only PDFs were saved
-        pdf_files = list(docs_dir.glob("*.pdf"))
-        assert len(pdf_files) == 2
+        assert result["success"]
+        assert result["count"] == 2
+        assert len(result["documents"]) == 2
 
-        # Check that both PDFs were saved with date prefixes
-        pdf_names = [f.name for f in pdf_files]
-        assert any(name.endswith("-report.pdf") for name in pdf_names)
-        assert any(name.endswith("-contract.pdf") for name in pdf_names)
+        # Check that both PDFs were saved
+        for doc in result["documents"]:
+            content_path = Path(doc["content_path"])
+            assert content_path.exists()
+            assert content_path.suffix == ".pdf"

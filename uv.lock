@@ -1031,6 +1031,7 @@ name = "mailflow"
 version = "0.3.0"
 source = { editable = "." }
 dependencies = [
+    { name = "archive-protocol" },
     { name = "beautifulsoup4" },
     { name = "click" },
     { name = "gnureadline" },
@@ -1054,6 +1055,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "archive-protocol", editable = "archive-protocol" },
     { name = "beautifulsoup4", specifier = ">=4.13.4" },
     { name = "click", specifier = ">=8.2.1" },
     { name = "gnureadline", specifier = ">=8.2.13" },

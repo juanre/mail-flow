@@ -234,3 +234,45 @@ def retry_operation(
                 logger.error(f"All {max_attempts} attempts failed")
 
     raise last_exception
+
+
+def parse_entity_from_workflow(workflow_name: str) -> str:
+    """Parse entity from workflow name.
+
+    Workflow names follow the format: entity-doctype (e.g., jro-expense, tsm-invoice).
+    This function extracts the entity identifier from the workflow name.
+
+    Examples:
+        parse_entity_from_workflow("jro-expense") → "jro"
+        parse_entity_from_workflow("tsm-invoice") → "tsm"
+        parse_entity_from_workflow("gsk-tax-doc") → "gsk"
+
+    Args:
+        workflow_name: Workflow name in entity-doctype format
+
+    Returns:
+        Entity identifier (lowercase alphanumeric)
+
+    Raises:
+        ValueError: If workflow name doesn't follow entity-doctype pattern
+    """
+    if not workflow_name or not isinstance(workflow_name, str):
+        raise ValueError(f"Invalid workflow name: {workflow_name}")
+
+    parts = workflow_name.split('-', 1)
+    if len(parts) < 2:
+        raise ValueError(
+            f"Invalid workflow name: '{workflow_name}'. "
+            "Expected format: entity-doctype (e.g., jro-expense)"
+        )
+
+    entity = parts[0]
+
+    # Validate entity format (lowercase alphanumeric)
+    if not entity.islower() or not entity.replace('_', '').isalnum():
+        raise ValueError(
+            f"Invalid entity in workflow name: '{entity}'. "
+            "Entity must be lowercase alphanumeric (underscores allowed)"
+        )
+
+    return entity

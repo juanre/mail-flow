@@ -84,6 +84,7 @@ class Config:
             "storage": dict,
             "security": dict,
             "llm": dict,
+            "archive": dict,
         }
 
         for key, expected_type in required_keys.items():
@@ -169,6 +170,10 @@ class Config:
                 "high_confidence_threshold": 0.85,  # Auto-accept above this
                 "medium_confidence_threshold": 0.50,  # Offer LLM assist above this
                 "fallback_to_similarity": True,  # Fall back if LLM fails
+            },
+            "archive": {
+                "enabled": True,  # Use archive-protocol for document storage
+                "base_path": "~/Archive",  # Repository base path
             },
         }
 

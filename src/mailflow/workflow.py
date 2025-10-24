@@ -6,9 +6,9 @@ import os
 from pathlib import Path
 from typing import Any
 
-from mailflow.attachment_handler import save_attachments_from_message
+from mailflow.attachment_handler import extract_attachments
 from mailflow.exceptions import WorkflowError
-from mailflow.pdf_converter import save_email_as_pdf
+from mailflow.pdf_converter import email_to_pdf_bytes
 from mailflow.security import validate_path
 
 logger = logging.getLogger(__name__)
@@ -16,43 +16,89 @@ logger = logging.getLogger(__name__)
 
 def save_attachment(
     message: dict[str, Any],
-    directory: str,
-    pattern: str = "*.pdf",
-    use_year_dirs: bool = True,
-    store_metadata: bool = True,
-):
-    """Save attachments matching pattern to directory"""
+    workflow: str,
+    config,
+    pattern: str = "*.*"
+) -> dict:
+    """Save attachments matching pattern using archive-protocol
+
+    Args:
+        message: Email data
+        workflow: Workflow name (e.g., "jro-invoice")
+        config: Config object
+        pattern: Pattern for attachment matching (default: "*.*")
+
+    Returns:
+        dict with success status and saved documents
+    """
     try:
-        # Get the Message object if available
-        message_obj = message.get("_message_obj")
+        from archive_protocol import RepositoryWriter, RepositoryConfig
+        from mailflow.utils import parse_entity_from_workflow
 
-        if not message_obj:
-            # Fallback to old behavior if no Message object
-            logger.warning("No Message object available for attachment extraction")
-            return
+        entity = parse_entity_from_workflow(workflow)
 
-        # Use the attachment handler to save attachments
-        saved_count, failed_files = save_attachments_from_message(
-            message_obj=message_obj,
-            email_data=message,
-            directory=directory,
-            pattern=pattern,
-            use_year_dirs=use_year_dirs,
-            store_metadata=store_metadata,
+        archive_config = RepositoryConfig(
+            base_path=config.settings["archive"]["base_path"]
         )
 
-        if saved_count == 0:
-            logger.info(f"No attachments matching '{pattern}' found")
-        else:
-            logger.info(f"Saved {saved_count} attachment(s) to {directory}")
+        writer = RepositoryWriter(
+            config=archive_config,
+            entity=entity,
+            source="mail"
+        )
 
-        if failed_files:
-            logger.error(f"Failed to save {len(failed_files)} attachment(s): {', '.join(failed_files)}")
+        message_obj = message.get("_message_obj")
+        if not message_obj:
+            raise WorkflowError("Message object not available for attachment extraction")
+
+        # Extract attachments matching pattern
+        attachments = extract_attachments(message_obj, pattern=pattern)
+
+        if not attachments:
+            logger.info(f"No attachments matching '{pattern}' found")
+            return {
+                "success": True,
+                "count": 0,
+                "documents": []
+            }
+
+        # Save each attachment
+        results = []
+        for filename, content, mimetype in attachments:
+            document_id, content_path, metadata_path = writer.write_document(
+                workflow=workflow,
+                content=content,
+                mimetype=mimetype,
+                origin={
+                    "message_id": message.get("message_id"),
+                    "subject": message.get("subject"),
+                    "from": message.get("from"),
+                    "to": message.get("to"),
+                    "date": message.get("date"),
+                    "attachment_filename": filename
+                },
+                document_type="attachment",
+                original_filename=filename
+            )
+            logger.info(f"Saved attachment {filename} to {content_path}")
+            results.append({
+                "document_id": document_id,
+                "content_path": str(content_path),
+                "metadata_path": str(metadata_path),
+                "filename": filename
+            })
+
+        logger.info(f"Saved {len(results)} attachment(s)")
+        return {
+            "success": True,
+            "count": len(results),
+            "documents": results
+        }
 
     except Exception as e:
         raise WorkflowError(
             f"Failed to save attachments: {e}",
-            recovery_hint="Check directory permissions and path",
+            recovery_hint="Check archive configuration and pattern",
         )
 
 
@@ -96,35 +142,67 @@ def create_todo(message: dict[str, Any], todo_file: str = "~/todos.txt"):
 
 def save_email_pdf(
     message: dict[str, Any],
-    directory: str = "~/receipts",
-    filename_template: str = "{date}-{from}-{subject}.pdf",
-    use_year_dirs: bool = True,
-    store_metadata: bool = True,
-):
-    """Save the entire email as a PDF file
+    workflow: str,
+    config
+) -> dict:
+    """Save the entire email as a PDF file using archive-protocol
 
     Note: Requires Playwright browsers: playwright install chromium
 
     Args:
         message: Email data
-        directory: Where to save PDFs
-        filename_template: Template for filename
-        use_year_dirs: Whether to create year subdirectories
-        store_metadata: Whether to store metadata in SQLite
+        workflow: Workflow name (e.g., "jro-receipt")
+        config: Config object
+
+    Returns:
+        dict with document_id, content_path, success status
     """
     try:
-        # Get the Message object if available
-        message_obj = message.get("_message_obj")
+        from archive_protocol import RepositoryWriter, RepositoryConfig
+        from mailflow.utils import parse_entity_from_workflow
 
-        # Use the PDF converter
-        save_email_as_pdf(
-            email_data=message,
-            message_obj=message_obj,
-            directory=directory,
-            filename_template=filename_template,
-            use_year_dirs=use_year_dirs,
-            store_metadata=store_metadata,
+        entity = parse_entity_from_workflow(workflow)
+
+        archive_config = RepositoryConfig(
+            base_path=config.settings["archive"]["base_path"]
         )
+
+        writer = RepositoryWriter(
+            config=archive_config,
+            entity=entity,
+            source="mail"
+        )
+
+        message_obj = message.get("_message_obj")
+        if not message_obj:
+            raise WorkflowError("Message object not available for PDF conversion")
+
+        # Convert email to PDF
+        pdf_bytes = email_to_pdf_bytes(message_obj, message)
+
+        document_id, content_path, metadata_path = writer.write_document(
+            workflow=workflow,
+            content=pdf_bytes,
+            mimetype="application/pdf",
+            origin={
+                "message_id": message.get("message_id"),
+                "subject": message.get("subject"),
+                "from": message.get("from"),
+                "to": message.get("to"),
+                "date": message.get("date"),
+                "converted_from_email": True
+            },
+            document_type="email",
+            original_filename=f"{message.get('subject', 'email')}.pdf"
+        )
+        logger.info(f"Converted email to PDF at {content_path}")
+
+        return {
+            "success": True,
+            "document_id": document_id,
+            "content_path": str(content_path),
+            "metadata_path": str(metadata_path)
+        }
 
     except Exception as e:
         raise WorkflowError(
@@ -135,11 +213,10 @@ def save_email_pdf(
 
 def save_pdf(
     message: dict[str, Any],
-    directory: str,
-    filename_template: str = "{date}-{from}-{subject}",
-    use_year_dirs: bool = True,
-    store_metadata: bool = True,
-):
+    workflow: str,
+    config,
+    pattern: str = "*.pdf"
+) -> dict:
     """Save PDF: extracts PDF attachment if exists, otherwise converts email to PDF
 
     This is a generic PDF saving function that:
@@ -149,45 +226,102 @@ def save_pdf(
 
     Args:
         message: Email data
-        directory: Where to save PDFs
-        filename_template: Template for email PDF (attachments keep original names)
+        workflow: Workflow name (e.g., "jro-expense")
+        config: Config object
+        pattern: Pattern for attachment matching (default: "*.pdf")
+
+    Returns:
+        dict with document_id, content_path, success status
     """
     try:
-        # Check if we have PDF attachments
-        pdf_attachments = [
-            att
-            for att in message.get("attachments", [])
-            if att.get("filename", "").lower().endswith(".pdf")
-        ]
+        from archive_protocol import RepositoryWriter, RepositoryConfig
+        from mailflow.utils import parse_entity_from_workflow
+
+        entity = parse_entity_from_workflow(workflow)
+
+        archive_config = RepositoryConfig(
+            base_path=config.settings["archive"]["base_path"]
+        )
+
+        writer = RepositoryWriter(
+            config=archive_config,
+            entity=entity,
+            source="mail"
+        )
+
+        message_obj = message.get("_message_obj")
+        if not message_obj:
+            raise WorkflowError("Message object not available for PDF extraction")
+
+        # Try to find PDF attachments first
+        pdf_attachments = extract_attachments(message_obj, pattern="*.pdf")
 
         if pdf_attachments:
-            # Has PDF attachments - save them
+            # Save PDF attachments
             logger.info(f"Found {len(pdf_attachments)} PDF attachment(s)")
-            save_attachment(
-                message,
-                directory=directory,
-                pattern="*.pdf",
-                use_year_dirs=use_year_dirs,
-                store_metadata=store_metadata,
-            )
+            results = []
+            for filename, content, mimetype in pdf_attachments:
+                document_id, content_path, metadata_path = writer.write_document(
+                    workflow=workflow,
+                    content=content,
+                    mimetype=mimetype,
+                    origin={
+                        "message_id": message.get("message_id"),
+                        "subject": message.get("subject"),
+                        "from": message.get("from"),
+                        "to": message.get("to"),
+                        "date": message.get("date"),
+                        "attachment_filename": filename
+                    },
+                    document_type="document",
+                    original_filename=filename
+                )
+                logger.info(f"Saved PDF attachment to {content_path}")
+                results.append({
+                    "document_id": document_id,
+                    "content_path": str(content_path),
+                    "metadata_path": str(metadata_path),
+                    "filename": filename
+                })
+
+            return {
+                "success": True,
+                "count": len(results),
+                "documents": results
+            }
         else:
-            # No PDF attachments - convert email to PDF
+            # Convert email to PDF
             logger.info("No PDF attachments found, converting email to PDF")
-            # Ensure template doesn't already end with .pdf
-            if not filename_template.endswith(".pdf"):
-                filename_template = filename_template + ".pdf"
-            save_email_pdf(
-                message,
-                directory=directory,
-                filename_template=filename_template,
-                use_year_dirs=use_year_dirs,
-                store_metadata=store_metadata,
+            pdf_bytes = email_to_pdf_bytes(message_obj, message)
+
+            document_id, content_path, metadata_path = writer.write_document(
+                workflow=workflow,
+                content=pdf_bytes,
+                mimetype="application/pdf",
+                origin={
+                    "message_id": message.get("message_id"),
+                    "subject": message.get("subject"),
+                    "from": message.get("from"),
+                    "to": message.get("to"),
+                    "date": message.get("date"),
+                    "converted_from_email": True
+                },
+                document_type="email",
+                original_filename=f"{message.get('subject', 'email')}.pdf"
             )
+            logger.info(f"Converted email to PDF at {content_path}")
+
+            return {
+                "success": True,
+                "document_id": document_id,
+                "content_path": str(content_path),
+                "metadata_path": str(metadata_path)
+            }
 
     except Exception as e:
         raise WorkflowError(
             f"Failed to save PDF: {e}",
-            recovery_hint="Check directory permissions and Playwright installation",
+            recovery_hint="Check archive configuration and Playwright installation",
         )
 
 

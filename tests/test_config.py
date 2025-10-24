@@ -133,7 +133,8 @@ class TestConfig:
             "learning": {"min_confidence_threshold": 0.4},
             "storage": {"max_criteria_instances": 5000},
             "security": {"allowed_directories": ["~"]},
-            "llm": {"enabled": true}
+            "llm": {"enabled": true},
+            "archive": {"enabled": true, "base_path": "~/Archive"}
         }''')
 
         # Load config

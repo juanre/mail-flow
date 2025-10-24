@@ -341,6 +341,39 @@ def convert_email_to_pdf(html_content: str, output_path: Path) -> None:
         )
 
 
+def email_to_pdf_bytes(message_obj: Message, email_data: dict[str, Any]) -> bytes:
+    """Convert email to PDF and return bytes.
+
+    Args:
+        message_obj: Email message object
+        email_data: Extracted email data
+
+    Returns:
+        PDF content as bytes
+    """
+    import tempfile
+
+    # Extract best HTML representation
+    html_content, is_original = extract_best_html_from_message(message_obj)
+
+    # Wrap with headers
+    html_content = wrap_email_html(html_content, email_data, is_original)
+
+    # Add attachments list
+    html_content = add_attachments_list(html_content, email_data)
+
+    # Convert to PDF in temp file
+    with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
+        tmp_path = Path(tmp.name)
+
+    try:
+        convert_email_to_pdf(html_content, tmp_path)
+        return tmp_path.read_bytes()
+    finally:
+        if tmp_path.exists():
+            tmp_path.unlink()
+
+
 def save_email_as_pdf(
     email_data: dict[str, Any],
     message_obj: Message | None = None,

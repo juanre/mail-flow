@@ -41,7 +41,7 @@ class TestProcessDeduplication:
             name="test-workflow",
             description="Test workflow",
             action_type="save_pdf",
-            action_params={"directory": "~/test"},
+            action_params={},
         )
         data_store.add_workflow(workflow)
 
@@ -68,7 +68,7 @@ class TestProcessDeduplication:
             name="test-workflow",
             description="Test workflow",
             action_type="save_pdf",
-            action_params={"directory": "~/test"},
+            action_params={},
         )
         data_store.add_workflow(workflow)
 
@@ -100,7 +100,7 @@ class TestProcessDeduplication:
             name="test-workflow",
             description="Test workflow",
             action_type="save_pdf",
-            action_params={"directory": "~/test"},
+            action_params={},
         )
         data_store.add_workflow(workflow)
 
