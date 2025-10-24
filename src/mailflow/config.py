@@ -163,7 +163,7 @@ class Config:
                 "max_criteria_instances": 10000,
                 "max_workflows": 100,
             },
-            "security": {"allowed_directories": ["~"], "max_email_size_mb": 25},
+            "security": {"max_email_size_mb": 25},
             "llm": {
                 "enabled": False,  # Opt-in, disabled by default
                 "model_alias": "balanced",  # fast, balanced, or deep

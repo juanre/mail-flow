@@ -9,7 +9,7 @@ WORKFLOW_TEMPLATES = {
         "description": "Save receipts and invoices (PDF attachments or convert email)",
         "action_type": "save_pdf",
         "action_params": {
-            "directory": "~/Documents/mailflow/personal/expense",
+            "pattern": "*.pdf",
         },
     },
     "bank_statements": {
@@ -17,7 +17,6 @@ WORKFLOW_TEMPLATES = {
         "description": "Save bank statements and financial documents",
         "action_type": "save_attachment",
         "action_params": {
-            "directory": "~/Documents/mailflow/personal/bank",
             "pattern": "*.pdf",
         },
     },
@@ -26,7 +25,7 @@ WORKFLOW_TEMPLATES = {
         "description": "Save tax-related documents",
         "action_type": "save_pdf",
         "action_params": {
-            "directory": "~/Documents/mailflow/personal/tax-doc",
+            "pattern": "*.pdf",
         },
     },
     "contracts": {
@@ -34,7 +33,6 @@ WORKFLOW_TEMPLATES = {
         "description": "Save contracts and legal documents",
         "action_type": "save_attachment",
         "action_params": {
-            "directory": "~/Documents/mailflow/business/contracts",
             "pattern": "*.pdf",
         },
     },

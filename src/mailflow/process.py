@@ -120,9 +120,9 @@ def process(
                                 break
                         email_data["_confidence_score"] = confidence
 
-                        # Call action with new signature
+                        # Call action based on type
                         if workflow_def.action_type in ["save_attachment", "save_pdf", "save_email_as_pdf"]:
-                            # These actions use archive-protocol
+                            # Archive-protocol actions (document storage)
                             action_func(
                                 message=email_data,
                                 workflow=selected_workflow,
@@ -130,7 +130,7 @@ def process(
                                 **workflow_def.action_params
                             )
                         else:
-                            # Other actions use old signature
+                            # Non-archive actions (e.g., create_todo)
                             action_func(email_data, **workflow_def.action_params)
 
                         print(f"\n✓ Workflow '{selected_workflow}' completed!")

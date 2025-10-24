@@ -1,15 +1,19 @@
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email import encoders
+from pathlib import Path
 
 from mailflow.email_extractor import EmailExtractor
-from mailflow.attachment_handler import save_attachments_from_message
+from mailflow.config import Config
+from mailflow.workflow import save_attachment
 
 
 def test_attachment_original_filename_and_size(temp_config_dir):
     # Build an email with a PDF attachment
     msg = MIMEMultipart()
     msg["From"] = "sender@example.com"
+    msg["Message-ID"] = "<test123@example.com>"
+    msg["Date"] = "Mon, 15 Jan 2024 10:00:00 +0000"
     pdf_att = MIMEBase("application", "pdf")
     raw = b"%PDF-1.4\ncontent"
     pdf_att.set_payload(raw)
@@ -24,14 +28,29 @@ def test_attachment_original_filename_and_size(temp_config_dir):
     assert email_data["attachments"][0]["original_filename"] == "Report Final.pdf"
     assert email_data["attachments"][0]["size"] > 0
 
-    # Save and persist metadata
-    saved_count, failed_files = save_attachments_from_message(
-        message_obj=email_data["_message_obj"],
-        email_data=email_data,
-        directory=temp_config_dir,
-        pattern="*.pdf",
-        store_metadata=True,
-        use_year_dirs=False,
+    # Create config with archive path
+    config = Config(config_dir=temp_config_dir)
+    archive_path = Path(temp_config_dir) / "Archive"
+    config.settings["archive"]["base_path"] = str(archive_path)
+
+    # Save using archive-protocol workflow
+    result = save_attachment(
+        message=email_data,
+        workflow="test-report",
+        config=config,
+        pattern="*.pdf"
     )
-    assert saved_count == 1
-    assert failed_files == []
+
+    assert result["success"]
+    assert result["count"] == 1
+
+    # Verify the original filename is preserved in metadata
+    import json
+    metadata_path = Path(result["documents"][0]["metadata_path"])
+    with open(metadata_path, "r") as f:
+        metadata = json.load(f)
+
+    # Archive-protocol stores original filename in origin.attachment_filename
+    assert "origin" in metadata
+    assert metadata["origin"]["attachment_filename"] == "Report Final.pdf"
+    assert metadata["type"] == "attachment"

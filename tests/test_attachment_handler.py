@@ -1,20 +1,11 @@
 """Test attachment extraction functionality"""
 
-import os
-import threading
 from email import encoders
-from email.message import EmailMessage
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from pathlib import Path
-from unittest.mock import patch
 
-from mailflow.attachment_handler import (
-    extract_and_save_attachment,
-    save_attachments_from_message,
-)
-from mailflow.exceptions import WorkflowError
+from mailflow.attachment_handler import extract_attachments
 
 
 class TestAttachmentHandler:
@@ -31,7 +22,6 @@ class TestAttachmentHandler:
 
         # Add PDF attachment
         attachment = MIMEBase("application", "pdf")
-        # Create fake PDF content
         pdf_content = b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n"
         attachment.set_payload(pdf_content)
         encoders.encode_base64(attachment)
@@ -40,319 +30,129 @@ class TestAttachmentHandler:
 
         return msg, pdf_content
 
-    def test_extract_and_save_attachment(self, temp_config_dir):
-        """Test extracting and saving a single attachment"""
+    def test_extract_attachments_single_pdf(self):
+        """Test extracting a single PDF attachment"""
         msg, pdf_content = self.create_test_message_with_attachment()
 
-        # Get the attachment part
-        attachment_part = None
-        for part in msg.walk():
-            if part.get("Content-Disposition", "").startswith("attachment"):
-                attachment_part = part
-                break
+        attachments = extract_attachments(msg, pattern="*.pdf")
 
-        assert attachment_part is not None
+        assert len(attachments) == 1
+        filename, content, mimetype = attachments[0]
+        assert filename == "test_document.pdf"
+        assert content == pdf_content
+        assert mimetype == "application/pdf"
 
-        # Save attachment
-        save_dir = Path(temp_config_dir) / "attachments"
-        save_dir.mkdir()
-
-        saved_path = extract_and_save_attachment(attachment_part, save_dir, "test_document.pdf")
-
-        assert saved_path is not None
-        assert saved_path.exists()
-        assert saved_path.name == "test_document.pdf"
-
-        # Verify content
-        with open(saved_path, "rb") as f:
-            saved_content = f.read()
-        assert saved_content == pdf_content
-
-    def test_extract_with_duplicate_filename(self, temp_config_dir):
-        """Test handling duplicate filenames"""
-        msg, pdf_content = self.create_test_message_with_attachment()
-
-        # Get the attachment part
-        attachment_part = None
-        for part in msg.walk():
-            if part.get("Content-Disposition", "").startswith("attachment"):
-                attachment_part = part
-                break
-
-        save_dir = Path(temp_config_dir) / "attachments"
-        save_dir.mkdir()
-
-        # Save first time
-        path1 = extract_and_save_attachment(attachment_part, save_dir, "test.pdf")
-
-        # Save second time - should add number
-        path2 = extract_and_save_attachment(attachment_part, save_dir, "test.pdf")
-
-        assert path1.name == "test.pdf"
-        assert path2.name == "test-1.pdf"
-        assert path1.exists()
-        assert path2.exists()
-
-    def test_save_attachments_from_message_pdf_only(self, temp_config_dir):
-        """Test saving only PDF attachments"""
-        msg = MIMEMultipart()
-        msg["From"] = "sender@example.com"
-        msg["Subject"] = "Multiple attachments"
-
-        # Add text attachment
-        text_att = MIMEText("Text file content")
-        text_att.add_header("Content-Disposition", 'attachment; filename="notes.txt"')
-        msg.attach(text_att)
-
-        # Add PDF attachment
-        pdf_att = MIMEBase("application", "pdf")
-        pdf_att.set_payload(b"%PDF-1.4\nfake pdf")
-        pdf_att.add_header("Content-Disposition", 'attachment; filename="invoice.pdf"')
-        msg.attach(pdf_att)
-
-        # Email data with sanitized filenames
-        email_data = {
-            "attachments": [
-                {"filename": "notes.txt", "original_filename": "notes.txt"},
-                {"filename": "invoice.pdf", "original_filename": "invoice.pdf"},
-            ]
-        }
-
-        save_dir = str(Path(temp_config_dir) / "pdfs")
-
-        # Save only PDFs
-        saved_count, failed_files = save_attachments_from_message(
-            message_obj=msg,
-            email_data=email_data,
-            directory=save_dir,
-            pattern="*.pdf",
-            use_year_dirs=False,
-            store_metadata=False,
-        )
-
-        assert saved_count == 1
-        assert failed_files == []
-        saved_files = list(Path(save_dir).glob("*"))
-        assert len(saved_files) == 1
-        assert saved_files[0].name.endswith("-invoice.pdf")
-
-    def test_save_attachments_all_files(self, temp_config_dir):
-        """Test saving all attachments"""
+    def test_extract_attachments_with_pattern(self):
+        """Test extracting attachments with pattern matching"""
         msg = MIMEMultipart()
         msg["From"] = "sender@example.com"
 
-        # Add multiple attachments
-        for filename, content in [
-            ("doc1.pdf", b"PDF1"),
-            ("image.jpg", b"JPG"),
-            ("data.csv", b"CSV"),
-        ]:
-            att = MIMEBase("application", "octet-stream")
+        # Add multiple attachments with different types
+        attachments_data = [
+            ("document.pdf", b"%PDF-1.4\nfake pdf", "application/pdf"),
+            ("image.jpg", b"\xff\xd8\xff", "image/jpeg"),
+            ("data.csv", b"col1,col2\nval1,val2", "text/csv"),
+        ]
+
+        for filename, content, content_type in attachments_data:
+            att = MIMEBase(*content_type.split("/"))
             att.set_payload(content)
             att.add_header("Content-Disposition", f'attachment; filename="{filename}"')
             msg.attach(att)
 
-        email_data = {
-            "attachments": [
-                {"filename": "doc1.pdf", "original_filename": "doc1.pdf"},
-                {"filename": "image.jpg", "original_filename": "image.jpg"},
-                {"filename": "data.csv", "original_filename": "data.csv"},
-            ]
-        }
+        # Extract only PDFs
+        pdf_attachments = extract_attachments(msg, pattern="*.pdf")
+        assert len(pdf_attachments) == 1
+        assert pdf_attachments[0][0] == "document.pdf"
 
-        save_dir = str(Path(temp_config_dir) / "all")
+        # Extract only images
+        image_attachments = extract_attachments(msg, pattern="*.jpg")
+        assert len(image_attachments) == 1
+        assert image_attachments[0][0] == "image.jpg"
 
-        # Save all files
-        saved_count, failed_files = save_attachments_from_message(
-            message_obj=msg,
-            email_data=email_data,
-            directory=save_dir,
-            pattern="*.*",
-            use_year_dirs=False,
-            store_metadata=False,
-        )
+        # Extract all
+        all_attachments = extract_attachments(msg, pattern="*")
+        assert len(all_attachments) == 3
 
-        assert saved_count == 3
-        assert failed_files == []
-        saved_files = list(Path(save_dir).glob("*"))
-        assert len(saved_files) == 3
-
-        # Check that all files were saved with date prefixes
-        filenames = [f.name for f in saved_files]
-        assert any(name.endswith("-doc1.pdf") for name in filenames)
-        assert any(name.endswith("-image.jpg") for name in filenames)
-        assert any(name.endswith("-data.csv") for name in filenames)
-
-    def test_save_attachments_no_multipart(self, temp_config_dir):
-        """Test handling non-multipart messages"""
-        # Simple text email
-        msg = EmailMessage()
+    def test_extract_attachments_no_attachments(self):
+        """Test extracting from email with no attachments"""
+        msg = MIMEMultipart()
         msg["From"] = "sender@example.com"
-        msg["Subject"] = "Plain text"
-        msg.set_content("No attachments here")
+        msg.attach(MIMEText("Just a text body"))
 
-        email_data = {"attachments": []}
+        attachments = extract_attachments(msg, pattern="*.pdf")
+        assert len(attachments) == 0
 
-        saved_count, failed_files = save_attachments_from_message(
-            message_obj=msg,
-            email_data=email_data,
-            directory=temp_config_dir,
-            pattern="*.pdf",
-            use_year_dirs=False,
-            store_metadata=False,
-        )
-
-        assert saved_count == 0
-        assert failed_files == []
-
-    def test_atomic_file_creation_race_condition(self, temp_config_dir):
-        """Test that concurrent saves to same filename don't cause race condition"""
-        msg, pdf_content = self.create_test_message_with_attachment()
-
-        # Get the attachment part
-        attachment_part = None
-        for part in msg.walk():
-            if part.get("Content-Disposition", "").startswith("attachment"):
-                attachment_part = part
-                break
-
-        save_dir = Path(temp_config_dir) / "attachments"
-        save_dir.mkdir()
-
-        # Simulate race condition by saving the same filename concurrently
-        results = []
-        errors = []
-
-        def save_attachment():
-            try:
-                path = extract_and_save_attachment(attachment_part, save_dir, "test.pdf")
-                results.append(path)
-            except Exception as e:
-                errors.append(e)
-
-        # Run 5 concurrent saves
-        threads = [threading.Thread(target=save_attachment) for _ in range(5)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        # All saves should succeed without errors
-        assert len(errors) == 0, f"Errors occurred: {errors}"
-        assert len(results) == 5
-
-        # All paths should be unique
-        unique_paths = set(str(p) for p in results if p)
-        assert len(unique_paths) == 5, f"Expected 5 unique paths, got {len(unique_paths)}"
-
-        # All files should exist
-        for path in results:
-            assert path.exists()
-
-    def test_atomic_file_creation_enforces_limit(self, temp_config_dir):
-        """Test that atomic file creation fails after too many duplicates"""
-        msg, pdf_content = self.create_test_message_with_attachment()
-
-        attachment_part = None
-        for part in msg.walk():
-            if part.get("Content-Disposition", "").startswith("attachment"):
-                attachment_part = part
-                break
-
-        save_dir = Path(temp_config_dir) / "attachments"
-        save_dir.mkdir()
-
-        # Mock exists() to always return False, forcing counter to increment
-        # But open() with 'xb' will raise FileExistsError
-        with patch("pathlib.Path.exists", return_value=False):
-            with patch("builtins.open", side_effect=FileExistsError("File exists")):
-                # Should raise WorkflowError after hitting limit
-                try:
-                    extract_and_save_attachment(attachment_part, save_dir, "test.pdf")
-                    assert False, "Expected WorkflowError to be raised"
-                except WorkflowError as e:
-                    assert "too many duplicates" in str(e).lower()
-
-    def test_save_attachments_tracks_failures(self, temp_config_dir):
-        """Test that save_attachments_from_message tracks failed attachments"""
+    def test_extract_attachments_returns_bytes(self):
+        """Test that extract_attachments returns actual bytes, not encoded"""
         msg = MIMEMultipart()
         msg["From"] = "sender@example.com"
 
-        # Add two PDF attachments
-        for i in range(2):
-            att = MIMEBase("application", "pdf")
-            att.set_payload(b"%PDF-1.4\nfake pdf")
-            att.add_header("Content-Disposition", f'attachment; filename="doc{i}.pdf"')
-            msg.attach(att)
+        # Add PDF attachment
+        pdf_content = b"%PDF-1.4\nTest PDF content"
+        att = MIMEBase("application", "pdf")
+        att.set_payload(pdf_content)
+        encoders.encode_base64(att)  # This encodes the payload
+        att.add_header("Content-Disposition", 'attachment; filename="test.pdf"')
+        msg.attach(att)
 
-        email_data = {
-            "attachments": [
-                {"filename": "doc0.pdf", "original_filename": "doc0.pdf"},
-                {"filename": "doc1.pdf", "original_filename": "doc1.pdf"},
-            ]
-        }
+        # Extract should return decoded bytes
+        attachments = extract_attachments(msg, pattern="*.pdf")
+        assert len(attachments) == 1
+        filename, content, mimetype = attachments[0]
 
-        save_dir = str(Path(temp_config_dir) / "pdfs")
+        # Verify we got the original bytes, not base64 encoded
+        assert content == pdf_content
+        assert content.startswith(b"%PDF")
 
-        # Mock extract_and_save_attachment to fail for second attachment
-        original_extract = extract_and_save_attachment
-
-        def mock_extract(part, directory, filename):
-            if "doc1" in filename:
-                return None  # Simulate failure
-            return original_extract(part, directory, filename)
-
-        with patch(
-            "mailflow.attachment_handler.extract_and_save_attachment", side_effect=mock_extract
-        ):
-            saved_count, failed_files = save_attachments_from_message(
-                message_obj=msg,
-                email_data=email_data,
-                directory=save_dir,
-                pattern="*.pdf",
-                use_year_dirs=False,
-                store_metadata=False,
-            )
-
-        # Should have saved 1, failed 1
-        assert saved_count == 1
-        assert len(failed_files) == 1
-        assert any("doc1" in f for f in failed_files)
-
-    def test_save_attachments_all_failures(self, temp_config_dir):
-        """Test that all failures are tracked when all attachments fail"""
+    def test_extract_attachments_multiple_pdfs(self):
+        """Test extracting multiple PDF attachments"""
         msg = MIMEMultipart()
         msg["From"] = "sender@example.com"
 
-        # Add two PDF attachments
-        for i in range(2):
+        # Add three PDF attachments
+        pdf_files = [
+            ("invoice1.pdf", b"%PDF-1.4\nInvoice 1"),
+            ("invoice2.pdf", b"%PDF-1.4\nInvoice 2"),
+            ("receipt.pdf", b"%PDF-1.4\nReceipt"),
+        ]
+
+        for filename, content in pdf_files:
             att = MIMEBase("application", "pdf")
-            att.set_payload(b"%PDF-1.4\nfake pdf")
-            att.add_header("Content-Disposition", f'attachment; filename="doc{i}.pdf"')
+            att.set_payload(content)
+            att.add_header("Content-Disposition", f'attachment; filename="{filename}"')
             msg.attach(att)
 
-        email_data = {
-            "attachments": [
-                {"filename": "doc0.pdf", "original_filename": "doc0.pdf"},
-                {"filename": "doc1.pdf", "original_filename": "doc1.pdf"},
-            ]
-        }
+        attachments = extract_attachments(msg, pattern="*.pdf")
 
-        save_dir = str(Path(temp_config_dir) / "pdfs")
+        assert len(attachments) == 3
+        filenames = [att[0] for att in attachments]
+        assert "invoice1.pdf" in filenames
+        assert "invoice2.pdf" in filenames
+        assert "receipt.pdf" in filenames
 
-        # Mock extract_and_save_attachment to always fail
-        with patch(
-            "mailflow.attachment_handler.extract_and_save_attachment", return_value=None
-        ):
-            saved_count, failed_files = save_attachments_from_message(
-                message_obj=msg,
-                email_data=email_data,
-                directory=save_dir,
-                pattern="*.pdf",
-                use_year_dirs=False,
-                store_metadata=False,
-            )
+    def test_extract_attachments_preserves_mimetype(self):
+        """Test that mimetype is correctly extracted"""
+        msg = MIMEMultipart()
+        msg["From"] = "sender@example.com"
 
-        # Should have saved 0, failed 2
-        assert saved_count == 0
-        assert len(failed_files) == 2
+        # Add different types of attachments
+        test_files = [
+            ("doc.pdf", b"PDF", "application/pdf"),
+            ("image.png", b"PNG", "image/png"),
+            ("sheet.xlsx", b"XLSX", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+        ]
+
+        for filename, content, mimetype in test_files:
+            maintype, subtype = mimetype.split("/")
+            att = MIMEBase(maintype, subtype)
+            att.set_payload(content)
+            att.add_header("Content-Disposition", f'attachment; filename="{filename}"')
+            msg.attach(att)
+
+        # Extract all and verify mimetypes
+        attachments = extract_attachments(msg, pattern="*")
+
+        for i, (filename, content, extracted_mimetype) in enumerate(attachments):
+            expected_mimetype = test_files[i][2]
+            assert extracted_mimetype == expected_mimetype
