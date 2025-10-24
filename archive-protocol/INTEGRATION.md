@@ -821,7 +821,7 @@ if not workflow:
 **Yes** - atomic writes prevent corruption:
 - Each write is independent
 - Collisions handled automatically
-- manifest.jsonl uses file locking
+- No file locking needed
 - No coordination needed
 
 ### Q: How do I migrate existing data?

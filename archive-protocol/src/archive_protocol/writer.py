@@ -1,5 +1,5 @@
 # ABOUTME: Repository writer for archive-protocol documents and metadata
-# ABOUTME: Handles atomic writes, path resolution, and manifest management
+# ABOUTME: Handles atomic writes, path resolution, and year-based organization
 
 import json
 import logging
@@ -120,7 +120,7 @@ class RepositoryWriter:
         )
 
         # Resolve paths
-        workflow_dir = self._resolve_workflow_path(workflow)
+        workflow_dir = self._resolve_workflow_path(workflow, created_at)
 
         # Generate filename
         extension = self._get_extension_from_mimetype(mimetype, original_filename)
@@ -156,10 +156,6 @@ class RepositoryWriter:
             relationships=relationships,
             extension=extension
         )
-
-        # Append to manifest
-        if self.config.enable_manifest:
-            self._append_to_manifest(workflow_dir, metadata_path, document_id)
 
         logger.info(f"Wrote document {document_id} to {content_path}")
         return document_id, content_path, metadata_path
@@ -220,7 +216,7 @@ class RepositoryWriter:
         )
 
         # Resolve paths
-        stream_dir = self._resolve_stream_path(stream_name)
+        stream_dir = self._resolve_stream_path(stream_name, created_at)
 
         # Generate filename
         extension = self._get_extension_from_mimetype(mimetype, original_filename)
@@ -245,57 +241,65 @@ class RepositoryWriter:
             extension=extension
         )
 
-        # Append to manifest
-        if self.config.enable_manifest:
-            self._append_to_manifest(stream_dir, metadata_path, document_id)
-
         logger.info(f"Wrote stream document {document_id} to {content_path}")
         return document_id, content_path, metadata_path
 
-    def _resolve_workflow_path(self, workflow: str) -> Path:
-        """Resolve path for workflow directory.
+    def _resolve_workflow_path(self, workflow: str, created_at: datetime) -> Path:
+        """Resolve path for workflow directory with year subdirectory.
 
-        Path format: {base_path}/{entity}/workflows/{workflow}
+        Path format: {base_path}/{entity}/workflows/{workflow}/{YYYY}
 
         Args:
             workflow: Workflow name
+            created_at: Document creation timestamp (for year extraction)
 
         Returns:
-            Absolute path to workflow directory
+            Absolute path to workflow year directory
 
         Raises:
             PathError: If path resolution fails
         """
         try:
-            path = self.base_path / self.entity / "workflows" / workflow
+            year_str = created_at.strftime("%Y")
+            content_path = self.base_path / self.entity / "workflows" / workflow / year_str
+            metadata_path = self.base_path / self.entity / "metadata" / "workflows" / workflow / year_str
+
             if self.config.create_directories:
-                path.mkdir(parents=True, exist_ok=True, mode=0o755)
-            return path
+                content_path.mkdir(parents=True, exist_ok=True, mode=0o755)
+                metadata_path.mkdir(parents=True, exist_ok=True, mode=0o755)
+
+            return content_path
         except Exception as e:
             raise PathError(
                 f"Failed to resolve workflow path for {workflow}: {e}",
                 recovery_hint="Check filesystem permissions and path validity"
             ) from e
 
-    def _resolve_stream_path(self, stream_name: str) -> Path:
-        """Resolve path for stream directory.
+    def _resolve_stream_path(self, stream_name: str, created_at: datetime) -> Path:
+        """Resolve path for stream directory with year subdirectory.
 
-        Path format: {base_path}/{entity}/streams/{stream_name}
+        Path format: {base_path}/{entity}/streams/{stream_name}/{YYYY}
 
         Args:
             stream_name: Stream name
+            created_at: Document creation timestamp (for year extraction)
 
         Returns:
-            Absolute path to stream directory
+            Absolute path to stream year directory
 
         Raises:
             PathError: If path resolution fails
         """
         try:
-            path = self.base_path / self.entity / "streams" / stream_name
+            year_str = created_at.strftime("%Y")
+            content_path = self.base_path / self.entity / "streams" / stream_name / year_str
+            metadata_path = self.base_path / self.entity / "metadata" / "streams" / stream_name / year_str
+
             if self.config.create_directories:
-                path.mkdir(parents=True, exist_ok=True, mode=0o755)
-            return path
+                content_path.mkdir(parents=True, exist_ok=True, mode=0o755)
+                metadata_path.mkdir(parents=True, exist_ok=True, mode=0o755)
+
+            return content_path
         except Exception as e:
             raise PathError(
                 f"Failed to resolve stream path for {stream_name}: {e}",
@@ -394,25 +398,36 @@ class RepositoryWriter:
             List of relative paths to attachments
         """
         attachment_paths = []
+        written_paths = []
 
-        for idx, (att_content, att_mimetype) in enumerate(zip(attachments, attachment_mimetypes)):
-            att_ext = self._get_extension_from_mimetype(att_mimetype)
-            att_filename = f"{filename_base}-att{idx + 1}.{att_ext}"
-            att_path = directory / att_filename
+        try:
+            for idx, (att_content, att_mimetype) in enumerate(zip(attachments, attachment_mimetypes)):
+                att_ext = self._get_extension_from_mimetype(att_mimetype)
+                att_filename = f"{filename_base}-att{idx + 1}.{att_ext}"
+                att_path = directory / att_filename
 
-            try:
                 if self.config.atomic_writes:
                     write_atomically(att_path, att_content)
                 else:
                     att_path.write_bytes(att_content)
 
+                written_paths.append(att_path)
                 attachment_paths.append(att_filename)
                 logger.debug(f"Wrote attachment to {att_path}")
-            except Exception as e:
-                raise WriteError(
-                    f"Failed to write attachment {att_filename}: {e}",
-                    recovery_hint="Check filesystem permissions and disk space"
-                ) from e
+
+        except Exception as e:
+            # Clean up any attachments written before the failure
+            for path in written_paths:
+                if path.exists():
+                    try:
+                        path.unlink()
+                    except Exception:
+                        pass
+
+            raise WriteError(
+                f"Failed to write attachments: {e}",
+                recovery_hint="Check filesystem permissions and disk space"
+            ) from e
 
         return attachment_paths
 
@@ -524,7 +539,7 @@ class RepositoryWriter:
                 if path.exists():
                     try:
                         path.unlink()
-                    except:
+                    except Exception:
                         pass
             raise WriteError(
                 f"Failed to write files: {e}",
@@ -563,35 +578,3 @@ class RepositoryWriter:
             recovery_hint="Check for excessive duplicate documents"
         )
 
-    def _append_to_manifest(
-        self, directory: Path, metadata_path: Path, document_id: str
-    ) -> None:
-        """Append entry to manifest.jsonl file.
-
-        Args:
-            directory: Directory containing manifest
-            metadata_path: Path to metadata file
-            document_id: Document ID
-
-        Raises:
-            WriteError: If manifest write fails
-        """
-        manifest_path = directory / "manifest.jsonl"
-
-        entry = {
-            "document_id": document_id,
-            "metadata_path": metadata_path.name,
-            "timestamp": datetime.now().isoformat()
-        }
-
-        try:
-            # Append to manifest (create if doesn't exist)
-            with open(manifest_path, 'a', encoding='utf-8') as f:
-                f.write(json.dumps(entry) + '\n')
-
-            logger.debug(f"Appended to manifest: {manifest_path}")
-        except Exception as e:
-            raise WriteError(
-                f"Failed to write manifest: {e}",
-                recovery_hint="Check filesystem permissions"
-            ) from e

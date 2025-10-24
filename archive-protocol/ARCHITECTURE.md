@@ -88,8 +88,6 @@ Each source has its own:
 
 ```
 ~/Archive/
-  manifest.jsonl                      # Optional change stream for all events
-
   entities/                           # One directory per entity (person/company)
     {entity}/                         # e.g., jro, tsm, gsk
 
@@ -488,8 +486,7 @@ Each connector:
    ↓
 4. archive-protocol Writes (filesystem)
    ├─ Content file
-   ├─ Metadata JSON
-   └─ manifest.jsonl entry
+   └─ Metadata JSON
    ↓
 5. archive-indexer Detects (watches metadata)
    ↓
@@ -512,7 +509,6 @@ Each connector:
 **archive-protocol provides:**
 - Content hash computation
 - Collision detection (filename exists)
-- Manifest for tracking all writes
 
 ## Scalability
 
@@ -620,7 +616,7 @@ A successful implementation enables:
 - RepositoryWriter implementation
 - Metadata schema and validation
 - Atomic write utilities
-- 108 tests passing
+- 105 tests passing
 - Complete documentation
 
 ### What's Next

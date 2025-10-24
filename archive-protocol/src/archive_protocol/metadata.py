@@ -132,11 +132,16 @@ class MetadataBuilder:
 
         Args:
             workflow_or_context: Workflow name or context identifier
-            created_at: Document creation timestamp
+            created_at: Document creation timestamp (converted to UTC if timezone-aware)
             content_hash: Content hash (format: sha256:hexdigest)
 
         Returns:
             Formatted document ID string
         """
+        # Convert to UTC if timezone-aware, otherwise assume UTC
+        if created_at.tzinfo is not None:
+            from datetime import timezone
+            created_at = created_at.astimezone(timezone.utc).replace(tzinfo=None)
+
         timestamp = created_at.strftime("%Y-%m-%dT%H:%M:%SZ")
         return f"{self.source}={workflow_or_context}/{timestamp}/{content_hash}"

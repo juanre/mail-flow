@@ -11,7 +11,6 @@ class RepositoryConfig:
     """Configuration for repository writer operations."""
 
     base_path: str = "~/Archive"
-    enable_manifest: bool = True
     create_directories: bool = True
     atomic_writes: bool = True
     compute_hashes: bool = True
@@ -22,7 +21,6 @@ class RepositoryConfig:
         """Create config from environment variables."""
         return cls(
             base_path=os.environ.get("ARCHIVE_BASE_PATH", "~/Archive"),
-            enable_manifest=os.environ.get("ARCHIVE_ENABLE_MANIFEST", "true").lower() == "true",
         )
 
     def resolve_base_path(self) -> Path:

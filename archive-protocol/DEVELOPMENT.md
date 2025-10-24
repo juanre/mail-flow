@@ -192,7 +192,7 @@ git diff pyproject.toml
 ### Code Review Checklist
 
 Before committing, verify:
-- [ ] All tests pass (108+)
+- [ ] All tests pass (105+)
 - [ ] New code has tests
 - [ ] ABOUTME comments present
 - [ ] No hardcoded values (use config)

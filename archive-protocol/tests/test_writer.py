@@ -1,5 +1,5 @@
 # ABOUTME: Tests for RepositoryWriter class
-# ABOUTME: Validates document writing, path resolution, and manifest management
+# ABOUTME: Validates document writing, path resolution, and metadata generation
 
 import json
 from datetime import datetime
@@ -25,7 +25,6 @@ class TestRepositoryWriter:
         """Create test configuration."""
         return RepositoryConfig(
             base_path=str(temp_repo),
-            enable_manifest=True,
             create_directories=True,
             atomic_writes=True,
             compute_hashes=True
@@ -181,38 +180,6 @@ class TestRepositoryWriter:
             )
         assert "attachment" in str(exc.value).lower()
 
-    def test_write_document_creates_manifest(self, writer, temp_repo):
-        """Test that write_document creates and updates manifest."""
-        doc_id1, _, _ = writer.write_document(
-            workflow="expenses",
-            content=b"doc1",
-            mimetype="text/plain",
-            origin={"email_id": "1"}
-        )
-
-        doc_id2, _, _ = writer.write_document(
-            workflow="expenses",
-            content=b"doc2",
-            mimetype="text/plain",
-            origin={"email_id": "2"}
-        )
-
-        # Check manifest exists
-        manifest_path = temp_repo / "test-entity" / "workflows" / "expenses" / "manifest.jsonl"
-        assert manifest_path.exists()
-
-        # Check manifest contents
-        lines = manifest_path.read_text().strip().split('\n')
-        assert len(lines) == 2
-
-        entry1 = json.loads(lines[0])
-        entry2 = json.loads(lines[1])
-
-        assert entry1["document_id"] == doc_id1
-        assert entry2["document_id"] == doc_id2
-        assert "metadata_path" in entry1
-        assert "timestamp" in entry1
-
     def test_write_stream_minimal(self, writer, temp_repo):
         """Test writing stream document with minimal fields."""
         content = b"Test stream content"
@@ -251,42 +218,6 @@ class TestRepositoryWriter:
                 origin={"test": "data"}
             )
         assert "stream" in str(exc.value).lower()
-
-    def test_write_stream_creates_manifest(self, writer, temp_repo):
-        """Test that write_stream creates manifest."""
-        doc_id, _, _ = writer.write_stream(
-            stream_name="inbox-stream",
-            content=b"test",
-            mimetype="text/plain",
-            origin={"email_id": "1"}
-        )
-
-        # Check manifest exists
-        manifest_path = temp_repo / "test-entity" / "streams" / "inbox-stream" / "manifest.jsonl"
-        assert manifest_path.exists()
-
-        # Check manifest contents
-        entry = json.loads(manifest_path.read_text().strip())
-        assert entry["document_id"] == doc_id
-
-    def test_manifest_disabled(self, temp_repo):
-        """Test that manifest is not created when disabled."""
-        config = RepositoryConfig(
-            base_path=str(temp_repo),
-            enable_manifest=False
-        )
-        writer = RepositoryWriter(config=config, entity="test-entity", source="mail")
-
-        writer.write_document(
-            workflow="expenses",
-            content=b"test",
-            mimetype="text/plain",
-            origin={"test": "data"}
-        )
-
-        # Check manifest does not exist
-        manifest_path = temp_repo / "test-entity" / "workflows" / "expenses" / "manifest.jsonl"
-        assert not manifest_path.exists()
 
     def test_filename_generation(self, writer, temp_repo):
         """Test filename generation format."""
@@ -398,17 +329,23 @@ class TestRepositoryWriter:
 
     def test_path_resolution_workflow(self, writer, temp_repo):
         """Test workflow path resolution."""
-        path = writer._resolve_workflow_path("expenses")
+        from datetime import datetime
+        created_at = datetime(2025, 10, 23, 14, 30, 0)
 
-        expected = temp_repo / "test-entity" / "workflows" / "expenses"
+        path = writer._resolve_workflow_path("expenses", created_at)
+
+        expected = temp_repo / "test-entity" / "workflows" / "expenses" / "2025"
         assert path == expected
         assert path.exists()
 
     def test_path_resolution_stream(self, writer, temp_repo):
         """Test stream path resolution."""
-        path = writer._resolve_stream_path("inbox-stream")
+        from datetime import datetime
+        created_at = datetime(2025, 10, 23, 14, 30, 0)
 
-        expected = temp_repo / "test-entity" / "streams" / "inbox-stream"
+        path = writer._resolve_stream_path("inbox-stream", created_at)
+
+        expected = temp_repo / "test-entity" / "streams" / "inbox-stream" / "2025"
         assert path == expected
         assert path.exists()
 

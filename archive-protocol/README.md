@@ -54,34 +54,32 @@ uv add archive-protocol
 ## Quick Start
 
 ```python
-from archive_protocol import RepositoryWriter
+from archive_protocol import RepositoryWriter, RepositoryConfig
 
 # Initialize writer
+config = RepositoryConfig(base_path="~/Archive")
 writer = RepositoryWriter(
-    base_path="~/Archive",
-    entity="jro"  # Your entity identifier
+    config=config,
+    entity="jro",  # Your entity identifier
+    source="mail"   # Source connector name
 )
 
 # Write a classified document
 result = writer.write_document(
-    source="mail",
     workflow="jro-expense",
     content=pdf_bytes,
-    filename="receipt.pdf",
-    document_type="receipt",
-    origin_metadata={
-        "mail": {
-            "message_id": "<...>",
-            "from": "billing@example.com",
-            "subject": "Your receipt"
-        }
-    }
+    mimetype="application/pdf",
+    origin={
+        "message_id": "<...>",
+        "from": "billing@example.com",
+        "subject": "Your receipt"
+    },
+    document_type="receipt"
 )
 
 # Files created:
 # ~/Archive/entities/jro/workflows/jro-expense/2025/2025-10-23-mail-receipt.pdf
 # ~/Archive/entities/jro/metadata/workflows/jro-expense/2025/2025-10-23-mail-receipt.json
-# ~/Archive/manifest.jsonl (appended)
 
 print(f"Saved to: {result['content_path']}")
 print(f"Document ID: {result['document_id']}")
@@ -91,7 +89,6 @@ print(f"Document ID: {result['document_id']}")
 
 ```
 ~/Archive/
-  manifest.jsonl                    # Optional append-only change stream
   entities/
     {entity}/
       workflows/                    # Classified documents from any source
@@ -128,28 +125,35 @@ print(f"Document ID: {result['document_id']}")
 ### RepositoryWriter
 
 ```python
-writer = RepositoryWriter(base_path="~/Archive", entity="jro")
+from archive_protocol import RepositoryWriter, RepositoryConfig
+
+config = RepositoryConfig(base_path="~/Archive")
+writer = RepositoryWriter(
+    config=config,
+    entity="jro",
+    source="mail"
+)
 
 # Write classified document to workflows/
 result = writer.write_document(
-    source="mail",                    # Source connector
     workflow="jro-expense",           # Workflow name
-    content=bytes | Path,             # Content as bytes or path to file
-    filename="receipt.pdf",           # Base filename
+    content=bytes,                    # Content as bytes
+    mimetype="application/pdf",       # MIME type
+    origin={...},                     # Source-specific metadata
     document_type="receipt",          # Document classification
-    origin_metadata={...},            # Source-specific metadata
-    attachments=[("logo.png", bytes)],  # Optional attachments
+    attachments=[bytes, bytes],       # Optional attachment content
+    attachment_mimetypes=["image/png", "image/jpeg"],  # Attachment MIME types
     created_at=datetime(...),         # Optional, defaults to now
+    original_filename="receipt.pdf"   # Optional, for extension detection
 )
 
 # Write unclassified stream to streams/
 result = writer.write_stream(
-    source="slack",
-    stream_context="general",         # e.g., channel name
-    content="# Daily messages\n...",
-    filename="2025-10-23.md",
-    origin_metadata={...},
-    created_at=datetime(...)
+    stream_name="general",            # Stream context name
+    content=b"# Daily messages\n...", # Content as bytes
+    mimetype="text/markdown",         # MIME type
+    origin={...},                     # Source-specific metadata
+    created_at=datetime(...)          # Optional, defaults to now
 )
 ```
 
@@ -194,38 +198,51 @@ write_atomically(Path("file.pdf"), pdf_bytes)  # Temp + fsync + rename
 
 ### mailflow (email workflows)
 ```python
-from archive_protocol import RepositoryWriter
+from archive_protocol import RepositoryWriter, RepositoryConfig
 
-writer = RepositoryWriter(base_path="~/Archive", entity=entity)
+config = RepositoryConfig(base_path="~/Archive")
+writer = RepositoryWriter(
+    config=config,
+    entity=entity,
+    source="mail"
+)
 result = writer.write_document(
-    source="mail",
     workflow=workflow_name,
     content=pdf_bytes,
-    filename=f"{subject}.pdf",
+    mimetype="application/pdf",
+    origin=email_metadata,
     document_type="receipt",
-    origin_metadata={"mail": email_metadata}
+    original_filename=f"{subject}.pdf"
 )
 ```
 
 ### slack-archive
 ```python
+from archive_protocol import RepositoryWriter, RepositoryConfig
+
+config = RepositoryConfig(base_path="~/Archive")
+writer = RepositoryWriter(
+    config=config,
+    entity=entity,
+    source="slack"
+)
+
 # Daily message transcript (unclassified)
 writer.write_stream(
-    source="slack",
-    stream_context="general-channel",
+    stream_name="general-channel",
     content=markdown_text,
-    filename=f"{date}.md",
-    origin_metadata={"slack": channel_metadata}
+    mimetype="text/markdown",
+    origin=channel_metadata
 )
 
 # Classified attachment
 writer.write_document(
-    source="slack",
     workflow="jro-expense",
     content=attachment_bytes,
-    filename="invoice.pdf",
+    mimetype="application/pdf",
+    origin=message_metadata,
     document_type="invoice",
-    origin_metadata={"slack": message_metadata}
+    original_filename="invoice.pdf"
 )
 ```
 
@@ -235,13 +252,13 @@ writer.write_document(
 uv run pytest tests/
 ```
 
-All 108 tests pass:
+All 105 tests pass:
 - Filename sanitization (15 tests)
 - Hash computation (8 tests)
 - Atomic writes (13 tests)
 - Schema validation (44 tests)
 - Metadata building (16 tests)
-- Repository writer (28 tests)
+- Repository writer (25 tests)
 
 ## Documentation
 
@@ -281,10 +298,11 @@ uv add --dev <dev-package>
 ## Status
 
 **Current:** v0.1.0 - Production-ready core functionality
-- 108 tests passing
+- 105 tests passing
 - Complete metadata schema
 - Atomic write operations
 - Comprehensive validation
+- Year-based directory organization
 
 **Next:** Integration into mailflow (Week 2 of implementation plan)
 
