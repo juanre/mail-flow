@@ -11,6 +11,9 @@ wheels/
 .env
 .DS_Store
 
+# Git worktrees
+.worktrees/
+
 # Authentication and secrets
 mailflow-auth/
 .emacs-bu
