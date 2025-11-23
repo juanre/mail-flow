@@ -94,9 +94,8 @@ class TestRepositoryWriter:
         assert content_path.exists()
         assert metadata_path.exists()
 
-        # Check paths are in workflows directory
-        assert "workflows" in str(content_path)
-        assert "workflows/expenses" in str(content_path)
+        # Check paths are in docs directory (v2 layout)
+        assert "/test-entity/docs/" in str(content_path)
 
         # Check content
         assert content_path.read_bytes() == content
@@ -334,7 +333,7 @@ class TestRepositoryWriter:
 
         path = writer._resolve_workflow_path("expenses", created_at)
 
-        expected = temp_repo / "test-entity" / "workflows" / "expenses" / "2025"
+        expected = temp_repo / "test-entity" / "docs" / "2025"
         assert path == expected
         assert path.exists()
 
@@ -413,8 +412,8 @@ class TestRepositoryWriter:
         )
 
         # Check both workflow directories exist
-        expenses_dir = temp_repo / "test-entity" / "workflows" / "expenses"
-        receipts_dir = temp_repo / "test-entity" / "workflows" / "receipts"
+        expenses_dir = temp_repo / "test-entity" / "docs"
+        receipts_dir = temp_repo / "test-entity" / "docs"
 
         assert expenses_dir.exists()
         assert receipts_dir.exists()

@@ -26,3 +26,5 @@ class RepositoryConfig:
     def resolve_base_path(self) -> Path:
         """Resolve and expand base path."""
         return Path(self.base_path).expanduser().resolve()
+
+    # Global indexes are managed by consumers; writer does not manage indexes paths.

@@ -24,9 +24,40 @@ class WorkflowSelector:
     def select_workflow(self, email_data: dict) -> str | None:
         """Present workflow options and get user selection"""
 
-        # Get ranked workflows (use hybrid classifier if available)
+        # Get ranked workflows (use llm-archivist if enabled, else hybrid/similarity)
         criteria_instances = self.data_store.get_recent_criteria()
-        if self.hybrid_classifier:
+        rankings = []
+        llm_suggestion = None
+
+        # Prefer external classifier when enabled
+        arch_result = None
+        if self.config.settings.get("classifier", {}).get("enabled"):
+            try:
+                from mailflow.archivist_integration import classify_with_archivist
+
+                arch = classify_with_archivist(
+                    email_data,
+                    self.data_store,
+                    interactive=True,
+                    allow_llm=self.config.settings.get("llm", {}).get("enabled", False),
+                    max_candidates=self.max_suggestions,
+                )
+                arch_result = arch
+                rankings = arch.get("rankings") or []
+                # Treat top candidate as suggestion
+                if rankings:
+                    top_label, top_score, _ = rankings[0]
+                    class _Tmp:  # minimal shim to match existing usage structure
+                        def __init__(self, workflow, confidence, reasoning=""):
+                            self.workflow = workflow
+                            self.confidence = confidence
+                            self.reasoning = reasoning
+
+                    llm_suggestion = _Tmp(top_label, float(top_score))
+            except Exception as e:
+                logger.warning(f"archivist classify failed: {e}; falling back")
+
+        if not rankings and self.hybrid_classifier:
             try:
                 # Note: hybrid_classifier.classify() manages async context internally
                 result = asyncio.run(
@@ -38,15 +69,11 @@ class WorkflowSelector:
                 llm_suggestion = result.get("llm_suggestion")
             except Exception as e:
                 logger.warning(f"Hybrid classification failed: {e}, falling back to similarity")
-                rankings = self.similarity_engine.rank_workflows(
-                    email_data["features"], criteria_instances, self.max_suggestions
-                )
-                llm_suggestion = None
-        else:
+        if not rankings:
             rankings = self.similarity_engine.rank_workflows(
                 email_data["features"], criteria_instances, self.max_suggestions
             )
-            llm_suggestion = None
+            llm_suggestion = llm_suggestion  # keep any previous suggestion
 
         # Store rankings in email_data for later use
         email_data["_rankings"] = rankings
@@ -139,6 +166,14 @@ class WorkflowSelector:
                 ),
             )
             self.data_store.add_criteria_instance(instance)
+
+            # Send feedback to external classifier if available
+            try:
+                if arch_result and arch_result.get("decision_id"):
+                    from mailflow.archivist_integration import record_feedback
+                    record_feedback(int(arch_result["decision_id"]), selected_workflow, "confirmed")
+            except Exception as e:
+                logger.debug(f"archivist feedback not recorded: {e}")
 
         return selected_workflow
 

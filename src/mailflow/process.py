@@ -16,6 +16,7 @@ from mailflow.processed_emails_tracker import ProcessedEmailsTracker
 from mailflow.similarity import SimilarityEngine
 from mailflow.ui import WorkflowSelector
 from mailflow.workflow import Workflows
+from file_classifier import Model, extract_features
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ def process(
     llm_enabled: bool | None = None,
     llm_model: str | None = None,
     force: bool = False,
+    dry_run: bool = False,
 ) -> None:
     """
     Process an email message through the mailflow workflow.
@@ -120,24 +122,43 @@ def process(
                                 break
                         email_data["_confidence_score"] = confidence
 
-                        # Call action based on type
-                        if workflow_def.action_type in ["save_attachment", "save_pdf", "save_email_as_pdf"]:
-                            # Archive-protocol actions (document storage)
-                            action_func(
-                                message=email_data,
-                                workflow=selected_workflow,
-                                config=config,
-                                **workflow_def.action_params
-                            )
+                        if dry_run:
+                            print("(dry-run) Skipping action execution and processed marker")
+                            logger.info("dry-run: not executing action or marking processed")
                         else:
-                            # Non-archive actions (e.g., create_todo)
-                            action_func(email_data, **workflow_def.action_params)
+                            # Call action based on type
+                            if workflow_def.action_type in ["save_attachment", "save_pdf", "save_email_as_pdf"]:
+                                # Archive-protocol actions (document storage)
+                                action_func(
+                                    message=email_data,
+                                    workflow=selected_workflow,
+                                    config=config,
+                                    **workflow_def.action_params
+                                )
+                            else:
+                                # Non-archive actions (e.g., create_todo)
+                                action_func(email_data, **workflow_def.action_params)
 
-                        print(f"\n✓ Workflow '{selected_workflow}' completed!")
-                        logger.info(f"Workflow '{selected_workflow}' completed successfully")
+                            print(f"\n✓ Workflow '{selected_workflow}' completed!")
+                            logger.info(f"Workflow '{selected_workflow}' completed successfully")
 
-                        # Mark as processed
-                        tracker.mark_as_processed(message, message_id, selected_workflow)
+                            # Mark as processed
+                            tracker.mark_as_processed(message, message_id, selected_workflow)
+
+                        # Train shared classifier (optional)
+                        try:
+                            model_path = str(config.state_dir / "classifier.json")
+                            model = Model(model_path)
+                            feats = extract_features("application/pdf", {  # modality-agnostic baseline
+                                "origin": {
+                                    "subject": email_data.get("subject", ""),
+                                    "from": email_data.get("from", ""),
+                                }
+                            })
+                            model.add_example(feats, selected_workflow)
+                            model.save()
+                        except Exception:
+                            pass
                     except WorkflowError as e:
                         print(f"\n✗ Workflow error: {e}")
                         logger.error(f"Workflow execution failed: {e}")
@@ -220,5 +241,4 @@ def main():
         logger.info("mailflow finished")
 
 
-if __name__ == "__main__":
-    main()
+# CLI is the single entry point. This module is not intended to be executed directly.

@@ -13,9 +13,9 @@ from mailflow.security import (
     MAX_BODY_PREVIEW_LENGTH,
     MAX_EMAIL_SIZE_MB,
     MAX_SUBJECT_LENGTH,
-    sanitize_filename,
     validate_message_id,
 )
+from archive_protocol.utils import sanitize_filename
 from mailflow.utils import truncate_string
 
 logger = logging.getLogger(__name__)

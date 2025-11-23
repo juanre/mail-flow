@@ -38,6 +38,36 @@ def sanitize_filename(filename: str, max_length: int = 200) -> str:
     return filename
 
 
+def normalize_name_base(name: str, max_length: int = 120) -> str:
+    """Normalize a name for use in content filenames (basename without extension).
+
+    Rules:
+    - lowercase
+    - replace whitespace with '-'
+    - keep only [a-z0-9._-]
+    - collapse multiple dashes
+    - trim leading/trailing dashes/underscores/dots
+    - limit length
+    """
+    if not name:
+        return "document"
+
+    name = name.strip().lower()
+    # Replace whitespace with dash
+    name = re.sub(r"\s+", "-", name)
+    # Keep safe characters only
+    name = re.sub(r"[^a-z0-9._-]", "-", name)
+    # Collapse multiple dashes/underscores/dots combos
+    name = re.sub(r"[-_\.]{2,}", "-", name)
+    # Strip leading/trailing separators
+    name = name.strip("-_.")
+    if not name:
+        name = "document"
+    if len(name) > max_length:
+        name = name[:max_length]
+    return name
+
+
 def compute_hash(content: bytes) -> str:
     """Compute SHA-256 hash of content.
 

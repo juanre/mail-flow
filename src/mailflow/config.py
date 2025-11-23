@@ -174,6 +174,15 @@ class Config:
             "archive": {
                 "enabled": True,  # Use archive-protocol for document storage
                 "base_path": "~/Archive",  # Repository base path
+                "layout": "v2",  # v2 layout (docs/ + nested streams)
+                "save_originals": False,  # Also store original files
+                "originals_prefix_date": False,  # Prepend yyyy-mm-dd- to originals
+                "convert_attachments": False,  # Convert non-PDF attachments to PDF/CSV
+            },
+            "classifier": {
+                "enabled": True,  # Enable llm-archivist integration by default
+                "gate_enabled": False,  # Email worth-archiving gate
+                "gate_min_confidence": 0.7,
             },
         }
 
@@ -230,6 +239,15 @@ class Config:
             )
             llm_settings["high_confidence_threshold"] = 0.85
             llm_settings["medium_confidence_threshold"] = 0.50
+
+        # Archive layout should default to v2; coerce older configs gently
+        archive_settings = self.settings.get("archive", {})
+        layout = archive_settings.get("layout")
+        if layout != "v2":
+            logger.warning(
+                f"Archive layout is '{layout}', switching to 'v2' (docs/ + streams) for consistency"
+            )
+            archive_settings["layout"] = "v2"
 
     def save_config(self):
         """Save configuration to disk"""

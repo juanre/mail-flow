@@ -1,6 +1,6 @@
 # mailflow - Smart Email Processing for Mutt
 
-Email processing tool for mutt that learns from your classification choices and suggests workflows using similarity matching and optional LLM assistance.
+Email processing tool for mutt that learns from your classification choices and suggests workflows using similarity matching and optional LLM assistance. Storage uses a single v2 layout (docs/ + nested streams/), and a global index powers fast search across entities.
 
 ## Features
 
@@ -10,7 +10,7 @@ Email processing tool for mutt that learns from your classification choices and 
 - **Deduplication**: Tracks processed emails to prevent reprocessing
 - **Batch Processing**: Process thousands of emails efficiently
 - **Flexible Workflows**: Save PDFs, create todos, flag emails, etc.
-- **Full-Text Search**: Find saved PDFs by content
+- **Global Search**: Build a global index once, then search across all entities
 - **Gmail API**: Process emails directly from Gmail (optional)
 
 ## Installation
@@ -19,6 +19,8 @@ Email processing tool for mutt that learns from your classification choices and 
 # Clone and install
 git clone <repo-url>
 cd mail-flow
+
+# Requires Python 3.12+
 
 # Install with uv
 uv sync
@@ -57,15 +59,23 @@ cat email.eml | uv run mailflow
 # Enable LLM assistance (requires API key)
 cat email.eml | uv run mailflow --llm
 
-# Batch process directory
-uv run mailflow batch ~/mail/archive --llm --dry-run
+# Fetch + process from Gmail (OAuth)
+uv run mailflow fetch gmail --query "label:INBOX newer_than:1d"
+
+# Process local emails from files or Maildir folders
+uv run mailflow fetch files ~/mail/archive --dry-run
 
 # Force reprocess already-processed emails
 uv run mailflow --force < email.eml
 
-# Search saved PDFs
-uv run mailflow search "invoice"
-uv run mailflow search --directory ~/receipts --type invoice
+# Build global indexes (from your archive base)
+uv run mailflow index --base ~/Archive
+
+# Search globally (with optional filters)
+uv run mailflow gsearch "invoice" --entity acme --limit 10
+
+# Show indexed information for a file
+uv run mailflow data docs/2025/2025-11-05-invoice-1234.pdf
 
 # List workflows
 uv run mailflow workflows
@@ -74,33 +84,68 @@ uv run mailflow workflows
 uv run mailflow stats
 ```
 
-## LLM Integration (Optional)
+## Classifier Integration (llm-archivist)
 
-Enable AI-powered classification for better accuracy:
+mailflow integrates with the llm-archivist library. It is enabled by default and runs in dev mode (no DB/LLM) unless you configure it. For a full‑fledged setup (Postgres + pgvector + LLM), follow the steps below.
 
 ```bash
-# 1. Set API key
-export ANTHROPIC_API_KEY=sk-ant-...
-# or OPENAI_API_KEY or GOOGLE_GEMINI_API_KEY
+# 1) Database (Postgres) – one‑time setup (psql)
+CREATE DATABASE archivist;
+CREATE USER archivist WITH PASSWORD 'changeme';
+GRANT ALL PRIVILEGES ON DATABASE archivist TO archivist;
+\c archivist
+CREATE SCHEMA IF NOT EXISTS archivist;
+-- pgvector: llm‑archivist migrations will attempt this automatically;
+-- if your role cannot create extensions, have an admin pre‑install it.
+CREATE EXTENSION IF NOT EXISTS vector;
 
-# 2. Enable in config (~/.config/mailflow/config.json)
-{
-  "llm": {
-    "enabled": true,
-    "model_alias": "balanced"  # fast, balanced, or deep
-  }
-}
+# 2) Environment (shell)
+export ARCHIVIST_USE_DB=1
+export DATABASE_URL='postgresql://archivist:changeme@localhost:5432/archivist'
+export ARCHIVIST_DB_SCHEMA=archivist
+export OPENAI_API_KEY=...     # required for embeddings + LLM
+# Optional safety controls
+export ARCHIVIST_PERSIST_EMBED=1        # store embeddings after decisions
+export ARCHIVIST_LLM_BUDGET_USD=5       # cap spending
+export ARCHIVIST_LLM_RETRIES=1          # retry LLM on transient failures
 
-# 3. Process emails with LLM
-cat email.eml | uv run mailflow --llm
+# 3) Bootstrap (optional) – triggers migrations via llm‑archivist
+uv run llm-archivist metrics
+
+# 4) Dry‑run training from files/Maildir (no writes; trains both systems)
+uv run mailflow fetch files ~/Mail/juan-gsk --dry-run
+
+# 5) Apply for real after training
+uv run mailflow fetch files ~/Mail/juan-gsk
 ```
 
-**How it works:**
-- High confidence (≥85%): Uses similarity only (fast, free)
-- Medium confidence (50-85%): Shows both similarity and AI suggestions
-- Low confidence (<50%): Uses AI as primary suggestion
+Notes
+- Migrations are applied automatically on first run.
+- In dev mode (no DB/LLM), the classifier still learns from your confirmations locally.
+- The UI records your selection as training and also sends feedback to llm‑archivist so it improves over time.
 
-**Cost:** ~$0.003 per email with LLM, but hybrid approach only uses LLM for ~20% of emails (~$6 for 10,000 emails).
+## Optional Features
+
+- Archive
+  - `archive.base_path`: e.g., `~/Archive`
+  - `archive.save_originals`: store attachment originals under `originals/`
+  - `archive.originals_prefix_date`: prepend `yyyy-mm-dd-` to originals
+  - `archive.convert_attachments`: convert text attachments to PDF; TSV→CSV
+- Classifier
+  - `classifier.enabled`: record suggestions in origin.classifier
+  - `classifier.gate_enabled`: gate no-attachment emails (worth archiving?)
+  - `classifier.gate_min_confidence`: e.g., 0.7
+
+## Storage Layout (v2)
+
+- {entity}/docs/{YYYY}/yyyy-mm-dd-normalised-file-name.pdf|csv
+- {entity}/originals/{YYYY}/[optional yyyy-mm-dd-]Original Name.ext (when enabled)
+- {entity}/streams/slack/{channel}/{YYYY}/yyyy-mm-dd-transcript.md
+- indexes/{metadata.db, fts.db} (global)
+
+Indexing and search:
+- Build index: `uv run mailflow index --base ~/Archive`
+- Search: `uv run mailflow gsearch "query" --entity acme --workflow invoices --limit 20`
 
 ## Configuration
 
@@ -135,7 +180,7 @@ Process emails directly from Gmail:
 # Setup: Place OAuth 2.0 client JSON at ~/.config/mailflow/gmail_client_secret.json
 
 # Process inbox
-uv run mailflow gmail --query "label:INBOX newer_than:1d" --processed-label "mailflow/processed"
+uv run mailflow fetch gmail --query "label:INBOX newer_than:1d" --processed-label "mailflow/processed"
 ```
 
 ## Testing
@@ -157,8 +202,17 @@ src/mailflow/
   processed_emails_tracker.py  # Deduplication
   workflow.py                  # Workflow execution
   ui.py                        # Interactive selection
-  process.py                   # Main pipeline
-  cli.py                       # CLI commands
+  process.py                   # Main pipeline (invoked by CLI)
+  cli.py                       # CLI entrypoint (registers subcommands)
+  commands/
+    index_search.py            # index, gsearch, data (global indexes)
+    gmail_batch_workflows.py   # gmail, batch, workflows + fetch aliases
+
+Lint & tests:
+```bash
+uv run ruff check .
+uv run pytest -q
+```
 ```
 
 ## License

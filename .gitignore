@@ -17,3 +17,10 @@ wheels/
 # Authentication and secrets
 mailflow-auth/
 .emacs-bu
+file-classifier-core/
+llm-archivist
+llmemory
+llmring
+mailflow-memory
+pgdbm
+

@@ -11,7 +11,12 @@ from archive_protocol.config import RepositoryConfig
 from archive_protocol.exceptions import PathError, ValidationError, WriteError
 from archive_protocol.metadata import MetadataBuilder
 from archive_protocol.schema import validate_metadata
-from archive_protocol.utils import compute_hash, sanitize_filename, write_atomically
+from archive_protocol.utils import (
+    compute_hash,
+    sanitize_filename,
+    write_atomically,
+    normalize_name_base,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -119,12 +124,12 @@ class RepositoryWriter:
             content_hash=content_hash
         )
 
-        # Resolve paths
+        # Resolve paths (v2 layout)
         workflow_dir = self._resolve_workflow_path(workflow, created_at)
 
-        # Generate filename
+        # Generate filename (v2 layout)
         extension = self._get_extension_from_mimetype(mimetype, original_filename)
-        filename_base = self._generate_filename(created_at, extension)
+        filename_base = self._generate_filename(created_at, extension, original_filename)
 
         # Handle attachments
         attachment_paths = []
@@ -192,11 +197,21 @@ class RepositoryWriter:
             created_at = datetime.now()
 
         # Validate stream name
-        if not stream_name.islower() or not stream_name.replace('-', '').replace('_', '').isalnum():
-            raise ValidationError(
-                f"Invalid stream_name: {stream_name}",
-                recovery_hint="Stream name must be lowercase alphanumeric with hyphens/underscores"
-            )
+        # Validate stream name; in v2 allow nested names like 'slack/general'
+        if (self.config.layout_version or "v1").lower() == "v2" and "/" in stream_name:
+            parts = [p for p in stream_name.split("/") if p]
+            for p in parts:
+                if not p.islower() or not p.replace('-', '').replace('_', '').isalnum():
+                    raise ValidationError(
+                        f"Invalid stream_name segment: {p}",
+                        recovery_hint="Segments must be lowercase alphanumeric with hyphens/underscores",
+                    )
+        else:
+            if not stream_name.islower() or not stream_name.replace('-', '').replace('_', '').isalnum():
+                raise ValidationError(
+                    f"Invalid stream_name: {stream_name}",
+                    recovery_hint="Stream name must be lowercase alphanumeric with hyphens/underscores"
+                )
 
         # Compute content hash
         content_hash = compute_hash(content) if self.config.compute_hashes else "sha256:" + "0" * 64
@@ -220,7 +235,7 @@ class RepositoryWriter:
 
         # Generate filename
         extension = self._get_extension_from_mimetype(mimetype, original_filename)
-        filename_base = self._generate_filename(created_at, extension)
+        filename_base = self._generate_filename(created_at, extension, original_filename)
 
         # Write content and metadata
         content_path, metadata_path = self._write_content_and_metadata(
@@ -247,7 +262,7 @@ class RepositoryWriter:
     def _resolve_workflow_path(self, workflow: str, created_at: datetime) -> Path:
         """Resolve path for workflow directory with year subdirectory.
 
-        Path format: {base_path}/{entity}/workflows/{workflow}/{YYYY}
+        Path format (v2): {base_path}/{entity}/docs/{YYYY}
 
         Args:
             workflow: Workflow name
@@ -261,12 +276,10 @@ class RepositoryWriter:
         """
         try:
             year_str = created_at.strftime("%Y")
-            content_path = self.base_path / self.entity / "workflows" / workflow / year_str
-            metadata_path = self.base_path / self.entity / "metadata" / "workflows" / workflow / year_str
+            content_path = self.base_path / self.entity / "docs" / year_str
 
             if self.config.create_directories:
                 content_path.mkdir(parents=True, exist_ok=True, mode=0o755)
-                metadata_path.mkdir(parents=True, exist_ok=True, mode=0o755)
 
             return content_path
         except Exception as e:
@@ -278,7 +291,7 @@ class RepositoryWriter:
     def _resolve_stream_path(self, stream_name: str, created_at: datetime) -> Path:
         """Resolve path for stream directory with year subdirectory.
 
-        Path format: {base_path}/{entity}/streams/{stream_name}/{YYYY}
+        Path format (v2): {base_path}/{entity}/streams/{stream_name}/{YYYY} (supports nested stream_name like 'slack/general')
 
         Args:
             stream_name: Stream name
@@ -292,12 +305,18 @@ class RepositoryWriter:
         """
         try:
             year_str = created_at.strftime("%Y")
-            content_path = self.base_path / self.entity / "streams" / stream_name / year_str
-            metadata_path = self.base_path / self.entity / "metadata" / "streams" / stream_name / year_str
+            # Allow nested parts in stream_name (e.g., 'slack/general')
+            if "/" in stream_name:
+                parts = [p for p in stream_name.split("/") if p]
+                content_path = self.base_path / self.entity / "streams"
+                for p in parts:
+                    content_path = content_path / p
+                content_path = content_path / year_str
+            else:
+                content_path = self.base_path / self.entity / "streams" / stream_name / year_str
 
             if self.config.create_directories:
                 content_path.mkdir(parents=True, exist_ok=True, mode=0o755)
-                metadata_path.mkdir(parents=True, exist_ok=True, mode=0o755)
 
             return content_path
         except Exception as e:
@@ -306,10 +325,10 @@ class RepositoryWriter:
                 recovery_hint="Check filesystem permissions and path validity"
             ) from e
 
-    def _generate_filename(self, created_at: datetime, extension: str) -> str:
+    def _generate_filename(self, created_at: datetime, extension: str, original_filename: str | None = None) -> str:
         """Generate filename with collision handling.
 
-        Format: yyyy-mm-dd-{source}-{base36_timestamp}.{extension}
+        Format (v2): yyyy-mm-dd-{normalized-base}.{extension}
 
         Args:
             created_at: Document creation timestamp
@@ -319,15 +338,12 @@ class RepositoryWriter:
             Sanitized filename base (without extension for metadata)
         """
         date_str = created_at.strftime("%Y-%m-%d")
-        timestamp = int(created_at.timestamp())
-
-        # Convert timestamp to base36 for compactness
-        base36_ts = self._int_to_base36(timestamp)
-
-        # Build filename base
-        filename_base = f"{date_str}-{self.source}-{base36_ts}"
-
-        return filename_base
+        base = None
+        if original_filename:
+            base = normalize_name_base(Path(original_filename).stem)
+        if not base:
+            base = f"{self.source}-{self._int_to_base36(int(created_at.timestamp()))}"
+        return f"{date_str}-{base}"
 
     def _int_to_base36(self, num: int) -> str:
         """Convert integer to base36 string."""
@@ -356,7 +372,7 @@ class RepositoryWriter:
         """
         # Try to get from original filename first
         if original_filename:
-            ext = Path(original_filename).suffix.lstrip('.')
+            ext = Path(original_filename).suffix.lstrip('.').lower()
             if ext:
                 return ext
 
@@ -577,4 +593,3 @@ class RepositoryWriter:
             f"Unable to resolve filename collision for {filename_base}",
             recovery_hint="Check for excessive duplicate documents"
         )
-

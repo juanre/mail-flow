@@ -57,9 +57,16 @@ class ProcessedEmailsTracker:
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_email_hash ON processed_emails(email_hash)"
             )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_message_id ON processed_emails(message_id)"
-            )
+            # Unique message_id when present (partial unique index). Allows multiple NULLs.
+            try:
+                conn.execute(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_message_id ON processed_emails(message_id) WHERE message_id IS NOT NULL"
+                )
+            except Exception:
+                # Older SQLite without partial indexes will fall back to non-unique index
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_message_id ON processed_emails(message_id)"
+                )
 
             conn.commit()
             logger.debug("Processed emails database initialized")
@@ -115,11 +122,15 @@ class ProcessedEmailsTracker:
 
         try:
             with self.get_connection() as conn:
+                # Preserve original message_id if already stored for this content hash
                 conn.execute(
                     """
-                    INSERT OR REPLACE INTO processed_emails
-                    (email_hash, message_id, workflow_name, processed_at)
+                    INSERT INTO processed_emails (email_hash, message_id, workflow_name, processed_at)
                     VALUES (?, ?, ?, ?)
+                    ON CONFLICT(email_hash) DO UPDATE SET
+                        workflow_name=excluded.workflow_name,
+                        processed_at=excluded.processed_at,
+                        message_id=COALESCE(processed_emails.message_id, excluded.message_id)
                     """,
                     (content_hash, message_id, workflow_name, datetime.now().isoformat()),
                 )

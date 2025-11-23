@@ -276,3 +276,49 @@ def parse_entity_from_workflow(workflow_name: str) -> str:
         )
 
     return entity
+
+
+def write_original_file(
+    base_path: str,
+    entity: str,
+    created_at,  # datetime
+    original_filename: str,
+    content: bytes,
+    prefix_date: bool = False,
+) -> str:
+    """Write an original file under {base}/{entity}/originals/{YYYY}/.
+
+    Returns absolute path as string. Best-effort; raises on fatal I/O errors.
+    """
+    from datetime import datetime
+    from pathlib import Path
+
+    base = Path(base_path).expanduser().resolve()
+    year = created_at.strftime("%Y") if isinstance(created_at, datetime) else datetime.now().strftime("%Y")
+    originals_dir = base / entity / "originals" / year
+    originals_dir.mkdir(parents=True, exist_ok=True)
+
+    name = original_filename
+    if prefix_date and isinstance(created_at, datetime):
+        date_str = created_at.strftime("%Y-%m-%d")
+        # Avoid double prefix
+        if not name.startswith(date_str):
+            name = f"{date_str}-" + name
+
+    out_path = originals_dir / name
+    # Handle collisions by suffixing -2, -3, ...
+    if out_path.exists():
+        stem = out_path.stem
+        suffix = out_path.suffix
+        i = 2
+        while True:
+            candidate = originals_dir / f"{stem}-{i}{suffix}"
+            if not candidate.exists():
+                out_path = candidate
+                break
+            i += 1
+
+    with open(out_path, "wb") as f:
+        f.write(content)
+
+    return str(out_path)

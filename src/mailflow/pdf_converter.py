@@ -15,10 +15,33 @@ from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 
 from mailflow.exceptions import WorkflowError
-from mailflow.security import sanitize_filename, validate_path
+from archive_protocol.utils import sanitize_filename
+from mailflow.security import validate_path
 
 logger = logging.getLogger(__name__)
 
+
+def text_to_pdf_bytes(text: str) -> bytes:
+    """Convert plain text to a minimal PDF and return bytes.
+
+    This avoids heavyweight dependencies for simple text attachments
+    and provides a consistent converter surface.
+    """
+    content = (
+        "BT /F1 12 Tf 72 720 Td ("
+        + text[:200].replace("(", "[").replace(")", "]")
+        + ") Tj ET\n"
+    )
+    stream = (
+        b"%PDF-1.4\n"
+        b"1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj\n"
+        b"2 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1 >>endobj\n"
+        b"3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> /Contents 4 0 R >>endobj\n"
+        + f"4 0 obj<< /Length {len(content)} >>stream\n".encode("utf-8")
+        + content.encode("utf-8")
+        + b"endstream endobj\nxref\n0 5\n0000000000 65535 f\n0000000010 00000 n\n0000000061 00000 n\n0000000115 00000 n\n0000000329 00000 n\ntrailer<< /Size 5 /Root 1 0 R >>\nstartxref\n409\n%%EOF\n"
+    )
+    return stream
 
 def sanitize_html_for_pdf(html_content: str) -> str:
     """Sanitize HTML content for safe PDF conversion."""
@@ -471,32 +494,7 @@ def save_email_as_pdf(
 
         logger.info(f"Saved email as PDF: {output_path}")
 
-        # Store metadata if requested
-        if store_metadata:
-            try:
-                from mailflow.metadata_store import MetadataStore
-
-                store = MetadataStore(str(base_dir))
-
-                # Extract text from email for searching
-                body_text = store._extract_text_from_body(email_data.get("body", ""))
-
-                # Get suggested classification
-                doc_type, doc_category = MetadataStore.suggest_document_classification(email_data)
-
-                store.store_pdf_metadata(
-                    pdf_path=output_path,
-                    email_data=email_data,
-                    workflow_name=email_data.get("_workflow_name", "save_email_as_pdf"),
-                    pdf_type="converted",
-                    pdf_text=body_text,
-                    confidence_score=email_data.get("_confidence_score"),
-                    document_type=doc_type,
-                    document_category=doc_category,
-                    pdf_original_filename=None,
-                )
-            except Exception as e:
-                logger.warning(f"Failed to store metadata: {e}")
+        # Metadata is indexed by the global indexer. No direct DB writes here.
 
     except Exception as e:
         if isinstance(e, WorkflowError):

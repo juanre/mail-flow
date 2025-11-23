@@ -10,7 +10,8 @@ from pathlib import Path
 import click
 
 from mailflow.config import Config
-from mailflow.gmail_api import poll_and_process as gmail_poll
+from mailflow.commands.index_search import register as register_index_commands
+from mailflow.commands.gmail_batch_workflows import register as register_gmail_batch
 from mailflow.logging_config import setup_logging
 from mailflow.models import DataStore, WorkflowDefinition
 from mailflow.process import process as process_email
@@ -67,41 +68,6 @@ def process_stdin(ctx):
         sys.exit(0)
     except Exception as e:
         logger.error(f"Failed to process email: {e}", exc_info=True)
-        sys.exit(1)
-
-
-@cli.command()
-@click.option("--query", "query", default="", help="Gmail search query (e.g., label:INBOX)")
-@click.option("--label", "label", default=None, help="Only process messages with this Gmail label")
-@click.option(
-    "--processed-label", default="mailflow/processed", help="Label to add after processing"
-)
-@click.option("--max-results", default=20, help="Maximum Gmail messages to process per run")
-@click.option("--remove-from-inbox", is_flag=True, help="Remove from INBOX after processing")
-def gmail(query, label, processed_label, max_results, remove_from_inbox):
-    """Process emails directly from Gmail via the Gmail API.
-
-    Requirements:
-      - Place OAuth client JSON at ~/.config/mailflow/gmail_client_secret.json
-      - Install dependencies: uv add google-api-python-client google-auth google-auth-oauthlib
-    """
-    config = Config()
-    try:
-        count = gmail_poll(
-            config,
-            query=query,
-            label=label,
-            processed_label=processed_label,
-            max_results=max_results,
-            remove_from_inbox=remove_from_inbox,
-        )
-        click.echo(f"\n✓ Processed {count} Gmail message(s)")
-    except RuntimeError as e:
-        click.echo(str(e), err=True)
-        sys.exit(1)
-    except Exception as e:
-        logger.exception("Gmail processing failed")
-        click.echo(f"Error: {e}", err=True)
         sys.exit(1)
 
 
@@ -247,6 +213,9 @@ def batch(directory, llm, llm_model, auto_threshold, dry_run, max_emails, force)
 
                                 # Mark as processed
                                 tracker.mark_as_processed(email_content, message_id, workflow_name)
+
+                                # Intentionally no training here: auto mode should not
+                                # feed classifiers without explicit review.
 
                             except Exception as e:
                                 click.echo(f"    Failed to execute workflow: {e}", err=True)
@@ -498,34 +467,8 @@ def init(reset):
     click.echo(f"\n💡 Tip: Run 'mailflow setup-workflows' anytime to add more workflows")
 
 
-@cli.command()
-@click.option("--limit", "-n", default=10, help="Number of workflows to show")
-def workflows(limit):
-    """List available workflows"""
-    config = Config()
-    data_store = DataStore(config)
-
-    click.echo(f"\nAvailable workflows ({len(data_store.workflows)} total):\n")
-
-    for i, (name, workflow) in enumerate(data_store.workflows.items()):
-        if i >= limit:
-            remaining = len(data_store.workflows) - limit
-            click.echo(f"\n... and {remaining} more")
-            break
-
-        click.echo(f"{name}:")
-        click.echo(f"  {workflow.description}")
-        click.echo(f"  Type: {workflow.action_type}")
-
-        # Show relevant parameters
-        params = workflow.action_params
-        if "directory" in params:
-            click.echo(f"  Directory: {params['directory']}")
-        if "pattern" in params:
-            click.echo(f"  Pattern: {params['pattern']}")
-        if "filename_template" in params:
-            click.echo(f"  Filename: {params['filename_template']}")
-        click.echo()
+from mailflow.commands.gmail_batch_workflows import register as _register_gbw
+_register_gbw(cli)
 
 
 @cli.command()
@@ -560,195 +503,75 @@ def stats():
 
 
 @cli.command()
-@click.argument("query", required=False)
-@click.option("--directory", "-d", default="~/receipts", help="Directory to search")
-@click.option("--limit", "-n", default=20, help="Maximum results")
-@click.option("--type", "-t", help="Filter by document type (invoice, receipt, etc.)")
-def search(query, directory, limit, type):
-    """Search stored PDFs"""
-    from mailflow.metadata_store import MetadataStore
-
-    try:
-        store = MetadataStore(Path(directory).expanduser())
-
-        if type:
-            results = store.search_by_type(type, limit)
-            search_desc = f"type '{type}'"
-        elif query:
-            results = store.search(query, limit)
-            search_desc = f"'{query}'"
-        else:
-            # Show recent PDFs without FTS
-            results = store.search("", limit)
-            search_desc = "recent PDFs"
-
-        if not results:
-            click.echo(f"No results found for {search_desc}")
-            return
-
-        click.echo(f"\nFound {len(results)} results for {search_desc}:\n")
-
-        for i, result in enumerate(results, 1):
-            click.echo(f"{i}. {result['filename']}")
-            click.echo(f"   From: {result['email_from']}")
-            click.echo(f"   Date: {result['email_date']}")
-            if result.get("document_type"):
-                click.echo(f"   Type: {result['document_type']}")
-            click.echo(f"   Path: {result['filepath']}")
-            click.echo()
-
-    except Exception as e:
-        click.echo(f"Error: {e}", err=True)
-        sys.exit(1)
-
-
-@cli.command()
 @click.argument("filepath")
 def data(filepath):
-    """Show all database information for a PDF file
+    """Show indexed information for a document (by path or filename).
 
-    FILEPATH can be either a full path or just the filename.
-    If only a filename is provided, it will search all workflow directories.
-
-    Examples:
-        mailflow data receipts/2025/2025-07-29-dropbox.com-subscription.pdf
-        mailflow data 2025-07-29-dropbox.com-subscription.pdf
+    FILEPATH can be a full path (endswith match on rel_path) or just the filename.
+    Uses global indexes; run `mailflow index` first.
     """
-    import json
+    from mailflow.global_index import GlobalIndex
 
-    from mailflow.metadata_store import MetadataStore
+    cfg = Config()
+    base = cfg.settings.get("archive", {}).get("base_path", "~/Archive")
+    idx_path = Path(base).expanduser() / "indexes"
+    gi = GlobalIndex(str(idx_path))
 
-    # Try different workflow directories
-    config = Config()
-    data_store = DataStore(config)
+    # Try rel_path endswith match
+    doc = None
+    rel = Path(filepath).as_posix()
+    with gi._conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM documents WHERE rel_path LIKE ? ORDER BY id DESC LIMIT 1",
+            (f"%{rel}",),
+        ).fetchone()
+        if not row:
+            # Try filename exact match
+            name = Path(filepath).name
+            row = conn.execute(
+                "SELECT * FROM documents WHERE filename = ? ORDER BY id DESC LIMIT 1",
+                (name,),
+            ).fetchone()
+        doc = dict(row) if row else None
 
-    # Extract base directories from workflows
-    base_dirs = set()
-    for workflow in data_store.workflows.values():
-        if workflow.action_type == "save_pdf" and "directory" in workflow.action_params:
-            dir_path = Path(workflow.action_params["directory"]).expanduser()
-            # Add the actual workflow directory as a base dir
-            base_dirs.add(dir_path)
-
-    # Also try common locations
-    base_dirs.add(Path("~/Documents/mailflow").expanduser())
-    base_dirs.add(Path("~/receipts").expanduser())
-
-    result = None
-    found_in_store = None
-
-    # Try each base directory
-    for base_dir in base_dirs:
-        if not base_dir.exists():
-            continue
-
-        try:
-            store = MetadataStore(str(base_dir))
-            result = store.get_by_filepath(filepath)
-            if result:
-                found_in_store = base_dir
-                break
-        except Exception:
-            continue
-
-    if not result:
-        click.echo(f"No data found for: {filepath}", err=True)
-        click.echo("\nTried searching in:", err=True)
-        for base_dir in sorted(base_dirs):
-            click.echo(f"  - {base_dir}", err=True)
+    if not doc:
+        click.echo(f"No indexed entry found for: {filepath}", err=True)
         sys.exit(1)
 
-    # Format and display the data
-    click.echo(f"\n📄 PDF Metadata for: {result['filename']}")
-    click.echo(f"Database location: {found_in_store}")
+    click.echo(f"\nDocument: {doc['filename']}  ({doc['entity']})")
     click.echo("=" * 60)
+    click.echo(f"Date: {doc['date']}")
+    click.echo(f"Type: {doc['type']}")
+    click.echo(f"Source: {doc['source']}")
+    if doc.get("workflow"):
+        click.echo(f"Workflow: {doc['workflow']}")
+    if doc.get("category"):
+        click.echo(f"Category: {doc['category']}")
+    if doc.get("confidence") is not None:
+        click.echo(f"Confidence: {doc['confidence']:.2f}")
+    click.echo(f"Relative path: {doc['rel_path']}")
+    click.echo(f"Size: {doc.get('size') or 0} bytes")
+    click.echo(f"Hash: {doc.get('hash') or '-'}")
+    try:
+        origin = json.loads(doc.get("origin_json") or "{}")
+    except Exception:
+        origin = {}
+    if origin:
+        click.echo("\nOrigin:")
+        for k, v in origin.items():
+            if k == "classifier":
+                continue
+            click.echo(f"  {k}: {v}")
+        if origin.get("classifier"):
+            c = origin["classifier"]
+            click.echo("\nClassifier:")
+            click.echo(f"  suggestion={c.get('workflow_suggestion')} type={c.get('type')} category={c.get('category')} conf={c.get('confidence')}")
 
-    # File information
-    click.echo("\n📁 File Information:")
-    click.echo(f"  Filename: {result['filename']}")
-    click.echo(f"  Path: {result['filepath']}")
-    click.echo(f"  Size: {result['file_size']:,} bytes ({result['file_size'] / 1024:.1f} KB)")
-    click.echo(f"  Hash: {result['file_hash']}")
-    click.echo(f"  Saved: {result['saved_at']}")
 
-    # Email metadata
-    click.echo("\n📧 Email Metadata:")
-    click.echo(f"  From: {result['email_from']}")
-    click.echo(f"  To: {result['email_to']}")
-    click.echo(f"  Subject: {result['email_subject']}")
-    click.echo(f"  Date: {result['email_date']}")
-    click.echo(f"  Message ID: {result['email_message_id']}")
 
-    # PDF information
-    click.echo("\n📑 PDF Information:")
-    click.echo(f"  Type: {result['pdf_type']} (attachment/converted)")
-    if result["pdf_original_filename"]:
-        click.echo(f"  Original filename: {result['pdf_original_filename']}")
-    if result["pdf_page_count"]:
-        click.echo(f"  Page count: {result['pdf_page_count']}")
 
-    # Document classification
-    click.echo("\n🏷️  Document Classification:")
-    click.echo(f"  Type: {result['document_type'] or 'Not classified'}")
-    click.echo(f"  Category: {result['document_category'] or 'Not categorized'}")
-
-    # Workflow information
-    click.echo("\n⚙️  Workflow Information:")
-    click.echo(f"  Workflow: {result['workflow_name']}")
-    if result["confidence_score"]:
-        click.echo(f"  Confidence: {result['confidence_score']:.2f}")
-
-    # Email headers (parsed JSON)
-    if result["email_headers"]:
-        try:
-            headers = json.loads(result["email_headers"])
-            if headers:
-                click.echo("\n📨 Email Headers:")
-                for key, value in headers.items():
-                    if key.lower() not in ["from", "to", "subject", "date", "message-id"]:
-                        click.echo(f"  {key}: {value}")
-        except:
-            pass
-
-    # Document info (parsed JSON)
-    if result["document_info"]:
-        try:
-            doc_info = json.loads(result["document_info"])
-            if doc_info:
-                click.echo("\n📊 Extracted Document Information:")
-                for key, value in doc_info.items():
-                    click.echo(f"  {key}: {value}")
-        except:
-            pass
-
-    # Structured metadata (parsed JSON)
-    if result.get("metadata"):
-        try:
-            metadata = json.loads(result["metadata"])
-            if metadata:
-                click.echo("\n💼 Structured Metadata:")
-                for key, value in metadata.items():
-                    click.echo(f"  {key}: {value}")
-        except:
-            pass
-
-    # Text content preview
-    if result["pdf_text_content"]:
-        click.echo("\n📝 PDF Text Content (first 500 chars):")
-        text_preview = result["pdf_text_content"][:500].strip()
-        if len(result["pdf_text_content"]) > 500:
-            text_preview += "..."
-        click.echo(f"  {text_preview}")
-
-    if result["email_body_text"] and not result["pdf_text_content"]:
-        click.echo("\n📝 Email Body Text (first 500 chars):")
-        text_preview = result["email_body_text"][:500].strip()
-        if len(result["email_body_text"]) > 500:
-            text_preview += "..."
-        click.echo(f"  {text_preview}")
-
-    click.echo("\n" + "=" * 60)
-
+register_index_commands(cli)
+register_gmail_batch(cli)
 
 @cli.command()
 def setup_workflows():
