@@ -43,20 +43,21 @@ class TestIntegration:
             email_data = extractor.extract(sample_emails["amazon_invoice"])
 
             # Mock user input to create new workflow
-            with patch("mailflow.linein.LineInput.ask") as mock_ask:
-                # User selects "new" then creates invoice workflow
-                mock_ask.side_effect = [
-                    "new",  # Select new workflow
-                    "save-invoices",  # Workflow name
-                    "Save invoice attachments",  # Description
-                    "no",  # Use a workflow template? No
-                    "save_attachment",  # Action type
-                    "~/invoices",  # Directory
-                    "*.pdf",  # Pattern
-                ]
+            # select_workflow now uses builtins.input, _create_new_workflow uses LineInput
+            with patch("builtins.input", return_value="new"):
+                with patch("mailflow.linein.LineInput.ask") as mock_ask:
+                    # LineInput is used in _create_new_workflow
+                    mock_ask.side_effect = [
+                        "save-invoices",  # Workflow name
+                        "Save invoice attachments",  # Description
+                        "no",  # Use a workflow template? No
+                        "save_attachment",  # Action type
+                        "~/invoices",  # Directory
+                        "*.pdf",  # Pattern
+                    ]
 
-                selected = ui.select_workflow(email_data)
-                assert selected == "save-invoices"
+                    selected = ui.select_workflow(email_data)
+                    assert selected == "save-invoices"
 
             # Verify workflow was created and decision was saved
             assert "save-invoices" in data_store.workflows
@@ -123,17 +124,9 @@ class TestIntegration:
             email_data = extractor.extract(sample_emails["cloudflare_invoice"])
 
             # Mock user selecting the suggested workflow
-            with patch("mailflow.linein.LineInput.ask") as mock_ask:
-                mock_ask.return_value = "1"  # Select first suggestion
-
-                # Capture printed output
-                with patch("builtins.print") as mock_print:
-                    selected = ui.select_workflow(email_data)
-
-                    # Check what was suggested
-                    print_calls = [str(call) for call in mock_print.call_args_list]
-                    # The system should have made some suggestion
-                    assert len(print_calls) > 0
+            # select_workflow now uses builtins.input
+            with patch("builtins.input", return_value="1"):  # Select first suggestion
+                selected = ui.select_workflow(email_data)
 
             # The system should have selected something (user pressed "1")
             assert selected is not None
@@ -207,10 +200,8 @@ class TestIntegration:
 
         # Mock the workflow execution
         with patch("mailflow.workflow.save_attachment") as mock_save:
-            with patch("mailflow.linein.LineInput.ask") as mock_ask:
-                # Simulate user selecting to skip
-                mock_ask.return_value = "skip"
-
+            # select_workflow now uses builtins.input; 's' is skip
+            with patch("builtins.input", return_value="s"):
                 if "amazon_invoice" in sample_emails:
                     # Run the process
                     process(sample_emails["amazon_invoice"])

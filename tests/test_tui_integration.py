@@ -1,0 +1,67 @@
+# ABOUTME: Integration tests for TUI workflow selection.
+"""Integration tests for TUI workflow selection."""
+
+from unittest.mock import patch, MagicMock
+from io import StringIO
+
+from mailflow.config import Config
+from mailflow.models import DataStore
+from mailflow.similarity import SimilarityEngine
+from mailflow.ui import WorkflowSelector
+
+
+class TestWorkflowSelectorTUI:
+    def test_displays_email_info(self, temp_config_dir):
+        config = Config(config_dir=temp_config_dir)
+        data_store = DataStore(config)
+        similarity = SimilarityEngine(config)
+
+        selector = WorkflowSelector(config, data_store, similarity)
+
+        email = {
+            "from": "billing@test.com",
+            "subject": "Invoice #123",
+            "body": "Please find attached",
+            "attachments": [{"filename": "invoice.pdf", "size": 1024}],
+            "date": "2025-01-01",
+            "message_id": "<test@example.com>",
+            "features": {"from_domain": "test.com"},
+        }
+
+        # Mock input to return 'skip'
+        with patch('builtins.input', return_value='s'):
+            result = selector.select_workflow(email)
+
+        # Should return None for skip
+        assert result is None
+
+    def test_number_selection_returns_workflow(self, temp_config_dir):
+        config = Config(config_dir=temp_config_dir)
+        data_store = DataStore(config)
+        similarity = SimilarityEngine(config)
+
+        # Add some workflows
+        from mailflow.models import WorkflowDefinition
+        data_store.add_workflow(WorkflowDefinition(
+            name="gsk-invoice",
+            description="GreaterSkies invoices",
+            action_type="save_pdf",
+        ))
+
+        selector = WorkflowSelector(config, data_store, similarity)
+
+        email = {
+            "from": "billing@test.com",
+            "subject": "Invoice #123",
+            "body": "Please find attached",
+            "attachments": [],
+            "date": "2025-01-01",
+            "message_id": "<test@example.com>",
+            "features": {"from_domain": "test.com"},
+        }
+
+        # Mock input to return '1' (select first workflow)
+        with patch('builtins.input', return_value='1'):
+            result = selector.select_workflow(email)
+
+        assert result == "gsk-invoice"

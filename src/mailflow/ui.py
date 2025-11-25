@@ -4,8 +4,12 @@ import asyncio
 import logging
 from datetime import datetime
 
+from rich.console import Console
+from rich.panel import Panel
+
 from mailflow.linein import LineInput
 from mailflow.models import CriteriaInstance, WorkflowDefinition
+from mailflow.tui import display_email, format_workflow_choices, get_workflow_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -22,12 +26,12 @@ class WorkflowSelector:
         self.show_confidence = config.settings["ui"]["show_confidence"]
 
     def select_workflow(self, email_data: dict) -> str | None:
-        """Present workflow options and get user selection"""
+        """Present workflow options using rich TUI and get user selection."""
+        console = Console()
 
         # Get ranked workflows (use llm-archivist if enabled, else hybrid/similarity)
         criteria_instances = self.data_store.get_recent_criteria()
         rankings = []
-        llm_suggestion = None
 
         # Prefer external classifier when enabled
         arch_result = None
@@ -44,125 +48,120 @@ class WorkflowSelector:
                 )
                 arch_result = arch
                 rankings = arch.get("rankings") or []
-                # Treat top candidate as suggestion
-                if rankings:
-                    top_label, top_score, _ = rankings[0]
-                    class _Tmp:  # minimal shim to match existing usage structure
-                        def __init__(self, workflow, confidence, reasoning=""):
-                            self.workflow = workflow
-                            self.confidence = confidence
-                            self.reasoning = reasoning
-
-                    llm_suggestion = _Tmp(top_label, float(top_score))
             except Exception as e:
                 logger.warning(f"archivist classify failed: {e}; falling back")
 
         if not rankings and self.hybrid_classifier:
             try:
-                # Note: hybrid_classifier.classify() manages async context internally
                 result = asyncio.run(
                     self.hybrid_classifier.classify(
                         email_data, self.data_store.workflows, criteria_instances
                     )
                 )
                 rankings = result["rankings"]
-                llm_suggestion = result.get("llm_suggestion")
             except Exception as e:
                 logger.warning(f"Hybrid classification failed: {e}, falling back to similarity")
+
         if not rankings:
             rankings = self.similarity_engine.rank_workflows(
                 email_data["features"], criteria_instances, self.max_suggestions
             )
-            llm_suggestion = llm_suggestion  # keep any previous suggestion
 
         # Store rankings in email_data for later use
         email_data["_rankings"] = rankings
 
-        # Display email info
-        print("\n" + "=" * 60)
-        print(f"From: {email_data['from']}")
-        print(f"Subject: {email_data['subject']}")
-        if email_data["attachments"]:
-            print(f"Attachments: {len(email_data['attachments'])} files")
-            for att in email_data["attachments"][:3]:
-                print(f"  - {att['filename']}")
-        print("=" * 60 + "\n")
-
-        # Display LLM suggestion if available and confident
-        if llm_suggestion and llm_suggestion.confidence > 0.7:
-            print("\n🤖 AI Suggestion:")
-            print(f"  → {llm_suggestion.workflow} ({llm_suggestion.confidence:.0%} confidence)")
-            print(f"     {llm_suggestion.reasoning}")
-            print()
-
-        # Build options list - include all workflow names for tab completion
-        options = ["skip", "new"]
-        option_map = {"skip": None, "new": "new"}
-
-        # Add all workflow names to options for tab completion
-        for wf_name in self.data_store.workflows:
-            options.append(wf_name)
-            option_map[wf_name] = wf_name
-
+        # Determine suggestion and confidence
+        suggestion = None
+        confidence = 0.0
         if rankings:
-            print("Suggested workflows (based on similarity):")
-            for i, (workflow_name, score, instances) in enumerate(rankings, 1):
-                workflow = self.data_store.workflows.get(workflow_name)
-                if workflow:
-                    option_key = str(i)
-                    options.append(option_key)
-                    option_map[option_key] = workflow_name
+            suggestion = rankings[0][0]
+            confidence = rankings[0][1]
 
-                    # Display option
-                    confidence = f" ({score:.0%})" if self.show_confidence else ""
-                    print(f"  {i}. {workflow.description}{confidence}")
+        # Get thread info if available
+        thread_info = email_data.get("_thread_info")
 
-                    # Show why it matched
-                    if instances and score > 0.3:
-                        best_instance = instances[0]
-                        explanations = self.similarity_engine.get_feature_explanation(
-                            email_data["features"], best_instance
-                        )
-                        if explanations:
-                            print(f"     Matches because: {', '.join(explanations.values())}")
-        else:
-            print("No similar workflows found in history.\n")
+        # Display email using rich TUI
+        position = email_data.get("_position", 1)
+        total = email_data.get("_total", 1)
+        display_email(console, email_data, position, total, thread_info)
 
-        print("\nOptions:")
-        print("  Enter number (1-9) to select a suggested workflow")
-        print("  Type workflow name (with tab completion)")
-        print("  'skip' to skip this email")
-        print("  'new' to create a new workflow")
+        # Show workflow choices
+        console.print(format_workflow_choices(
+            self.data_store.workflows,
+            default=suggestion,
+            confidence=confidence
+        ))
 
-        # Get user input
-        if rankings and rankings[0][1] > 0.7:
-            # High confidence match, suggest as default
-            default = "1"
-            prompt_text = f"Selection [default: {default}]"
-        else:
-            default = None
-            prompt_text = "Selection"
+        # Get input
+        prompt = get_workflow_prompt(suggestion)
 
-        selector = LineInput(prompt_text, typical=options, only_typical=False, with_history=True)
+        while True:
+            choice = input(prompt).strip().lower()
 
-        choice = selector.ask(default=default)
+            # Handle empty input (accept default)
+            if not choice and suggestion:
+                selected = suggestion
+                break
 
-        selected_workflow = option_map.get(choice)
+            # Handle skip
+            if choice == 's':
+                self.data_store.record_skip(
+                    email_data.get("message_id", ""),
+                    email_data.get("features", {})
+                )
+                return None
 
-        if selected_workflow == "new":
-            # Create new workflow
-            selected_workflow = self._create_new_workflow()
+            # Handle next (no action)
+            if choice == 'n':
+                return None
 
-        if selected_workflow:
-            # Record the decision
+            # Handle expand
+            if choice == 'e':
+                # Show full content
+                body = email_data.get('body', '')
+                console.print(Panel(body, title="Full Content"))
+                continue
+
+            # Handle help
+            if choice == '?':
+                console.print("Enter: accept suggestion | 1-9: select workflow | s: skip | n: next | e: expand | new: create workflow")
+                continue
+
+            # Handle 'new' for workflow creation
+            if choice == 'new':
+                selected = self._create_new_workflow()
+                if selected:
+                    break
+                continue
+
+            # Handle number selection
+            if choice.isdigit():
+                idx = int(choice) - 1
+                workflow_names = sorted(self.data_store.workflows.keys())
+                if 0 <= idx < len(workflow_names):
+                    selected = workflow_names[idx]
+                    break
+                else:
+                    console.print(f"Invalid number: {choice}", style="red")
+                    continue
+
+            # Handle workflow name
+            if choice in self.data_store.workflows:
+                selected = choice
+                break
+
+            console.print(f"Unknown choice: {choice}", style="red")
+
+        # Record the decision
+        if selected:
             instance = CriteriaInstance(
-                email_id=email_data["message_id"],
-                workflow_name=selected_workflow,
+                email_id=email_data.get("message_id", ""),
+                workflow_name=selected,
                 timestamp=datetime.now(),
-                email_features=email_data["features"],
+                email_features=email_data.get("features", {}),
                 user_confirmed=True,
                 confidence_score=(
-                    rankings[0][1] if rankings and rankings[0][0] == selected_workflow else 0.0
+                    rankings[0][1] if rankings and rankings[0][0] == selected else 0.0
                 ),
             )
             self.data_store.add_criteria_instance(instance)
@@ -171,11 +170,11 @@ class WorkflowSelector:
             try:
                 if arch_result and arch_result.get("decision_id"):
                     from mailflow.archivist_integration import record_feedback
-                    record_feedback(int(arch_result["decision_id"]), selected_workflow, "confirmed")
+                    record_feedback(int(arch_result["decision_id"]), selected, "confirmed")
             except Exception as e:
                 logger.debug(f"archivist feedback not recorded: {e}")
 
-        return selected_workflow
+        return selected
 
     def _create_new_workflow(self) -> str | None:
         """Interactive workflow creation"""
