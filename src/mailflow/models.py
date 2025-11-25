@@ -254,3 +254,19 @@ class DataStore:
         limit = min(limit, len(self.criteria_instances))
         sorted_criteria = sorted(self.criteria_instances, key=lambda x: x.timestamp, reverse=True)
         return sorted_criteria[:limit]
+
+    def record_skip(self, email_id: str, features: dict) -> None:
+        """Record a skip decision for classifier training (negative example).
+
+        Args:
+            email_id: The message ID of the skipped email
+            features: Email features dict for training
+        """
+        instance = CriteriaInstance(
+            email_id=email_id,
+            workflow_name="_skip",
+            timestamp=datetime.now(),
+            email_features=features,
+            user_confirmed=True,
+        )
+        self.add_criteria_instance(instance)
