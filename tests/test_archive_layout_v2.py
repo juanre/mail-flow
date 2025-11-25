@@ -39,9 +39,9 @@ def test_layout_v2_docs_and_originals(temp_config_dir):
     result = save_pdf(message=email_data, workflow="acme-invoice", config=config)
     assert result["success"]
 
-    # Check saved doc path uses docs/{YYYY}/ and normalized name
+    # Check saved doc path uses {doctype}/{YYYY}/ and normalized name
     doc_path = Path(result["documents"][0]["content_path"])
-    assert "/acme/docs/2025/" in str(doc_path)
+    assert "/acme/invoice/2025/" in str(doc_path)
     assert doc_path.suffix == ".pdf"
     assert doc_path.read_bytes() == content
 

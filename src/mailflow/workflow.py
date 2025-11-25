@@ -10,7 +10,7 @@ from mailflow.attachment_handler import extract_attachments
 from mailflow.exceptions import WorkflowError
 from mailflow.pdf_converter import email_to_pdf_bytes
 from mailflow.security import validate_path
-from mailflow.utils import write_original_file
+from mailflow.utils import write_original_file, parse_doctype_from_workflow
 from file_classifier import Model, extract_features
 from mailflow.attachment_conversion import convert_attachment
 
@@ -21,7 +21,8 @@ def save_attachment(
     message: dict[str, Any],
     workflow: str,
     config,
-    pattern: str = "*.*"
+    pattern: str = "*.*",
+    directory: str | None = None
 ) -> dict:
     """Save attachments matching pattern using archive-protocol
 
@@ -30,6 +31,8 @@ def save_attachment(
         workflow: Workflow name (e.g., "jro-invoice")
         config: Config object
         pattern: Pattern for attachment matching (default: "*.*")
+        directory: Subdirectory within entity (e.g., "invoice"). Defaults to
+                  the doc-type extracted from workflow name.
 
     Returns:
         dict with success status and saved documents
@@ -94,6 +97,7 @@ def save_attachment(
                         origin_extra = {"classifier": {"workflow_suggestion": wf, "type": "", "category": "", "confidence": score}}
             except Exception:
                 pass
+            subdirectory = directory or parse_doctype_from_workflow(workflow)
             document_id, content_path, metadata_path = writer.write_document(
                 workflow=workflow,
                 content=content,
@@ -108,7 +112,8 @@ def save_attachment(
                     **origin_extra,
                 },
                 document_type="attachment",
-                original_filename=filename
+                original_filename=filename,
+                subdirectory=subdirectory
             )
             logger.info(f"Saved attachment {filename} to {content_path}")
             results.append({
@@ -200,7 +205,8 @@ def create_todo(message: dict[str, Any], todo_file: str = "~/todos.txt"):
 def save_email_pdf(
     message: dict[str, Any],
     workflow: str,
-    config
+    config,
+    directory: str | None = None
 ) -> dict:
     """Save the entire email as a PDF file using archive-protocol
 
@@ -210,6 +216,8 @@ def save_email_pdf(
         message: Email data
         workflow: Workflow name (e.g., "jro-receipt")
         config: Config object
+        directory: Subdirectory within entity (e.g., "receipt"). Defaults to
+                  the doc-type extracted from workflow name.
 
     Returns:
         dict with document_id, content_path, success status
@@ -238,6 +246,7 @@ def save_email_pdf(
         # Convert email to PDF
         pdf_bytes = email_to_pdf_bytes(message_obj, message)
 
+        subdirectory = directory or parse_doctype_from_workflow(workflow)
         document_id, content_path, metadata_path = writer.write_document(
             workflow=workflow,
             content=pdf_bytes,
@@ -251,7 +260,8 @@ def save_email_pdf(
                 "converted_from_email": True
             },
             document_type="email",
-            original_filename=f"{message.get('subject', 'email')}.pdf"
+            original_filename=f"{message.get('subject', 'email')}.pdf",
+            subdirectory=subdirectory
         )
         logger.info(f"Converted email to PDF at {content_path}")
 
@@ -273,7 +283,8 @@ def save_pdf(
     message: dict[str, Any],
     workflow: str,
     config,
-    pattern: str = "*.pdf"
+    pattern: str = "*.pdf",
+    directory: str | None = None
 ) -> dict:
     """Save PDF: extracts PDF attachment if exists, otherwise converts email to PDF
 
@@ -287,6 +298,8 @@ def save_pdf(
         workflow: Workflow name (e.g., "jro-expense")
         config: Config object
         pattern: Pattern for attachment matching (default: "*.pdf")
+        directory: Subdirectory within entity (e.g., "expense"). Defaults to
+                  the doc-type extracted from workflow name.
 
     Returns:
         dict with document_id, content_path, success status
@@ -349,6 +362,7 @@ def save_pdf(
                 except Exception as e:
                     logger.warning(f"Classifier unavailable or failed: {e}")
 
+                subdirectory = directory or parse_doctype_from_workflow(workflow)
                 document_id, content_path, metadata_path = writer.write_document(
                     workflow=workflow,
                     content=content,
@@ -363,7 +377,8 @@ def save_pdf(
                         **origin_extra,
                     },
                     document_type="document",
-                    original_filename=filename
+                    original_filename=filename,
+                    subdirectory=subdirectory
                 )
                 logger.info(f"Saved PDF attachment to {content_path}")
                 results.append({
@@ -444,6 +459,7 @@ def save_pdf(
             except Exception:
                 pass
 
+            subdirectory = directory or parse_doctype_from_workflow(workflow)
             document_id, content_path, metadata_path = writer.write_document(
                 workflow=workflow,
                 content=pdf_bytes,
@@ -458,7 +474,8 @@ def save_pdf(
                     **origin_extra,
                 },
                 document_type="email",
-                original_filename=f"{message.get('subject', 'email')}.pdf"
+                original_filename=f"{message.get('subject', 'email')}.pdf",
+                subdirectory=subdirectory
             )
             logger.info(f"Converted email to PDF at {content_path}")
 

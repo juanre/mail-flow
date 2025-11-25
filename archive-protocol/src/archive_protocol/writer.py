@@ -72,7 +72,8 @@ class RepositoryWriter:
         attachment_mimetypes: list[str] | None = None,
         tags: list[str] | None = None,
         relationships: list[dict] | None = None,
-        original_filename: str | None = None
+        original_filename: str | None = None,
+        subdirectory: str | None = None
     ) -> tuple[str, Path, Path]:
         """Write classified document to workflows directory.
 
@@ -89,6 +90,8 @@ class RepositoryWriter:
             tags: List of tags
             relationships: List of relationship dicts
             original_filename: Original filename for extension detection
+            subdirectory: Subdirectory within entity (e.g., "invoice", "receipt").
+                         Defaults to "docs" if not specified.
 
         Returns:
             Tuple of (document_id, content_path, metadata_path)
@@ -125,7 +128,7 @@ class RepositoryWriter:
         )
 
         # Resolve paths (v2 layout)
-        workflow_dir = self._resolve_workflow_path(workflow, created_at)
+        workflow_dir = self._resolve_workflow_path(workflow, created_at, subdirectory)
 
         # Generate filename (v2 layout)
         extension = self._get_extension_from_mimetype(mimetype, original_filename)
@@ -259,14 +262,17 @@ class RepositoryWriter:
         logger.info(f"Wrote stream document {document_id} to {content_path}")
         return document_id, content_path, metadata_path
 
-    def _resolve_workflow_path(self, workflow: str, created_at: datetime) -> Path:
+    def _resolve_workflow_path(
+        self, workflow: str, created_at: datetime, subdirectory: str | None = None
+    ) -> Path:
         """Resolve path for workflow directory with year subdirectory.
 
-        Path format (v2): {base_path}/{entity}/docs/{YYYY}
+        Path format (v2): {base_path}/{entity}/{subdirectory}/{YYYY}
 
         Args:
             workflow: Workflow name
             created_at: Document creation timestamp (for year extraction)
+            subdirectory: Subdirectory within entity. Defaults to "docs".
 
         Returns:
             Absolute path to workflow year directory
@@ -276,7 +282,8 @@ class RepositoryWriter:
         """
         try:
             year_str = created_at.strftime("%Y")
-            content_path = self.base_path / self.entity / "docs" / year_str
+            subdir = subdirectory or "docs"
+            content_path = self.base_path / self.entity / subdir / year_str
 
             if self.config.create_directories:
                 content_path.mkdir(parents=True, exist_ok=True, mode=0o755)

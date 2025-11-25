@@ -278,6 +278,39 @@ def parse_entity_from_workflow(workflow_name: str) -> str:
     return entity
 
 
+def parse_doctype_from_workflow(workflow_name: str) -> str:
+    """Parse document type from workflow name.
+
+    Workflow names follow the format: entity-doctype (e.g., jro-expense, tsm-invoice).
+    This function extracts the document type identifier from the workflow name.
+
+    Examples:
+        parse_doctype_from_workflow("jro-expense") → "expense"
+        parse_doctype_from_workflow("tsm-invoice") → "invoice"
+        parse_doctype_from_workflow("gsk-tax-doc") → "tax-doc"
+
+    Args:
+        workflow_name: Workflow name in entity-doctype format
+
+    Returns:
+        Document type identifier (lowercase)
+
+    Raises:
+        ValueError: If workflow name doesn't follow entity-doctype pattern
+    """
+    if not workflow_name or not isinstance(workflow_name, str):
+        raise ValueError(f"Invalid workflow name: {workflow_name}")
+
+    parts = workflow_name.split('-', 1)
+    if len(parts) < 2:
+        raise ValueError(
+            f"Invalid workflow name: '{workflow_name}'. "
+            "Expected format: entity-doctype (e.g., jro-expense)"
+        )
+
+    return parts[1]
+
+
 def write_original_file(
     base_path: str,
     entity: str,
