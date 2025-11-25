@@ -98,3 +98,59 @@ def display_email(
         console.print(Panel(preview, title="Preview", border_style="dim"))
 
     console.print()
+
+
+def format_workflow_choices(
+    workflows: dict,
+    default: str | None,
+    confidence: float
+) -> str:
+    """Format workflow choices for display.
+
+    Args:
+        workflows: Dict of workflow name -> WorkflowDefinition
+        default: Suggested default workflow name or None
+        confidence: Confidence score for default (0-1)
+
+    Returns:
+        Formatted string showing workflow options
+    """
+    lines = []
+
+    # Show suggestion if we have one
+    if default and confidence > 0:
+        lines.append(f"Suggested: {default} ({confidence:.0%} confidence)")
+        lines.append("")
+
+    # Show workflows in rows of 3
+    lines.append("Workflows:")
+    workflow_names = sorted(workflows.keys())
+    row = []
+    for i, name in enumerate(workflow_names, 1):
+        marker = " ←" if name == default else ""
+        row.append(f"[{i}] {name}{marker}")
+        if len(row) == 3:
+            lines.append("  " + "  ".join(row))
+            row = []
+    if row:
+        lines.append("  " + "  ".join(row))
+
+    # Action keys
+    lines.append("")
+    lines.append("  [s] skip    [e] expand    [n] next    [?] help")
+
+    return '\n'.join(lines)
+
+
+def get_workflow_prompt(default: str | None) -> str:
+    """Get the input prompt string.
+
+    Args:
+        default: Default workflow name or None
+
+    Returns:
+        Prompt string for input
+    """
+    if default:
+        return f"Choice [Enter={default}]: "
+    return "Choice: "

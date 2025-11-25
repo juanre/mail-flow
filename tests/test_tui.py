@@ -5,7 +5,7 @@ from io import StringIO
 
 from rich.console import Console
 
-from mailflow.tui import display_email, format_attachment_indicator
+from mailflow.tui import display_email, format_attachment_indicator, format_workflow_choices
 
 
 class TestFormatAttachmentIndicator:
@@ -71,3 +71,28 @@ class TestDisplayEmail:
 
         result = output.getvalue()
         assert "Thread 2/5" in result or "2/5" in result
+
+
+class TestFormatWorkflowChoices:
+    def test_shows_numbered_workflows(self):
+        workflows = {
+            "gsk-invoice": type("W", (), {"description": "GreaterSkies invoices"})(),
+            "gsk-receipt": type("W", (), {"description": "GreaterSkies receipts"})(),
+        }
+        result = format_workflow_choices(workflows, default=None, confidence=0)
+        assert "[1]" in result
+        assert "[2]" in result
+        assert "gsk-invoice" in result
+
+    def test_shows_default_suggestion(self):
+        workflows = {
+            "gsk-invoice": type("W", (), {"description": "GreaterSkies invoices"})(),
+        }
+        result = format_workflow_choices(workflows, default="gsk-invoice", confidence=0.78)
+        assert "gsk-invoice" in result
+        assert "78%" in result or "0.78" in result
+
+    def test_shows_skip_option(self):
+        workflows = {}
+        result = format_workflow_choices(workflows, default=None, confidence=0)
+        assert "[s]" in result.lower() or "skip" in result.lower()
