@@ -85,9 +85,11 @@ def display_email(
 
     # Attachments with PDF highlighting
     attachments = email.get('attachments', [])
-    att_indicator = format_attachment_indicator(attachments)
-    if att_indicator:
+    if attachments:
+        att_indicator = format_attachment_indicator(attachments)
         console.print(att_indicator, style="bold green")
+    else:
+        console.print("(no attachments)", style="dim")
 
     # Body preview
     body = email.get('body', '')
@@ -135,9 +137,9 @@ def format_workflow_choices(
     if row:
         lines.append("  " + "  ".join(row))
 
-    # Action keys
+    # Action keys - escape brackets with backslash so Rich doesn't interpret as markup
     lines.append("")
-    lines.append("  [s] skip    [e] expand    [n] next    [?] help")
+    lines.append("  \\[s] skip    \\[e] expand    \\[n] next    \\[?] help")
 
     return '\n'.join(lines)
 
