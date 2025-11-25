@@ -9,6 +9,7 @@ from mailflow.gmail_api import poll_and_process as gmail_poll
 from mailflow.models import DataStore
 from mailflow.process import process as process_email
 from mailflow.processed_emails_tracker import ProcessedEmailsTracker
+from mailflow.thread_detector import detect_threads, get_thread_info
 
 
 def _discover_email_files(base: Path) -> list[Path]:
@@ -140,13 +141,34 @@ def register(cli):
         if dry_run:
             click.echo("DRY RUN MODE - no workflows will be executed")
 
-        stats = {"processed": 0, "auto": 0, "skipped": 0, "errors": 0}
-
-        for i, email_file in enumerate(email_files, 1):
+        # Pre-extract all emails to detect threads
+        click.echo("Analyzing email threads...")
+        email_contents = []
+        email_data_list = []
+        for email_file in email_files:
             try:
                 with open(email_file, encoding="utf-8", errors="replace") as f:
-                    email_content = f.read()
-                email_data = extractor.extract(email_content)
+                    content = f.read()
+                email_contents.append(content)
+                email_data_list.append(extractor.extract(content))
+            except Exception:
+                email_contents.append("")
+                email_data_list.append({})
+
+        # Detect threads
+        threads = detect_threads(email_data_list)
+
+        stats = {"processed": 0, "auto": 0, "skipped": 0, "errors": 0}
+        total = len(email_files)
+
+        for i, (email_file, email_content, email_data) in enumerate(
+            zip(email_files, email_contents, email_data_list), 1
+        ):
+            try:
+                if not email_content:
+                    stats["errors"] += 1
+                    continue
+
                 message_id = email_data.get("message_id")
 
                 if not force and tracker.is_processed(email_content, message_id):
@@ -154,15 +176,22 @@ def register(cli):
                     prev_workflow = (
                         processed_info.get("workflow_name", "unknown") if processed_info else "unknown"
                     )
-                    click.echo(f"[{i}/{len(email_files)}] SKIP {email_file.name}: Already processed ({prev_workflow})")
+                    click.echo(f"[{i}/{total}] SKIP {email_file.name}: Already processed ({prev_workflow})")
                     stats["skipped"] += 1
                     continue
 
+                # Build context with position and thread info
+                context = {
+                    "_position": i,
+                    "_total": total,
+                    "_thread_info": get_thread_info(email_data, threads),
+                }
+
                 # Process one email through standard pipeline (interactive selection)
-                process_email(email_content, config=config, force=force, dry_run=dry_run)
+                process_email(email_content, config=config, force=force, dry_run=dry_run, context=context)
                 stats["processed"] += 1
             except Exception as e:
-                click.echo(f"[{i}/{len(email_files)}] ERROR {email_file.name}: {e}", err=True)
+                click.echo(f"[{i}/{total}] ERROR {email_file.name}: {e}", err=True)
                 stats["errors"] += 1
 
         click.echo("\nSummary:")

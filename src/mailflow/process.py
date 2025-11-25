@@ -28,6 +28,7 @@ def process(
     llm_model: str | None = None,
     force: bool = False,
     dry_run: bool = False,
+    context: dict | None = None,
 ) -> None:
     """
     Process an email message through the mailflow workflow.
@@ -38,6 +39,7 @@ def process(
         llm_enabled: Override config to enable/disable LLM classification
         llm_model: Override config LLM model alias (fast, balanced, deep)
         force: Force reprocessing of already processed emails
+        context: Optional extra context to merge into email_data (e.g., _position, _total, _thread_info)
     """
     try:
         # Initialize components
@@ -77,6 +79,11 @@ def process(
         # Extract email data
         logger.debug("Extracting email features")
         email_data = extractor.extract(message)
+
+        # Merge optional context (e.g., batch position, thread info)
+        if context:
+            email_data.update(context)
+
         message_id = email_data.get("message_id", "")
         logger.info(f"Processing email from {email_data.get('from', 'unknown')}")
 
