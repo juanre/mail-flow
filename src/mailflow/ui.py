@@ -67,6 +67,10 @@ class WorkflowSelector:
                 email_data["features"], criteria_instances, self.max_suggestions
             )
 
+        # Filter rankings to only include existing workflows
+        valid_workflows = set(self.data_store.workflows.keys())
+        rankings = [r for r in rankings if r[0] in valid_workflows]
+
         # Store rankings in email_data for later use
         email_data["_rankings"] = rankings
 
