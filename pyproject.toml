@@ -81,7 +81,7 @@ norecursedirs = ["llmring"]
 llmring = { path = "../llmring-all/llmring" }
 archive-protocol = { workspace = true }
 file-classifier-core = { workspace = true }
-llm-archivist = { path = "../llm-archivist" }
+llm-archivist = { path = "llm-archivist" }
 
 [tool.uv.workspace]
 members = [

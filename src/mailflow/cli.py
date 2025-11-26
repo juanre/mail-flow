@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import click
+from dotenv import load_dotenv
 
 from mailflow.config import Config
 from mailflow.commands.index_search import register as register_index_commands
@@ -33,6 +34,9 @@ def cli(ctx, debug, llm, llm_model, force):
 
     When invoked without a subcommand, processes email from stdin.
     """
+    # Load environment from .env if present (for archivist/LLM/DB config)
+    load_dotenv()
+
     # Store options in context for process_stdin to use
     ctx.ensure_object(dict)
     ctx.obj["llm"] = llm
@@ -69,6 +73,38 @@ def process_stdin(ctx):
     except Exception as e:
         logger.error(f"Failed to process email: {e}", exc_info=True)
         sys.exit(1)
+
+
+@cli.command(name="archivist-metrics")
+def archivist_metrics() -> None:
+    """Show basic llm-archivist metrics (DB or dev)."""
+    from mailflow.archivist_client import get_metrics
+
+    try:
+        metrics = get_metrics()
+    except Exception as exc:  # pragma: no cover - operational
+        click.echo(f"Error fetching archivist metrics: {exc}", err=True)
+        raise SystemExit(1)
+
+    # Print a compact, human-readable summary
+    mode = metrics.get("mode", "dev")
+    decisions = metrics.get("decisions", metrics.get("decisions", 0))
+    feedback = metrics.get("feedback", metrics.get("feedback", 0))
+    click.echo(f"Archivist mode: {mode}")
+    click.echo(f"Decisions: {decisions}")
+    click.echo(f"Feedback: {feedback}")
+
+    by_label = metrics.get("by_label") or {}
+    if by_label:
+        click.echo("\nDecisions by label:")
+        for label, count in sorted(by_label.items(), key=lambda x: (-x[1], x[0])):
+            click.echo(f"  {label}: {count}")
+
+    advisor_top1 = metrics.get("advisor_top1") or {}
+    if advisor_top1:
+        click.echo("\nTop-1 advisor usage:")
+        for name, count in sorted(advisor_top1.items(), key=lambda x: (-x[1], x[0])):
+            click.echo(f"  {name}: {count}")
 
 
 @cli.command()

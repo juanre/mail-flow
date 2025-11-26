@@ -900,7 +900,7 @@ wheels = [
 [[package]]
 name = "llm-archivist"
 version = "0.1.0"
-source = { directory = "../llm-archivist" }
+source = { directory = "llm-archivist" }
 dependencies = [
     { name = "click" },
     { name = "llmring" },
@@ -1035,7 +1035,7 @@ requires-dist = [
     { name = "google-auth", specifier = ">=2.40.3" },
     { name = "google-auth-oauthlib", specifier = ">=1.2.2" },
     { name = "html2text", specifier = ">=2025.4.15" },
-    { name = "llm-archivist", directory = "../llm-archivist" },
+    { name = "llm-archivist", directory = "llm-archivist" },
     { name = "llmring", directory = "../llmring-all/llmring" },
     { name = "playwright", specifier = ">=1.54.0" },
     { name = "python-dateutil", specifier = ">=2.9.0.post0" },

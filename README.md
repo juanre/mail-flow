@@ -32,6 +32,18 @@ playwright install chromium
 uv run mailflow init
 ```
 
+### One-time setup on a new machine
+
+On a fresh machine, the recommended sequence is:
+
+1. Install dependencies as above (`uv sync`, Playwright).
+2. Create a `.env` file in the project root (next to `pyproject.toml`) with:
+   - Archivist DB config: `ARCHIVIST_USE_DB`, `DATABASE_URL`, `ARCHIVIST_DB_SCHEMA`, `ARCHIVIST_DB_NAME`.
+   - LLM keys: at least `OPENAI_API_KEY` (and optionally `ANTHROPIC_API_KEY`).
+3. Initialize the archivist database (see “Classifier Integration” below).
+4. Run `uv run mailflow init` to create mailflow config and workflows.
+5. Do a small dry-run batch on a representative Maildir to confirm everything works.
+
 ## Quick Start
 
 ```bash
@@ -90,33 +102,38 @@ mailflow integrates with the llm-archivist library. It is enabled by default and
 
 ```bash
 # 1) Database (Postgres) – one‑time setup (psql)
-CREATE DATABASE archivist;
+CREATE DATABASE archivist_mailflow;
 CREATE USER archivist WITH PASSWORD 'changeme';
-GRANT ALL PRIVILEGES ON DATABASE archivist TO archivist;
-\c archivist
-CREATE SCHEMA IF NOT EXISTS archivist;
+GRANT ALL PRIVILEGES ON DATABASE archivist_mailflow TO archivist;
+\c archivist_mailflow
+CREATE SCHEMA IF NOT EXISTS archivist_mailflow;
 -- pgvector: llm‑archivist migrations will attempt this automatically;
 -- if your role cannot create extensions, have an admin pre‑install it.
 CREATE EXTENSION IF NOT EXISTS vector;
 
-# 2) Environment (shell)
-export ARCHIVIST_USE_DB=1
-export DATABASE_URL='postgresql://archivist:changeme@localhost:5432/archivist'
-export ARCHIVIST_DB_SCHEMA=archivist
-export OPENAI_API_KEY=...     # required for embeddings + LLM
+# 2) Environment (.env in project root or shell exports)
+# Example values – adjust user/password/host as needed
+ARCHIVIST_USE_DB=1
+DATABASE_URL='postgresql://archivist:changeme@localhost:5432/archivist_mailflow'
+ARCHIVIST_DB_SCHEMA=archivist_mailflow
+ARCHIVIST_DB_NAME=archivist_mailflow
+OPENAI_API_KEY=...     # required for embeddings + LLM
 # Optional safety controls
-export ARCHIVIST_PERSIST_EMBED=1        # store embeddings after decisions
-export ARCHIVIST_LLM_BUDGET_USD=5       # cap spending
-export ARCHIVIST_LLM_RETRIES=1          # retry LLM on transient failures
+ARCHIVIST_PERSIST_EMBED=1        # store embeddings after decisions
+ARCHIVIST_LLM_BUDGET_USD=5       # cap spending
+ARCHIVIST_LLM_RETRIES=1          # retry LLM on transient failures
 
-# 3) Bootstrap (optional) – triggers migrations via llm‑archivist
-uv run llm-archivist metrics
+# 3) Bootstrap – create schema and apply migrations via llm‑archivist
+uv run python -m llm_archivist.cli db-init --bootstrap
 
 # 4) Dry‑run training from files/Maildir (no writes; trains both systems)
 uv run mailflow fetch files ~/Mail/juan-gsk --dry-run
 
 # 5) Apply for real after training
 uv run mailflow fetch files ~/Mail/juan-gsk
+
+# 6) Sanity check archivist metrics (optional)
+uv run mailflow archivist-metrics
 ```
 
 Notes
