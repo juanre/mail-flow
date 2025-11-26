@@ -7,6 +7,40 @@ from email.header import decode_header
 from email.message import Message
 from typing import Any
 
+# Stopwords to exclude from feature extraction - common words with no discriminative value
+STOPWORDS = frozenset({
+    # Articles and determiners
+    "a", "an", "the", "this", "that", "these", "those",
+    # Pronouns
+    "i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your",
+    "yours", "yourself", "yourselves", "he", "him", "his", "himself", "she",
+    "her", "hers", "herself", "it", "its", "itself", "they", "them", "their",
+    "theirs", "themselves", "what", "which", "who", "whom",
+    # Prepositions
+    "in", "on", "at", "by", "for", "with", "about", "against", "between",
+    "into", "through", "during", "before", "after", "above", "below", "to",
+    "from", "up", "down", "out", "off", "over", "under",
+    # Conjunctions
+    "and", "but", "or", "nor", "so", "yet", "both", "either", "neither",
+    # Common verbs
+    "is", "are", "was", "were", "be", "been", "being", "have", "has", "had",
+    "having", "do", "does", "did", "doing", "would", "should", "could", "ought",
+    "will", "shall", "can", "may", "might", "must",
+    # Other common words
+    "of", "as", "if", "then", "than", "because", "while", "although", "though",
+    "where", "when", "how", "why", "all", "each", "every", "any", "some", "no",
+    "not", "only", "own", "same", "such", "too", "very", "just", "also", "now",
+    "here", "there", "more", "most", "other", "another", "much", "many", "few",
+    "less", "least", "well", "back", "even", "still", "way", "take", "come",
+    "made", "find", "make", "like", "time", "new", "want", "use", "used",
+    # Email-specific noise
+    "http", "https", "www", "com", "org", "net", "html", "email", "mail",
+    "click", "link", "unsubscribe", "view", "browser", "please", "thank",
+    "thanks", "regards", "sincerely", "best", "hello", "hi", "dear",
+    # Single characters and numbers (except potentially meaningful ones)
+    "e", "f", "l", "s", "t", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+})
+
 from mailflow.exceptions import EmailParsingError
 from mailflow.security import (
     MAX_ATTACHMENT_COUNT,
@@ -342,9 +376,17 @@ class EmailExtractor:
         subject_lower = email_data["subject"].lower()
         body_preview = email_data["body"][:MAX_BODY_PREVIEW_LENGTH].lower()
 
-        # Extract keywords (limit number to prevent memory issues)
-        features["subject_words"] = list(set(re.findall(r"\b\w+\b", subject_lower)))[:100]
-        features["body_preview_words"] = list(set(re.findall(r"\b\w+\b", body_preview)))[:200]
+        # Extract keywords, filtering stopwords and short tokens
+        subject_tokens = set(re.findall(r"\b\w+\b", subject_lower))
+        body_tokens = set(re.findall(r"\b\w+\b", body_preview))
+
+        # Filter: remove stopwords, keep tokens with 2+ chars
+        features["subject_words"] = [
+            w for w in subject_tokens if w not in STOPWORDS and len(w) >= 2
+        ][:100]
+        features["body_preview_words"] = [
+            w for w in body_tokens if w not in STOPWORDS and len(w) >= 2
+        ][:200]
 
         # Size features
         features["subject_length"] = len(email_data["subject"])
