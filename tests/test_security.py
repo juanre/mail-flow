@@ -20,9 +20,12 @@ class TestPathValidation:
     """Test path validation security"""
 
     def test_path_traversal_simple_dotdot(self):
-        """Path traversal with ../ should be prevented"""
-        with pytest.raises(PathSecurityError):
-            validate_path("../../../etc/passwd")
+        """Path traversal with ../ should be prevented when escaping allowed dirs"""
+        # Use a temp directory as the allowed base to make the test deterministic.
+        # The relative path resolves from CWD and won't be under the temp dir.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with pytest.raises(PathSecurityError, match="outside allowed directories"):
+                validate_path("../../../etc/passwd", allowed_base_dirs=[tmpdir])
 
     def test_path_traversal_with_home_expansion(self):
         """Path traversal via home expansion should be prevented"""
