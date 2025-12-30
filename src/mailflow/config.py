@@ -165,10 +165,8 @@ class Config:
             },
             "security": {"max_email_size_mb": 25},
             "llm": {
-                "enabled": False,  # Opt-in, disabled by default
+                "enabled": True,  # LLM classification enabled by default
                 "model_alias": "balanced",  # fast, balanced, or deep
-                "high_confidence_threshold": 0.85,  # Auto-accept above this
-                "medium_confidence_threshold": 0.50,  # Offer LLM assist above this
                 "fallback_to_similarity": True,  # Fall back if LLM fails
             },
             "archive": {
@@ -202,8 +200,6 @@ class Config:
         ui_settings = self.settings.get("ui", {})
         ui_settings["max_suggestions"] = min(max(1, ui_settings.get("max_suggestions", 5)), 20)
 
-        self.settings.get("storage", {})
-
         # Validate LLM settings
         llm_settings = self.settings.get("llm", {})
 
@@ -216,29 +212,6 @@ class Config:
                 f"Valid options: {', '.join(valid_models)}"
             )
             llm_settings["model_alias"] = "balanced"
-
-        # Validate confidence thresholds (0.0-1.0 range)
-        for threshold_key in ["high_confidence_threshold", "medium_confidence_threshold"]:
-            threshold = llm_settings.get(threshold_key)
-            if threshold is not None:
-                if not isinstance(threshold, (int, float)) or not 0.0 <= threshold <= 1.0:
-                    logger.warning(
-                        f"Invalid LLM {threshold_key}: {threshold}, must be between 0.0 and 1.0. "
-                        f"Using default 0.85 for high, 0.50 for medium"
-                    )
-                    default_val = 0.85 if "high" in threshold_key else 0.50
-                    llm_settings[threshold_key] = default_val
-
-        # Validate high threshold is greater than medium
-        high = llm_settings.get("high_confidence_threshold", 0.85)
-        medium = llm_settings.get("medium_confidence_threshold", 0.50)
-        if high <= medium:
-            logger.warning(
-                f"LLM high_confidence_threshold ({high}) must be > medium_confidence_threshold ({medium}). "
-                f"Resetting to defaults: high=0.85, medium=0.50"
-            )
-            llm_settings["high_confidence_threshold"] = 0.85
-            llm_settings["medium_confidence_threshold"] = 0.50
 
         # Archive layout should default to v2; coerce older configs gently
         archive_settings = self.settings.get("archive", {})

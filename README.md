@@ -70,7 +70,6 @@ The `.env` file controls all configuration. Key variables:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `ARCHIVIST_USE_DB` | **Yes** | Must be `1` for persistent learning |
 | `DATABASE_URL` | **Yes** | PostgreSQL connection string |
 | `ARCHIVIST_DB_SCHEMA` | **Yes** | Schema name (e.g., `archivist_mailflow`) |
 | `ANTHROPIC_API_KEY` | For LLM | Anthropic API key (Claude models) |
@@ -199,7 +198,7 @@ make train DIR=~/Mail/folder
 
 **Notes**:
 - Migrations are applied automatically on first run
-- Without database mode (`ARCHIVIST_USE_DB=1`), learning is lost when process exits
+- `DATABASE_URL` must be set for persistent learning
 - The UI records your selection as training and sends feedback to llm-archivist
 
 ## Optional Features

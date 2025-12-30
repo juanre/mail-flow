@@ -5,9 +5,12 @@ All classification functions are async for proper connection pool management."""
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 from llm_archivist import Workflow
+
+logger = logging.getLogger(__name__)
 
 from mailflow.archivist_client import classify as archivist_classify
 from mailflow.archivist_client import feedback as archivist_feedback
@@ -99,7 +102,8 @@ async def classify_with_archivist(
                 decision = classifier.classify(text, meta, workflows, opts=opts)
         else:
             decision = await archivist_classify(text, meta, workflows, opts=opts)
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Classification failed: {e}")
         return {"label": None, "confidence": 0.0, "candidates": []}
 
     candidates = decision.get("candidates") or []
@@ -120,6 +124,5 @@ async def record_feedback(decision_id: int, label: str, reason: str | None = Non
     """Send feedback to llm-archivist. Must be awaited."""
     try:
         await archivist_feedback(int(decision_id), str(label), reason)
-    except Exception:
-        # Non-fatal; keep UI responsive
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to record feedback for decision {decision_id}: {e}")

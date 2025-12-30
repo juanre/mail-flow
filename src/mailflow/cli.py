@@ -3,6 +3,7 @@
 """mailflow command-line interface"""
 
 import asyncio
+import json
 import logging
 import re
 import sys
