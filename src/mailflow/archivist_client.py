@@ -1,7 +1,6 @@
 """Async client for the llm-archivist Classifier.
 
-Exposes async API for proper connection pool management. All functions
-are async and should be awaited within a single event loop at the CLI level."""
+Always uses database mode for persistent learning. Requires DATABASE_URL to be set."""
 
 from __future__ import annotations
 
@@ -14,21 +13,16 @@ from llm_archivist import ClassifyOpts, Decision, Workflow
 _classifier: Optional[ArchivistClassifier] = None
 
 
-def _use_db_mode() -> bool:
-    """Return True when archivist should run in DB mode."""
-    use_db = os.getenv("ARCHIVIST_USE_DB", "0").strip().lower() in {"1", "true", "yes", "on"}
-    db_url = os.getenv("DATABASE_URL")
-    return bool(use_db and db_url)
-
-
 async def _get_classifier() -> ArchivistClassifier:
-    """Get or create the classifier (async initialization for DB mode)."""
+    """Get or create the classifier with async DB initialization."""
     global _classifier
     if _classifier is None:
-        if _use_db_mode():
-            _classifier = await ArchivistClassifier.from_env_async()
-        else:
-            _classifier = ArchivistClassifier.from_env()
+        if not os.getenv("DATABASE_URL"):
+            raise RuntimeError(
+                "DATABASE_URL not set. Required for persistent learning.\n"
+                "Add to .env: DATABASE_URL='postgresql://user:pass@localhost:5432/dbname'"
+            )
+        _classifier = await ArchivistClassifier.from_env_async()
     return _classifier
 
 
@@ -40,23 +34,16 @@ async def classify(
 ) -> Decision:
     """Classify using archivist. Must be awaited within an event loop."""
     clf = await _get_classifier()
-    if _use_db_mode():
-        return await clf.classify_async(text, meta, workflows, opts=opts)
-    return clf.classify(text, meta, workflows, opts=opts)
+    return await clf.classify_async(text, meta, workflows, opts=opts)
 
 
 async def feedback(decision_id: int, label: str, reason: str | None = None) -> None:
     """Record feedback for a prior decision. Must be awaited."""
     clf = await _get_classifier()
-    if _use_db_mode():
-        await clf.feedback_async(int(decision_id), label, reason)
-    else:
-        clf.feedback(int(decision_id), label, reason)
+    await clf.feedback_async(int(decision_id), label, reason)
 
 
 async def get_metrics() -> Dict[str, Any]:
     """Return basic metrics from archivist. Must be awaited."""
     clf = await _get_classifier()
-    if _use_db_mode():
-        return await clf.get_metrics_async()
-    return clf.get_metrics()
+    return await clf.get_metrics_async()

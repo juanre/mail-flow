@@ -13,7 +13,99 @@ Email processing tool for mutt that learns from your classification choices and 
 - **Global Search**: Build a global index once, then search across all entities
 - **Gmail API**: Process emails directly from Gmail (optional)
 
-## Installation
+## Quick Setup
+
+```bash
+# 1. Install dependencies
+make install
+
+# 2. Configure environment (edit .env with your API keys)
+cp .env.example .env
+# Edit .env - add ANTHROPIC_API_KEY and/or OPENAI_API_KEY
+
+# 3. Setup database (PostgreSQL with pgvector)
+make setup-db
+
+# 4. Verify configuration
+make check-env
+
+# 5. Initialize mailflow workflows
+uv run mailflow init
+
+# 6. Test with a dry-run
+make train-dry DIR=~/Mail/sample-folder MAX=10
+```
+
+## Makefile Commands
+
+The Makefile provides convenient targets for common operations:
+
+```bash
+make help          # Show all available commands
+
+# Setup
+make install       # Install dependencies (uv sync + playwright)
+make setup-db      # Create PostgreSQL database and schema
+make check-env     # Verify environment variables are configured
+
+# Training (with persistent learning)
+make train-dry DIR=~/Mail/folder           # Dry-run (no workflow execution)
+make train DIR=~/Mail/folder               # Train and execute workflows
+make train-dry DIR=~/Mail/folder MAX=100   # Limit to 100 emails
+make train-gmail QUERY='label:INBOX'       # Train from Gmail
+
+# Monitoring
+make metrics       # Show classifier metrics
+make status        # Show learning stats (local + database)
+make db-stats      # Show database table sizes
+
+# Development
+make test          # Run tests
+make lint          # Run linter
+```
+
+## Environment Variables
+
+The `.env` file controls all configuration. Key variables:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ARCHIVIST_USE_DB` | **Yes** | Must be `1` for persistent learning |
+| `DATABASE_URL` | **Yes** | PostgreSQL connection string |
+| `ARCHIVIST_DB_SCHEMA` | **Yes** | Schema name (e.g., `archivist_mailflow`) |
+| `ANTHROPIC_API_KEY` | For LLM | Anthropic API key (Claude models) |
+| `OPENAI_API_KEY` | For LLM | OpenAI API key (embeddings + GPT) |
+| `ARCHIVIST_PERSIST_EMBED` | Optional | Set to `1` to store embeddings |
+| `ARCHIVIST_LLM_BUDGET_USD` | Optional | Daily spending cap for LLM |
+
+See `.env.example` for full documentation of all variables.
+
+## Learning Architecture
+
+mailflow uses **two learning systems** that work together:
+
+1. **Local JSON** (`~/.local/share/mailflow/criteria_instances.json`)
+   - Stores training examples for similarity matching
+   - Fast, works offline
+   - Used by the local similarity advisor
+
+2. **PostgreSQL Database** (llm-archivist)
+   - Stores decisions, feedback, and embeddings
+   - Powers vector similarity search
+   - Enables LLM-assisted classification
+   - **Required for persistent learning** - without it, learning is lost when process exits
+
+### How Learning Works
+
+When you classify an email:
+1. **Decision recorded**: The classification is stored in the database
+2. **Feedback recorded**: Your confirmation trains the model
+3. **Embedding stored**: Vector representation for similarity search
+4. **Local example added**: For fast local matching
+
+The system improves over time as you classify more emails.
+
+## Installation (Detailed)
 
 ```bash
 # Clone and install
@@ -31,18 +123,6 @@ playwright install chromium
 # Initialize configuration
 uv run mailflow init
 ```
-
-### One-time setup on a new machine
-
-On a fresh machine, the recommended sequence is:
-
-1. Install dependencies as above (`uv sync`, Playwright).
-2. Create a `.env` file in the project root (next to `pyproject.toml`) with:
-   - Archivist DB config: `ARCHIVIST_USE_DB`, `DATABASE_URL`, `ARCHIVIST_DB_SCHEMA`, `ARCHIVIST_DB_NAME`.
-   - LLM keys: at least `OPENAI_API_KEY` (and optionally `ANTHROPIC_API_KEY`).
-3. Initialize the archivist database (see “Classifier Integration” below).
-4. Run `uv run mailflow init` to create mailflow config and workflows.
-5. Do a small dry-run batch on a representative Maildir to confirm everything works.
 
 ## Quick Start
 
@@ -98,48 +178,29 @@ uv run mailflow stats
 
 ## Classifier Integration (llm-archivist)
 
-mailflow integrates with the llm-archivist library. It is enabled by default and runs in dev mode (no DB/LLM) unless you configure it. For a full‑fledged setup (Postgres + pgvector + LLM), follow the steps below.
+mailflow integrates with the llm-archivist library for intelligent classification.
 
+**Setup**: Use `make setup-db` to create the database, or see `.env.example` for manual configuration.
+
+**Training workflow**:
 ```bash
-# 1) Database (Postgres) – one‑time setup (psql)
-CREATE DATABASE archivist_mailflow;
-CREATE USER archivist WITH PASSWORD 'changeme';
-GRANT ALL PRIVILEGES ON DATABASE archivist_mailflow TO archivist;
-\c archivist_mailflow
-CREATE SCHEMA IF NOT EXISTS archivist_mailflow;
--- pgvector: llm‑archivist migrations will attempt this automatically;
--- if your role cannot create extensions, have an admin pre‑install it.
-CREATE EXTENSION IF NOT EXISTS vector;
+# 1. Verify environment
+make check-env
 
-# 2) Environment (.env in project root or shell exports)
-# Example values – adjust user/password/host as needed
-ARCHIVIST_USE_DB=1
-DATABASE_URL='postgresql://archivist:changeme@localhost:5432/archivist_mailflow'
-ARCHIVIST_DB_SCHEMA=archivist_mailflow
-ARCHIVIST_DB_NAME=archivist_mailflow
-OPENAI_API_KEY=...     # required for embeddings + LLM
-# Optional safety controls
-ARCHIVIST_PERSIST_EMBED=1        # store embeddings after decisions
-ARCHIVIST_LLM_BUDGET_USD=5       # cap spending
-ARCHIVIST_LLM_RETRIES=1          # retry LLM on transient failures
+# 2. Dry-run to train without executing workflows
+make train-dry DIR=~/Mail/folder MAX=100
 
-# 3) Bootstrap – create schema and apply migrations via llm‑archivist
-uv run python -m llm_archivist.cli db-init --bootstrap
+# 3. Check learning progress
+make metrics
 
-# 4) Dry‑run training from files/Maildir (no writes; trains both systems)
-uv run mailflow fetch files ~/Mail/juan-gsk --dry-run
-
-# 5) Apply for real after training
-uv run mailflow fetch files ~/Mail/juan-gsk
-
-# 6) Sanity check archivist metrics (optional)
-uv run mailflow archivist-metrics
+# 4. Run for real when confident
+make train DIR=~/Mail/folder
 ```
 
-Notes
-- Migrations are applied automatically on first run.
-- In dev mode (no DB/LLM), the classifier still learns from your confirmations locally.
-- The UI records your selection as training and also sends feedback to llm‑archivist so it improves over time.
+**Notes**:
+- Migrations are applied automatically on first run
+- Without database mode (`ARCHIVIST_USE_DB=1`), learning is lost when process exits
+- The UI records your selection as training and sends feedback to llm-archivist
 
 ## Optional Features
 

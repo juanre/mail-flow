@@ -20,6 +20,7 @@ dependencies = [
     "llmring",
     "playwright>=1.54.0",
     "python-dateutil>=2.9.0.post0",
+    "python-dotenv>=1.1.1",
 ]
 
 [project.scripts]
@@ -78,10 +79,10 @@ asyncio_mode = "auto"
 norecursedirs = ["llmring"]
 
 [tool.uv.sources]
-llmring = { path = "../llmring-all/llmring" }
+llmring = { path = "../../llmring-all/llmring" }
 archive-protocol = { workspace = true }
 file-classifier-core = { workspace = true }
-llm-archivist = { path = "llm-archivist" }
+llm-archivist = { path = "../llm-archivist" }
 
 [tool.uv.workspace]
 members = [
