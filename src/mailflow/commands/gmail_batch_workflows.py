@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from datetime import datetime
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 import click
 
@@ -11,6 +13,16 @@ from mailflow.models import DataStore
 from mailflow.process import process as process_email
 from mailflow.processed_emails_tracker import ProcessedEmailsTracker
 from mailflow.thread_detector import detect_threads, get_thread_info
+
+
+def _parse_email_date(date_str: str) -> datetime:
+    """Parse email Date header into datetime. Returns epoch for unparseable dates."""
+    if not date_str:
+        return datetime.fromtimestamp(0)
+    try:
+        return parsedate_to_datetime(date_str)
+    except Exception:
+        return datetime.fromtimestamp(0)
 
 
 def _discover_email_files(base: Path) -> list[Path]:
@@ -94,13 +106,17 @@ def register(cli):
     @click.option("--replay", is_flag=True, help="Execute stored decisions without re-asking or re-training")
     @click.option("--max-emails", default=None, type=int, help="Limit number of emails to process")
     @click.option("--force", is_flag=True, help="Reprocess already processed emails")
-    def batch(directory, llm, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force):
+    @click.option("--after", default=None, help="Only emails after this date (YYYY-MM-DD)")
+    @click.option("--before", default=None, help="Only emails before this date (YYYY-MM-DD)")
+    @click.option("--workflows", "-w", default=None, help="Only classify against these workflows (comma-separated)")
+    @click.option("--min-confidence", default=None, type=float, help="Skip emails below this confidence (default 0.45 when --workflows set)")
+    def batch(directory, llm, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence):
         """Process multiple emails from a directory (.eml files)."""
         asyncio.run(
-            _batch_async(directory, llm, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force)
+            _batch_async(directory, llm, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence)
         )
 
-    async def _batch_async(directory, llm, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force):
+    async def _batch_async(directory, llm, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after=None, before=None, workflows=None, min_confidence=None):
         """Async implementation of batch email processing."""
         from mailflow.email_extractor import EmailExtractor
         from mailflow.hybrid_classifier import HybridClassifier
@@ -117,6 +133,13 @@ def register(cli):
             click.echo("Error: --replay and --force are mutually exclusive (replay uses stored decisions)", err=True)
             raise SystemExit(1)
 
+        # Parse workflow filter
+        workflow_filter = None
+        if workflows:
+            workflow_filter = [w.strip() for w in workflows.split(",") if w.strip()]
+            if min_confidence is None:
+                min_confidence = 0.45  # Default when --workflows is specified
+
         config = Config()
 
         if llm is not None:
@@ -128,6 +151,16 @@ def register(cli):
         extractor = EmailExtractor()
         similarity_engine = SimilarityEngine(config)
         tracker = ProcessedEmailsTracker(config)
+
+        # Validate workflow filter
+        if workflow_filter:
+            valid_workflows = set(data_store.workflows.keys())
+            invalid = [w for w in workflow_filter if w not in valid_workflows]
+            if invalid:
+                click.echo(f"Error: Unknown workflows: {', '.join(invalid)}", err=True)
+                click.echo(f"Available: {', '.join(sorted(valid_workflows)[:10])}...")
+                raise SystemExit(1)
+            click.echo(f"Focused training: {', '.join(workflow_filter)} (min confidence: {min_confidence})")
 
         hybrid_classifier = None
         if config.settings.get("llm", {}).get("enabled", False):
@@ -178,6 +211,35 @@ def register(cli):
                 email_contents.append("")
                 email_data_list.append({})
 
+        # Sort by date descending (most recent first)
+        combined = list(zip(email_files, email_contents, email_data_list))
+        combined.sort(key=lambda x: _parse_email_date(x[2].get("date", "")), reverse=True)
+        email_files, email_contents, email_data_list = (
+            [x[0] for x in combined],
+            [x[1] for x in combined],
+            [x[2] for x in combined],
+        )
+
+        # Filter by date range
+        if after or before:
+            after_dt = datetime.strptime(after, "%Y-%m-%d") if after else None
+            before_dt = datetime.strptime(before, "%Y-%m-%d") if before else None
+            filtered = []
+            for f, c, d in zip(email_files, email_contents, email_data_list):
+                email_dt = _parse_email_date(d.get("date", ""))
+                if after_dt and email_dt.replace(tzinfo=None) < after_dt:
+                    continue
+                if before_dt and email_dt.replace(tzinfo=None) > before_dt:
+                    continue
+                filtered.append((f, c, d))
+            original_count = len(email_files)
+            email_files, email_contents, email_data_list = (
+                [x[0] for x in filtered],
+                [x[1] for x in filtered],
+                [x[2] for x in filtered],
+            )
+            click.echo(f"Date filter: {len(email_files)} of {original_count} emails in range")
+
         # Detect threads
         threads = detect_threads(email_data_list)
 
@@ -203,11 +265,13 @@ def register(cli):
                     stats["skipped"] += 1
                     continue
 
-                # Build context with position and thread info
+                # Build context with position, thread info, and workflow filter
                 context = {
                     "_position": i,
                     "_total": total,
                     "_thread_info": get_thread_info(email_data, threads),
+                    "_workflow_filter": workflow_filter,
+                    "_min_confidence": min_confidence,
                 }
 
                 # Process one email through standard pipeline (interactive selection)
@@ -247,9 +311,13 @@ def register(cli):
     @click.option("--replay", is_flag=True, help="Execute stored decisions without re-asking or re-training")
     @click.option("--max-emails", default=None, type=int, help="Limit number of emails to process")
     @click.option("--force", is_flag=True, help="Reprocess already processed emails")
-    def fetch_files(directory, llm, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force):
+    @click.option("--after", default=None, help="Only emails after this date (YYYY-MM-DD)")
+    @click.option("--before", default=None, help="Only emails before this date (YYYY-MM-DD)")
+    @click.option("--workflows", "-w", default=None, help="Only classify against these workflows (comma-separated)")
+    @click.option("--min-confidence", default=None, type=float, help="Skip emails below this confidence (default 0.45 when --workflows set)")
+    def fetch_files(directory, llm, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence):
         """Same as `mailflow batch`"""
-        return batch.callback(directory, llm, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force)  # type: ignore[attr-defined]
+        return batch.callback(directory, llm, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence)  # type: ignore[attr-defined]
 
     @cli.command()
     @click.option("--limit", "-n", default=10, help="Number of workflows to show")

@@ -73,16 +73,24 @@ async def classify_with_archivist(
     allow_llm: bool = True,
     max_candidates: int = 5,
     classifier: Optional[Any] = None,
+    workflow_filter: Optional[List[str]] = None,
 ) -> dict:
     """
     Run llm-archivist classification and return a mailflow-compatible result.
 
     This is an async function that must be awaited. Returns a dict with keys:
     label, confidence, rankings, evidence, advisors_used.
+
+    Args:
+        workflow_filter: If provided, only classify against these workflow names.
     """
     text = _build_text(email_data)
     meta = _build_meta(email_data)
     workflows = _build_workflows(data_store)
+
+    # Filter workflows if specified
+    if workflow_filter:
+        workflows = [w for w in workflows if w["name"] in workflow_filter]
     if not workflows:
         return {"label": None, "confidence": 0.0, "candidates": []}
 

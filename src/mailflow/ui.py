@@ -36,6 +36,10 @@ class WorkflowSelector:
         """
         console = Console()
 
+        # Extract workflow filter and min confidence from context
+        workflow_filter = email_data.get("_workflow_filter")
+        min_confidence = email_data.get("_min_confidence")
+
         # Get ranked workflows (use llm-archivist if enabled, else hybrid/similarity)
         criteria_instances = self.data_store.get_recent_criteria()
         rankings = []
@@ -52,6 +56,7 @@ class WorkflowSelector:
                     interactive=True,
                     allow_llm=self.config.settings.get("llm", {}).get("enabled", False),
                     max_candidates=self.max_suggestions,
+                    workflow_filter=workflow_filter,
                 )
                 arch_result = arch
                 rankings = arch.get("rankings") or []
@@ -60,8 +65,12 @@ class WorkflowSelector:
 
         if not rankings and self.hybrid_classifier:
             try:
+                # Filter workflows if specified
+                workflows_to_use = self.data_store.workflows
+                if workflow_filter:
+                    workflows_to_use = {k: v for k, v in self.data_store.workflows.items() if k in workflow_filter}
                 result = await self.hybrid_classifier.classify(
-                    email_data, self.data_store.workflows, criteria_instances
+                    email_data, workflows_to_use, criteria_instances
                 )
                 rankings = result["rankings"]
             except Exception as e:
@@ -72,8 +81,10 @@ class WorkflowSelector:
                 email_data["features"], criteria_instances, self.max_suggestions
             )
 
-        # Filter rankings to only include existing workflows
+        # Filter rankings to only include existing workflows (and workflow filter if specified)
         valid_workflows = set(self.data_store.workflows.keys())
+        if workflow_filter:
+            valid_workflows = valid_workflows & set(workflow_filter)
         rankings = [r for r in rankings if r[0] in valid_workflows]
 
         # Store rankings in email_data for later use
@@ -86,6 +97,13 @@ class WorkflowSelector:
             suggestion = rankings[0][0]
             confidence = rankings[0][1]
 
+        # Apply min_confidence gate - skip email if below threshold
+        if min_confidence is not None and confidence < min_confidence:
+            position = email_data.get("_position", 1)
+            total = email_data.get("_total", 1)
+            logger.info(f"[{position}/{total}] Skipping: confidence {confidence:.2f} < {min_confidence}")
+            return None
+
         # Get thread info if available
         thread_info = email_data.get("_thread_info")
 
@@ -94,9 +112,12 @@ class WorkflowSelector:
         total = email_data.get("_total", 1)
         display_email(console, email_data, position, total, thread_info)
 
-        # Show workflow choices
+        # Show workflow choices (filtered if specified)
+        workflows_to_show = self.data_store.workflows
+        if workflow_filter:
+            workflows_to_show = {k: v for k, v in self.data_store.workflows.items() if k in workflow_filter}
         console.print(format_workflow_choices(
-            self.data_store.workflows,
+            workflows_to_show,
             default=suggestion,
             confidence=confidence
         ))
@@ -146,7 +167,7 @@ class WorkflowSelector:
             # Handle number selection
             if choice.isdigit():
                 idx = int(choice) - 1
-                workflow_names = sorted(self.data_store.workflows.keys())
+                workflow_names = sorted(workflows_to_show.keys())
                 if 0 <= idx < len(workflow_names):
                     selected = workflow_names[idx]
                     break
@@ -155,7 +176,7 @@ class WorkflowSelector:
                     continue
 
             # Handle workflow name
-            if choice in self.data_store.workflows:
+            if choice in workflows_to_show:
                 selected = choice
                 break
 
