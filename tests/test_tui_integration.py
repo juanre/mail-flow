@@ -4,6 +4,8 @@
 from unittest.mock import patch, MagicMock
 from io import StringIO
 
+import pytest
+
 from mailflow.config import Config
 from mailflow.models import DataStore
 from mailflow.similarity import SimilarityEngine
@@ -11,7 +13,7 @@ from mailflow.ui import WorkflowSelector
 
 
 class TestWorkflowSelectorTUI:
-    def test_displays_email_info(self, temp_config_dir):
+    async def test_displays_email_info(self, temp_config_dir):
         config = Config(config_dir=temp_config_dir)
         data_store = DataStore(config)
         similarity = SimilarityEngine(config)
@@ -30,12 +32,12 @@ class TestWorkflowSelectorTUI:
 
         # Mock input to return 'skip'
         with patch('builtins.input', return_value='s'):
-            result = selector.select_workflow(email)
+            result = await selector.select_workflow(email)
 
         # Should return None for skip
         assert result is None
 
-    def test_number_selection_returns_workflow(self, temp_config_dir):
+    async def test_number_selection_returns_workflow(self, temp_config_dir):
         config = Config(config_dir=temp_config_dir)
         data_store = DataStore(config)
         similarity = SimilarityEngine(config)
@@ -62,6 +64,6 @@ class TestWorkflowSelectorTUI:
 
         # Mock input to return '1' (select first workflow)
         with patch('builtins.input', return_value='1'):
-            result = selector.select_workflow(email)
+            result = await selector.select_workflow(email)
 
         assert result == "gsk-invoice"

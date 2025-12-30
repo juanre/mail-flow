@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import sys
 from pathlib import Path
 import click
@@ -89,14 +90,32 @@ def register(cli):
     @click.option("--llm-model", default=None, help="LLM model: fast, balanced, or deep")
     @click.option("--auto-threshold", default=0.85, type=float, help="Auto-process above this confidence")
     @click.option("--dry-run", is_flag=True, help="Preview without executing workflows")
+    @click.option("--train-only", is_flag=True, help="Train classifier and store decisions, but don't execute workflows")
+    @click.option("--replay", is_flag=True, help="Execute stored decisions without re-asking or re-training")
     @click.option("--max-emails", default=None, type=int, help="Limit number of emails to process")
     @click.option("--force", is_flag=True, help="Reprocess already processed emails")
-    def batch(directory, llm, llm_model, auto_threshold, dry_run, max_emails, force):
+    def batch(directory, llm, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force):
         """Process multiple emails from a directory (.eml files)."""
+        asyncio.run(
+            _batch_async(directory, llm, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force)
+        )
+
+    async def _batch_async(directory, llm, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force):
+        """Async implementation of batch email processing."""
         from mailflow.email_extractor import EmailExtractor
         from mailflow.hybrid_classifier import HybridClassifier
         from mailflow.llm_classifier import LLMClassifier
         from mailflow.similarity import SimilarityEngine
+
+        # Validate mutually exclusive flags
+        mode_flags = sum([dry_run, train_only, replay])
+        if mode_flags > 1:
+            click.echo("Error: --dry-run, --train-only, and --replay are mutually exclusive", err=True)
+            raise SystemExit(1)
+
+        if replay and force:
+            click.echo("Error: --replay and --force are mutually exclusive (replay uses stored decisions)", err=True)
+            raise SystemExit(1)
 
         config = Config()
 
@@ -130,7 +149,7 @@ def register(cli):
 
         click.echo(f"Found {len(email_files)} emails to process")
 
-        if hybrid_classifier and not dry_run:
+        if hybrid_classifier and not dry_run and not train_only:
             estimated_llm_calls = len(email_files) * 0.2
             estimated_cost = estimated_llm_calls * 0.003
             click.echo(f"Estimated LLM cost: ${estimated_cost:.2f} (assumes ~20% need LLM assist)")
@@ -140,6 +159,10 @@ def register(cli):
 
         if dry_run:
             click.echo("DRY RUN MODE - no workflows will be executed")
+        elif train_only:
+            click.echo("TRAIN-ONLY MODE - decisions will be stored and classifier trained, but workflows won't execute")
+        elif replay:
+            click.echo("REPLAY MODE - executing stored decisions without re-asking or re-training")
 
         # Pre-extract all emails to detect threads
         click.echo("Analyzing email threads...")
@@ -188,7 +211,15 @@ def register(cli):
                 }
 
                 # Process one email through standard pipeline (interactive selection)
-                process_email(email_content, config=config, force=force, dry_run=dry_run, context=context)
+                await process_email(
+                    email_content,
+                    config=config,
+                    force=force,
+                    dry_run=dry_run,
+                    train_only=train_only,
+                    replay=replay,
+                    context=context
+                )
                 stats["processed"] += 1
             except Exception as e:
                 click.echo(f"[{i}/{total}] ERROR {email_file.name}: {e}", err=True)
@@ -200,6 +231,10 @@ def register(cli):
         click.echo(f"  Errors: {stats['errors']}")
         if dry_run:
             click.echo("DRY RUN - No workflows were executed")
+        elif train_only:
+            click.echo("TRAIN-ONLY - Decisions stored and classifier trained, no workflows executed")
+        elif replay:
+            click.echo("REPLAY - Stored decisions executed without re-training")
 
     # Alias: mailflow fetch files
     @fetch.command(name="files")
@@ -208,11 +243,13 @@ def register(cli):
     @click.option("--llm-model", default=None, help="LLM model: fast, balanced, or deep")
     @click.option("--auto-threshold", default=0.85, type=float, help="Auto-process above this confidence")
     @click.option("--dry-run", is_flag=True, help="Preview without executing workflows")
+    @click.option("--train-only", is_flag=True, help="Train classifier and store decisions, but don't execute workflows")
+    @click.option("--replay", is_flag=True, help="Execute stored decisions without re-asking or re-training")
     @click.option("--max-emails", default=None, type=int, help="Limit number of emails to process")
     @click.option("--force", is_flag=True, help="Reprocess already processed emails")
-    def fetch_files(directory, llm, llm_model, auto_threshold, dry_run, max_emails, force):
+    def fetch_files(directory, llm, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force):
         """Same as `mailflow batch`"""
-        return batch.callback(directory, llm, llm_model, auto_threshold, dry_run, max_emails, force)  # type: ignore[attr-defined]
+        return batch.callback(directory, llm, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force)  # type: ignore[attr-defined]
 
     @cli.command()
     @click.option("--limit", "-n", default=10, help="Number of workflows to show")

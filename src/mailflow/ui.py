@@ -1,6 +1,5 @@
 # ABOUTME: Interactive UI for workflow selection and creation in mailflow.
 # ABOUTME: Handles user interaction for classifying and processing emails with workflows.
-import asyncio
 import logging
 from datetime import datetime
 
@@ -25,8 +24,16 @@ class WorkflowSelector:
         self.max_suggestions = config.settings["ui"]["max_suggestions"]
         self.show_confidence = config.settings["ui"]["show_confidence"]
 
-    def select_workflow(self, email_data: dict) -> str | None:
-        """Present workflow options using rich TUI and get user selection."""
+    async def select_workflow(self, email_data: dict, skip_training: bool = False) -> str | None:
+        """Present workflow options using rich TUI and get user selection.
+
+        This is an async method. The blocking input() calls are fine - we await
+        the async classifier calls around them.
+
+        Args:
+            email_data: Extracted email data
+            skip_training: If True, skip training the classifier (for replay mode)
+        """
         console = Console()
 
         # Get ranked workflows (use llm-archivist if enabled, else hybrid/similarity)
@@ -39,7 +46,7 @@ class WorkflowSelector:
             try:
                 from mailflow.archivist_integration import classify_with_archivist
 
-                arch = classify_with_archivist(
+                arch = await classify_with_archivist(
                     email_data,
                     self.data_store,
                     interactive=True,
@@ -53,10 +60,8 @@ class WorkflowSelector:
 
         if not rankings and self.hybrid_classifier:
             try:
-                result = asyncio.run(
-                    self.hybrid_classifier.classify(
-                        email_data, self.data_store.workflows, criteria_instances
-                    )
+                result = await self.hybrid_classifier.classify(
+                    email_data, self.data_store.workflows, criteria_instances
                 )
                 rankings = result["rankings"]
             except Exception as e:
@@ -156,8 +161,8 @@ class WorkflowSelector:
 
             console.print(f"Unknown choice: {choice}", style="red")
 
-        # Record the decision
-        if selected:
+        # Record the decision (skip in replay mode to avoid duplicates)
+        if selected and not skip_training:
             instance = CriteriaInstance(
                 email_id=email_data.get("message_id", ""),
                 workflow_name=selected,
@@ -174,7 +179,7 @@ class WorkflowSelector:
             try:
                 if arch_result and arch_result.get("decision_id"):
                     from mailflow.archivist_integration import record_feedback
-                    record_feedback(int(arch_result["decision_id"]), selected, "confirmed")
+                    await record_feedback(int(arch_result["decision_id"]), selected, "confirmed")
             except Exception as e:
                 logger.debug(f"archivist feedback not recorded: {e}")
 

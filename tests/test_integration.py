@@ -4,7 +4,7 @@ Integration test simulating the complete user workflow
 
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -30,7 +30,7 @@ class TestIntegration:
 
         return emails
 
-    def test_complete_workflow_new_user(self, temp_config_dir, sample_emails):
+    async def test_complete_workflow_new_user(self, temp_config_dir, sample_emails):
         """Test complete workflow for a new user with no history"""
         config = Config(config_dir=temp_config_dir)
         data_store = DataStore(config)
@@ -56,7 +56,7 @@ class TestIntegration:
                         "*.pdf",  # Pattern
                     ]
 
-                    selected = ui.select_workflow(email_data)
+                    selected = await ui.select_workflow(email_data)
                     assert selected == "save-invoices"
 
             # Verify workflow was created and decision was saved
@@ -64,7 +64,7 @@ class TestIntegration:
             assert len(data_store.criteria_instances) == 1
             assert data_store.criteria_instances[0].workflow_name == "save-invoices"
 
-    def test_workflow_with_learning(self, temp_config_dir, sample_emails):
+    async def test_workflow_with_learning(self, temp_config_dir, sample_emails):
         """Test workflow after system has learned from examples"""
         config = Config(config_dir=temp_config_dir)
         data_store = DataStore(config)
@@ -126,7 +126,7 @@ class TestIntegration:
             # Mock user selecting the suggested workflow
             # select_workflow now uses builtins.input
             with patch("builtins.input", return_value="1"):  # Select first suggestion
-                selected = ui.select_workflow(email_data)
+                selected = await ui.select_workflow(email_data)
 
             # The system should have selected something (user pressed "1")
             assert selected is not None
@@ -194,7 +194,7 @@ class TestIntegration:
             # At least one score should be positive
             assert any(score > 0 for score in scores)
 
-    def test_workflow_execution(self, temp_config_dir, sample_emails):
+    async def test_workflow_execution(self, temp_config_dir, sample_emails):
         """Test that workflows can be executed"""
         from mailflow.process import process
 
@@ -204,7 +204,7 @@ class TestIntegration:
             with patch("builtins.input", return_value="s"):
                 if "amazon_invoice" in sample_emails:
                     # Run the process
-                    process(sample_emails["amazon_invoice"])
+                    await process(sample_emails["amazon_invoice"])
 
                     # Should not execute any workflow when skipped
                     mock_save.assert_not_called()

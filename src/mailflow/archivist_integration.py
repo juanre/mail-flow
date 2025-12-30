@@ -1,6 +1,7 @@
 """Integration helpers to use llm-archivist for workflow classification.
 
-Builds inputs (text + metadata) and maps results into mailflow structures."""
+Builds inputs (text + metadata) and maps results into mailflow structures.
+All classification functions are async for proper connection pool management."""
 
 from __future__ import annotations
 
@@ -61,7 +62,7 @@ def _build_workflows(data_store) -> List[Workflow]:
     return workflows
 
 
-def classify_with_archivist(
+async def classify_with_archivist(
     email_data: dict,
     data_store,
     *,
@@ -73,7 +74,8 @@ def classify_with_archivist(
     """
     Run llm-archivist classification and return a mailflow-compatible result.
 
-    Returns a dict with keys: label, confidence, rankings, evidence, advisors_used.
+    This is an async function that must be awaited. Returns a dict with keys:
+    label, confidence, rankings, evidence, advisors_used.
     """
     text = _build_text(email_data)
     meta = _build_meta(email_data)
@@ -90,9 +92,13 @@ def classify_with_archivist(
     # Allow tests to inject a fake classifier; otherwise use shared archivist client.
     try:
         if classifier is not None:
-            decision = classifier.classify(text, meta, workflows, opts=opts)
+            # Test classifiers may be sync or async
+            if hasattr(classifier, "classify_async"):
+                decision = await classifier.classify_async(text, meta, workflows, opts=opts)
+            else:
+                decision = classifier.classify(text, meta, workflows, opts=opts)
         else:
-            decision = archivist_classify(text, meta, workflows, opts=opts)
+            decision = await archivist_classify(text, meta, workflows, opts=opts)
     except Exception:
         return {"label": None, "confidence": 0.0, "candidates": []}
 
@@ -110,10 +116,10 @@ def classify_with_archivist(
     }
 
 
-def record_feedback(decision_id: int, label: str, reason: str | None = None) -> None:
-    """Send feedback to llm-archivist if available."""
+async def record_feedback(decision_id: int, label: str, reason: str | None = None) -> None:
+    """Send feedback to llm-archivist. Must be awaited."""
     try:
-        archivist_feedback(int(decision_id), str(label), reason)
+        await archivist_feedback(int(decision_id), str(label), reason)
     except Exception:
         # Non-fatal; keep UI responsive
         pass

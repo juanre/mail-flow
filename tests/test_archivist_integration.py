@@ -1,5 +1,6 @@
 # ABOUTME: Unit tests for llm-archivist adapter integration without network.
 
+import pytest
 from mailflow.archivist_integration import classify_with_archivist, _build_workflows
 
 
@@ -32,7 +33,7 @@ class _FakeClassifier:
         return self._decision
 
 
-def test_classify_with_archivist_adapter_maps_candidates():
+async def test_classify_with_archivist_adapter_maps_candidates():
     ds = _DS()
     email = {
         "from": "a@b.com",
@@ -53,7 +54,7 @@ def test_classify_with_archivist_adapter_maps_candidates():
             ],
         }
     )
-    result = classify_with_archivist(email, ds, classifier=fake)
+    result = await classify_with_archivist(email, ds, classifier=fake)
     assert result["label"] == "invoices"
     assert result["rankings"][0][0] == "invoices"
     assert isinstance(result["rankings"][0][1], float)

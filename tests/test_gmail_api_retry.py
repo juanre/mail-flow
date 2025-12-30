@@ -3,7 +3,7 @@
 """Tests for Gmail API retry logic with exponential backoff."""
 
 import time
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import AsyncMock, Mock, patch, MagicMock
 
 import pytest
 
@@ -48,7 +48,7 @@ class TestRetryLogic:
     """Test retry logic with exponential backoff."""
 
     @patch("mailflow.gmail_api.get_gmail_service")
-    @patch("mailflow.gmail_api.process_email")
+    @patch("mailflow.gmail_api.process_email", new_callable=AsyncMock)
     def test_success_resets_transient_error_counter(
         self, mock_process, mock_get_service, mock_gmail_service, mock_config
     ):
@@ -79,7 +79,7 @@ class TestRetryLogic:
         assert mock_process.call_count == 3
 
     @patch("mailflow.gmail_api.get_gmail_service")
-    @patch("mailflow.gmail_api.process_email")
+    @patch("mailflow.gmail_api.process_email", new_callable=AsyncMock)
     def test_stops_after_max_consecutive_transient_errors(
         self, mock_process, mock_get_service, mock_gmail_service, mock_config
     ):
@@ -99,7 +99,7 @@ class TestRetryLogic:
         assert mock_process.call_count == 3
 
     @patch("mailflow.gmail_api.get_gmail_service")
-    @patch("mailflow.gmail_api.process_email")
+    @patch("mailflow.gmail_api.process_email", new_callable=AsyncMock)
     def test_parsing_errors_dont_count_as_transient(
         self, mock_process, mock_get_service, mock_gmail_service, mock_config
     ):
@@ -128,7 +128,7 @@ class TestRetryLogic:
         assert mock_process.call_count == 3
 
     @patch("mailflow.gmail_api.get_gmail_service")
-    @patch("mailflow.gmail_api.process_email")
+    @patch("mailflow.gmail_api.process_email", new_callable=AsyncMock)
     def test_exponential_backoff_timing(
         self, mock_process, mock_get_service, mock_gmail_service, mock_config
     ):
@@ -147,7 +147,7 @@ class TestRetryLogic:
             assert sleep_calls == [2, 4]
 
     @patch("mailflow.gmail_api.get_gmail_service")
-    @patch("mailflow.gmail_api.process_email")
+    @patch("mailflow.gmail_api.process_email", new_callable=AsyncMock)
     def test_backoff_resets_after_success(
         self, mock_process, mock_get_service, mock_gmail_service, mock_config
     ):
@@ -180,7 +180,7 @@ class TestRetryLogic:
             assert sleep_calls == [2, 4, 2]
 
     @patch("mailflow.gmail_api.get_gmail_service")
-    @patch("mailflow.gmail_api.process_email")
+    @patch("mailflow.gmail_api.process_email", new_callable=AsyncMock)
     def test_empty_raw_content_doesnt_count_as_error(
         self, mock_process, mock_get_service, mock_gmail_service, mock_config
     ):
@@ -204,7 +204,7 @@ class TestRetryLogic:
         assert mock_process.call_count == 1
 
     @patch("mailflow.gmail_api.get_gmail_service")
-    @patch("mailflow.gmail_api.process_email")
+    @patch("mailflow.gmail_api.process_email", new_callable=AsyncMock)
     def test_label_modification_error_is_transient(
         self, mock_process, mock_get_service, mock_gmail_service, mock_config
     ):
@@ -226,7 +226,7 @@ class TestRetryLogic:
             assert result == 0
 
     @patch("mailflow.gmail_api.get_gmail_service")
-    @patch("mailflow.gmail_api.process_email")
+    @patch("mailflow.gmail_api.process_email", new_callable=AsyncMock)
     def test_continues_processing_after_parsing_errors(
         self, mock_process, mock_get_service, mock_gmail_service, mock_config
     ):

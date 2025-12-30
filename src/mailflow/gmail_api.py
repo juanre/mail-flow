@@ -8,6 +8,7 @@ rest of the application works without the optional dependency installed.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import logging
@@ -156,6 +157,20 @@ def poll_and_process(
 
     Returns the number of successfully processed messages.
     """
+    return asyncio.run(
+        _poll_and_process_async(config, query, label, processed_label, max_results, remove_from_inbox)
+    )
+
+
+async def _poll_and_process_async(
+    config: Config,
+    query: str = "",
+    label: Optional[str] = None,
+    processed_label: str = "mailflow/processed",
+    max_results: int = 20,
+    remove_from_inbox: bool = False,
+) -> int:
+    """Async implementation of poll_and_process."""
     service = get_gmail_service(config)
 
     label_ids = None
@@ -185,7 +200,7 @@ def poll_and_process(
                 logger.warning(f"Message {mid} had no raw content; skipping")
                 continue
 
-            process_email(raw, config=config)
+            await process_email(raw, config=config)
 
             # Label management
             add_ids = []

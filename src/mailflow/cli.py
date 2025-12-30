@@ -2,6 +2,7 @@
 # ABOUTME: Provides commands for processing, searching, stats, and Gmail integration
 """mailflow command-line interface"""
 
+import asyncio
 import logging
 import re
 import sys
@@ -66,7 +67,9 @@ def process_stdin(ctx):
         llm_model = ctx.obj.get("llm_model")
         force = ctx.obj.get("force", False)
 
-        process_email(email_content, llm_enabled=llm_enabled, llm_model=llm_model, force=force)
+        asyncio.run(
+            process_email(email_content, llm_enabled=llm_enabled, llm_model=llm_model, force=force)
+        )
     except KeyboardInterrupt:
         print("\n✗ Cancelled by user")
         sys.exit(0)
@@ -81,7 +84,7 @@ def archivist_metrics() -> None:
     from mailflow.archivist_client import get_metrics
 
     try:
-        metrics = get_metrics()
+        metrics = asyncio.run(get_metrics())
     except Exception as exc:  # pragma: no cover - operational
         click.echo(f"Error fetching archivist metrics: {exc}", err=True)
         raise SystemExit(1)
@@ -127,6 +130,13 @@ def batch(directory, llm, llm_model, auto_threshold, dry_run, max_emails, force)
     Example:
         mailflow batch ~/mail/archive --llm --auto-threshold 0.9
     """
+    asyncio.run(
+        _batch_async(directory, llm, llm_model, auto_threshold, dry_run, max_emails, force)
+    )
+
+
+async def _batch_async(directory, llm, llm_model, auto_threshold, dry_run, max_emails, force):
+    """Async implementation of batch processing."""
     from pathlib import Path
 
     from mailflow.email_extractor import EmailExtractor
@@ -213,12 +223,8 @@ def batch(directory, llm, llm_model, auto_threshold, dry_run, max_emails, force)
 
             # Classify
             if hybrid_classifier:
-                import asyncio
-
-                result = asyncio.run(
-                    hybrid_classifier.classify(
-                        email_data, data_store.workflows, data_store.get_recent_criteria()
-                    )
+                result = await hybrid_classifier.classify(
+                    email_data, data_store.workflows, data_store.get_recent_criteria()
                 )
                 rankings = result["rankings"]
             else:
