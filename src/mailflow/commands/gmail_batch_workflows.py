@@ -16,13 +16,21 @@ from mailflow.thread_detector import detect_threads, get_thread_info
 
 
 def _parse_email_date(date_str: str) -> datetime:
-    """Parse email Date header into datetime. Returns epoch for unparseable dates."""
+    """Parse email Date header into datetime. Returns epoch (UTC) for unparseable dates.
+
+    Always returns timezone-aware datetime (UTC) to ensure consistent comparison.
+    """
+    from datetime import timezone
     if not date_str:
-        return datetime.fromtimestamp(0)
+        return datetime.fromtimestamp(0, tz=timezone.utc)
     try:
-        return parsedate_to_datetime(date_str)
+        dt = parsedate_to_datetime(date_str)
+        # Ensure timezone-aware (some dates may be naive)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
     except Exception:
-        return datetime.fromtimestamp(0)
+        return datetime.fromtimestamp(0, tz=timezone.utc)
 
 
 def _discover_email_files(base: Path) -> list[Path]:
@@ -109,13 +117,14 @@ def register(cli):
     @click.option("--before", default=None, help="Only emails before this date (YYYY-MM-DD)")
     @click.option("--workflows", "-w", default=None, help="Only classify against these workflows (comma-separated)")
     @click.option("--min-confidence", default=None, type=float, help="Skip emails below this confidence (default 0.45 when --workflows set)")
-    def batch(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence):
+    @click.option("--similarity-threshold", default=None, type=float, help="Override similarity gate threshold (default 0.5)")
+    def batch(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence, similarity_threshold):
         """Process multiple emails from a directory (.eml files)."""
         asyncio.run(
-            _batch_async(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence)
+            _batch_async(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence, similarity_threshold)
         )
 
-    async def _batch_async(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after=None, before=None, workflows=None, min_confidence=None):
+    async def _batch_async(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after=None, before=None, workflows=None, min_confidence=None, similarity_threshold=None):
         """Async implementation of batch email processing."""
         from mailflow.email_extractor import EmailExtractor
         from mailflow.similarity import SimilarityEngine
@@ -259,6 +268,7 @@ def register(cli):
                     "_workflow_filter": workflow_filter,
                     "_min_confidence": min_confidence,
                     "_auto_threshold": auto_threshold,
+                    "_similarity_threshold": similarity_threshold,
                 }
 
                 # Process one email through standard pipeline (interactive selection)
@@ -301,9 +311,10 @@ def register(cli):
     @click.option("--before", default=None, help="Only emails before this date (YYYY-MM-DD)")
     @click.option("--workflows", "-w", default=None, help="Only classify against these workflows (comma-separated)")
     @click.option("--min-confidence", default=None, type=float, help="Skip emails below this confidence (default 0.45 when --workflows set)")
-    def fetch_files(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence):
+    @click.option("--similarity-threshold", default=None, type=float, help="Override similarity gate threshold (default 0.5)")
+    def fetch_files(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence, similarity_threshold):
         """Same as `mailflow batch`"""
-        return batch.callback(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence)  # type: ignore[attr-defined]
+        return batch.callback(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence, similarity_threshold)  # type: ignore[attr-defined]
 
     @cli.command()
     @click.option("--limit", "-n", default=10, help="Number of workflows to show")

@@ -42,9 +42,10 @@ class WorkflowSelector:
         min_confidence = email_data.get("_min_confidence")
         auto_threshold = email_data.get("_auto_threshold")
 
-        # Get similarity thresholds from config
+        # Get similarity thresholds from config (with CLI override)
         similarity_config = self.config.settings.get("similarity", {})
-        similarity_min = similarity_config.get("min_threshold", 0.5)
+        cli_threshold = email_data.get("_similarity_threshold")
+        similarity_min = cli_threshold if cli_threshold is not None else similarity_config.get("min_threshold", 0.5)
         similarity_skip_llm = similarity_config.get("skip_llm_threshold", 0.98)
         min_training = similarity_config.get("min_training_examples", 10)
 
