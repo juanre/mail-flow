@@ -18,7 +18,6 @@ from mailflow.commands.gmail_batch_workflows import register as register_gmail_b
 from mailflow.logging_config import setup_logging
 from mailflow.models import DataStore, WorkflowDefinition
 from mailflow.process import process as process_email
-from mailflow.processed_emails_tracker import ProcessedEmailsTracker
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +25,9 @@ logger = logging.getLogger(__name__)
 @click.group(invoke_without_command=True)
 @click.pass_context
 @click.option("--debug", is_flag=True, help="Enable debug logging")
-@click.option(
-    "--llm/--no-llm", default=None, help="Enable/disable LLM classification (overrides config)"
-)
 @click.option("--llm-model", default=None, help="LLM model alias: fast, balanced, or deep")
 @click.option("--force", is_flag=True, help="Reprocess already processed emails")
-def cli(ctx, debug, llm, llm_model, force):
+def cli(ctx, debug, llm_model, force):
     """mailflow - Smart Email Processing for Mutt
 
     When invoked without a subcommand, processes email from stdin.
@@ -41,7 +37,6 @@ def cli(ctx, debug, llm, llm_model, force):
 
     # Store options in context for process_stdin to use
     ctx.ensure_object(dict)
-    ctx.obj["llm"] = llm
     ctx.obj["llm_model"] = llm_model
     ctx.obj["force"] = force
 
@@ -64,12 +59,11 @@ def process_stdin(ctx):
             sys.exit(1)
 
         # Get options from context
-        llm_enabled = ctx.obj.get("llm")
         llm_model = ctx.obj.get("llm_model")
         force = ctx.obj.get("force", False)
 
         asyncio.run(
-            process_email(email_content, llm_enabled=llm_enabled, llm_model=llm_model, force=force)
+            process_email(email_content, llm_model=llm_model, force=force)
         )
     except KeyboardInterrupt:
         print("\n✗ Cancelled by user")
@@ -109,184 +103,6 @@ def archivist_metrics() -> None:
         click.echo("\nTop-1 advisor usage:")
         for name, count in sorted(advisor_top1.items(), key=lambda x: (-x[1], x[0])):
             click.echo(f"  {name}: {count}")
-
-
-@cli.command()
-@click.argument("directory", type=click.Path(exists=True))
-@click.option("--llm/--no-llm", default=None, help="Enable/disable LLM (overrides config)")
-@click.option("--llm-model", default=None, help="LLM model: fast, balanced, or deep")
-@click.option(
-    "--auto-threshold", default=0.85, type=float, help="Auto-process above this confidence"
-)
-@click.option("--dry-run", is_flag=True, help="Preview without executing workflows")
-@click.option("--max-emails", default=None, type=int, help="Limit number of emails to process")
-@click.option("--force", is_flag=True, help="Reprocess already processed emails")
-def batch(directory, llm, llm_model, auto_threshold, dry_run, max_emails, force):
-    """Process multiple emails from a directory
-
-    Processes all .eml files in DIRECTORY and subdirectories.
-    Emails above auto-threshold are processed automatically.
-    Others are presented for review.
-
-    Example:
-        mailflow batch ~/mail/archive --llm --auto-threshold 0.9
-    """
-    asyncio.run(
-        _batch_async(directory, llm, llm_model, auto_threshold, dry_run, max_emails, force)
-    )
-
-
-async def _batch_async(directory, llm, llm_model, auto_threshold, dry_run, max_emails, force):
-    """Async implementation of batch processing."""
-    from pathlib import Path
-
-    from mailflow.email_extractor import EmailExtractor
-    from mailflow.hybrid_classifier import HybridClassifier
-    from mailflow.llm_classifier import LLMClassifier
-    from mailflow.models import DataStore
-    from mailflow.similarity import SimilarityEngine
-
-    config = Config()
-
-    # Override LLM settings from CLI
-    if llm is not None:
-        config.settings["llm"]["enabled"] = llm
-    if llm_model is not None:
-        config.settings["llm"]["model_alias"] = llm_model
-
-    data_store = DataStore(config)
-    extractor = EmailExtractor()
-    similarity_engine = SimilarityEngine(config)
-
-    # Initialize processed emails tracker
-    tracker = ProcessedEmailsTracker(config)
-
-    # Setup hybrid classifier if LLM enabled
-    hybrid_classifier = None
-    if config.settings.get("llm", {}).get("enabled", False):
-        try:
-            model_alias = config.settings["llm"].get("model_alias", "balanced")
-            llm_classifier = LLMClassifier(model_alias=model_alias)
-            hybrid_classifier = HybridClassifier(similarity_engine, llm_classifier)
-            click.echo(f"✓ LLM enabled (model: {model_alias})")
-        except Exception as e:
-            click.echo(f"⚠️  LLM setup failed: {e}, using similarity only", err=True)
-
-    # Find email files
-    directory_path = Path(directory).expanduser()
-    email_files = list(directory_path.glob("**/*.eml"))
-
-    if max_emails:
-        email_files = email_files[:max_emails]
-
-    if not email_files:
-        click.echo(f"No .eml files found in {directory}")
-        return
-
-    click.echo(f"\nFound {len(email_files)} emails to process")
-
-    # Cost warning for LLM
-    if hybrid_classifier:
-        estimated_llm_calls = len(email_files) * 0.2  # Estimate 20% need LLM
-        estimated_cost = estimated_llm_calls * 0.003  # $0.003 per call
-        click.echo(f"⚠️  Estimated LLM cost: ${estimated_cost:.2f} (assumes ~20% need LLM assist)")
-        if not dry_run:
-            if not click.confirm("Continue with processing?", default=True):
-                click.echo("Cancelled by user")
-                return
-
-    if dry_run:
-        click.echo("DRY RUN MODE - no workflows will be executed\n")
-
-    stats = {"processed": 0, "auto": 0, "skipped": 0, "errors": 0}
-
-    for i, email_file in enumerate(email_files, 1):
-        try:
-            # Read email content first
-            with open(email_file, encoding="utf-8", errors="replace") as f:
-                email_content = f.read()
-
-            # Extract to get message_id
-            email_data = extractor.extract(email_content)
-            message_id = email_data.get("message_id")
-
-            # Check if already processed (unless --force)
-            if not force and tracker.is_processed(email_content, message_id):
-                processed_info = tracker.get_processed_info(email_content, message_id)
-                prev_workflow = (
-                    processed_info.get("workflow_name", "unknown") if processed_info else "unknown"
-                )
-                click.echo(
-                    f"[{i}/{len(email_files)}] ⊘ {email_file.name}: Already processed ({prev_workflow})"
-                )
-                stats["skipped"] += 1
-                continue
-
-            # Classify
-            if hybrid_classifier:
-                result = await hybrid_classifier.classify(
-                    email_data, data_store.workflows, data_store.get_recent_criteria()
-                )
-                rankings = result["rankings"]
-            else:
-                rankings = similarity_engine.rank_workflows(
-                    email_data["features"], data_store.get_recent_criteria(), top_n=5
-                )
-
-            if rankings:
-                workflow_name, confidence, _ = rankings[0]
-
-                # Progress display
-                status = "✓" if confidence >= auto_threshold else "?"
-                click.echo(
-                    f"[{i}/{len(email_files)}] {status} {email_file.name}: {workflow_name} ({confidence:.0%})"
-                )
-
-                if confidence >= auto_threshold:
-                    stats["auto"] += 1
-                    if not dry_run:
-                        # Execute the workflow
-                        from mailflow.workflow import Workflows
-
-                        workflow_def = data_store.workflows.get(workflow_name)
-                        if workflow_def and workflow_def.action_type in Workflows:
-                            try:
-                                action_func = Workflows[workflow_def.action_type]
-                                action_func(email_data, **workflow_def.action_params)
-
-                                # Mark as processed
-                                tracker.mark_as_processed(email_content, message_id, workflow_name)
-
-                                # Intentionally no training here: auto mode should not
-                                # feed classifiers without explicit review.
-
-                            except Exception as e:
-                                click.echo(f"    Failed to execute workflow: {e}", err=True)
-                                stats["errors"] += 1
-                                stats["auto"] -= 1  # Don't count as auto-processed
-                else:
-                    # Would need review
-                    stats["processed"] += 1
-            else:
-                click.echo(f"[{i}/{len(email_files)}] - {email_file.name}: No match")
-                stats["skipped"] += 1
-
-        except Exception as e:
-            click.echo(f"[{i}/{len(email_files)}] ✗ {email_file.name}: Error - {e}", err=True)
-            stats["errors"] += 1
-
-    # Summary
-    click.echo(f"\n{'='*60}")
-    click.echo("Summary:")
-    click.echo(f"  Auto-processed: {stats['auto']}")
-    click.echo(f"  Need review: {stats['processed']}")
-    click.echo(f"  Already processed (skipped): {stats['skipped']}")
-    click.echo(f"  Errors: {stats['errors']}")
-    click.echo(f"{'='*60}")
-    if dry_run:
-        click.echo("DRY RUN - No workflows were executed")
-    else:
-        click.echo("Processing complete")
 
 
 def _interactive_workflow_setup(config: Config, data_store: DataStore) -> tuple[int, int]:
@@ -504,14 +320,10 @@ def init(reset):
     click.echo("  1. Add to your .muttrc:")
     click.echo('     macro index,pager \\cp "<pipe-message>mailflow<enter>" "Process with mailflow"')
     click.echo("\n  2. Press Ctrl-P in mutt to process emails")
-    click.echo("\n  3. (Optional) Enable LLM for better classification:")
+    click.echo("\n  3. Set up your environment:")
     click.echo("     export ANTHROPIC_API_KEY=sk-ant-...")
-    click.echo("     Edit ~/.config/mailflow/config.json: \"llm\": { \"enabled\": true }")
+    click.echo("     export DATABASE_URL=postgresql://...")
     click.echo(f"\n💡 Tip: Run 'mailflow setup-workflows' anytime to add more workflows")
-
-
-from mailflow.commands.gmail_batch_workflows import register as _register_gbw
-_register_gbw(cli)
 
 
 @cli.command()

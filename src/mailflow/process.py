@@ -8,8 +8,6 @@ import sys
 from mailflow.config import Config
 from mailflow.email_extractor import EmailExtractor
 from mailflow.exceptions import EmailParsingError, MailflowError, WorkflowError
-from mailflow.hybrid_classifier import HybridClassifier
-from mailflow.llm_classifier import LLMClassifier
 from mailflow.logging_config import setup_logging
 from mailflow.models import DataStore
 from mailflow.processed_emails_tracker import ProcessedEmailsTracker
@@ -24,7 +22,6 @@ logger = logging.getLogger(__name__)
 async def process(
     message: str,
     config: Config | None = None,
-    llm_enabled: bool | None = None,
     llm_model: str | None = None,
     force: bool = False,
     dry_run: bool = False,
@@ -38,7 +35,6 @@ async def process(
     Args:
         message: Email message text
         config: Optional configuration object
-        llm_enabled: Override config to enable/disable LLM classification
         llm_model: Override config LLM model alias (fast, balanced, deep)
         force: Force reprocessing of already processed emails
         dry_run: Preview mode - don't execute or store anything
@@ -54,9 +50,7 @@ async def process(
         # Initialize processed emails tracker
         tracker = ProcessedEmailsTracker(config)
 
-        # Override LLM settings from CLI if provided
-        if llm_enabled is not None:
-            config.settings["llm"]["enabled"] = llm_enabled
+        # Override LLM model from CLI if provided
         if llm_model is not None:
             config.settings["llm"]["model_alias"] = llm_model
 
@@ -64,22 +58,7 @@ async def process(
         data_store = DataStore(config)
         similarity_engine = SimilarityEngine(config)
 
-        # Setup hybrid classifier with LLM if enabled
-        hybrid_classifier = None
-        llm_classifier = None
-        if config.settings.get("llm", {}).get("enabled", False):
-            try:
-                model_alias = config.settings["llm"].get("model_alias", "balanced")
-                # Note: LLMClassifier context management is handled in hybrid_classifier.classify()
-                # via async context manager which properly manages the LLM service lifecycle
-                llm_classifier = LLMClassifier(model_alias=model_alias)
-                hybrid_classifier = HybridClassifier(similarity_engine, llm_classifier)
-                logger.info(f"LLM classification enabled (model: {model_alias})")
-            except Exception as e:
-                logger.warning(f"Failed to initialize LLM: {e}, using similarity only")
-                hybrid_classifier = None
-
-        ui = WorkflowSelector(config, data_store, similarity_engine, hybrid_classifier)
+        ui = WorkflowSelector(config, data_store, similarity_engine)
 
         # Extract email data
         logger.debug("Extracting email features")
@@ -241,50 +220,3 @@ async def process(
         print(f"\n✗ Unexpected error: {e}")
         logger.exception("Unexpected error in process()")
         sys.exit(1)
-
-
-def main():
-    """Main entry point for mailflow"""
-    # Set up logging
-    log_level = "INFO"  # Could be made configurable
-    if "--debug" in sys.argv:
-        log_level = "DEBUG"
-        sys.argv.remove("--debug")
-
-    setup_logging(log_level=log_level, log_file="mailflow.log")
-
-    logger.info("mailflow started")
-
-    try:
-        if len(sys.argv) == 2:
-            # Read email from file
-            with open(sys.argv[1], encoding="utf-8", errors="replace") as message_file:
-                message_text = message_file.read()
-        else:
-            # Read email from stdin
-            message_text = sys.stdin.read()
-
-        if not message_text:
-            print("✗ No email content provided")
-            logger.error("No email content provided")
-            sys.exit(1)
-
-        process(message_text)
-
-    except FileNotFoundError as e:
-        print(f"✗ File not found: {sys.argv[1]}")
-        logger.error(f"File not found: {e}")
-        sys.exit(1)
-    except PermissionError as e:
-        print(f"✗ Permission denied: {sys.argv[1]}")
-        logger.error(f"Permission denied: {e}")
-        sys.exit(1)
-    except Exception as e:
-        print(f"✗ Failed to read email: {e}")
-        logger.exception("Failed to read email")
-        sys.exit(1)
-    finally:
-        logger.info("mailflow finished")
-
-
-# CLI is the single entry point. This module is not intended to be executed directly.

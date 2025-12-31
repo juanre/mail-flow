@@ -165,9 +165,7 @@ class Config:
             },
             "security": {"max_email_size_mb": 25},
             "llm": {
-                "enabled": True,  # LLM classification enabled by default
                 "model_alias": "balanced",  # fast, balanced, or deep
-                "fallback_to_similarity": True,  # Fall back if LLM fails
             },
             "archive": {
                 "enabled": True,  # Use archive-protocol for document storage
@@ -178,9 +176,18 @@ class Config:
                 "convert_attachments": False,  # Convert non-PDF attachments to PDF/CSV
             },
             "classifier": {
-                "enabled": True,  # Enable llm-archivist integration by default
                 "gate_enabled": False,  # Email worth-archiving gate
                 "gate_min_confidence": 0.7,
+            },
+            "similarity": {
+                # Similarity is a fast local pre-filter before LLM classification.
+                # Below min_threshold: skip email (not relevant to any workflow).
+                # Above min_threshold: send to LLM for classification.
+                # Above skip_llm_threshold: use similarity result directly (cost optimization).
+                # Gate only activates after min_training_examples are collected.
+                "min_threshold": 0.5,  # Skip emails below this similarity
+                "skip_llm_threshold": 0.98,  # Accept without LLM above this
+                "min_training_examples": 10,  # Gate only active after N examples
             },
         }
 

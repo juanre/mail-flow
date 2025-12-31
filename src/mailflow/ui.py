@@ -16,19 +16,20 @@ logger = logging.getLogger(__name__)
 class WorkflowSelector:
     """Interactive UI for selecting workflows"""
 
-    def __init__(self, config, data_store, similarity_engine, hybrid_classifier=None):
+    def __init__(self, config, data_store, similarity_engine):
         self.config = config
         self.data_store = data_store
         self.similarity_engine = similarity_engine
-        self.hybrid_classifier = hybrid_classifier
         self.max_suggestions = config.settings["ui"]["max_suggestions"]
         self.show_confidence = config.settings["ui"]["show_confidence"]
 
     async def select_workflow(self, email_data: dict, skip_training: bool = False) -> str | None:
         """Present workflow options using rich TUI and get user selection.
 
-        This is an async method. The blocking input() calls are fine - we await
-        the async classifier calls around them.
+        Classification pipeline:
+        1. Similarity pre-filter (fast, local, free) - skip irrelevant emails
+        2. LLM classification (llm-archivist) - for emails that pass the gate
+        3. User confirmation for interactive mode
 
         Args:
             email_data: Extracted email data
@@ -36,50 +37,75 @@ class WorkflowSelector:
         """
         console = Console()
 
-        # Extract workflow filter and min confidence from context
+        # Extract workflow filter, min confidence, and auto threshold from context
         workflow_filter = email_data.get("_workflow_filter")
         min_confidence = email_data.get("_min_confidence")
+        auto_threshold = email_data.get("_auto_threshold")
 
-        # Get ranked workflows (use llm-archivist if enabled, else hybrid/similarity)
-        criteria_instances = self.data_store.get_recent_criteria()
-        rankings = []
+        # Get similarity thresholds from config
+        similarity_config = self.config.settings.get("similarity", {})
+        similarity_min = similarity_config.get("min_threshold", 0.5)
+        similarity_skip_llm = similarity_config.get("skip_llm_threshold", 0.98)
+        min_training = similarity_config.get("min_training_examples", 10)
 
-        # Prefer external classifier when enabled
-        arch_result = None
-        if self.config.settings.get("classifier", {}).get("enabled"):
-            try:
-                from mailflow.archivist_integration import classify_with_archivist
+        # Step 1: Run similarity pre-filter (fast, local)
+        email_features = email_data.get("features", {})
+        # Filter out special markers (_skip) and apply workflow filter
+        criteria_instances = [
+            c for c in self.data_store.criteria_instances
+            if c.workflow_name != "_skip"
+        ]
 
-                arch = await classify_with_archivist(
-                    email_data,
-                    self.data_store,
-                    interactive=True,
-                    allow_llm=self.config.settings.get("llm", {}).get("enabled", False),
-                    max_candidates=self.max_suggestions,
-                    workflow_filter=workflow_filter,
-                )
-                arch_result = arch
-                rankings = arch.get("rankings") or []
-            except Exception as e:
-                logger.warning(f"archivist classify failed: {e}; falling back")
+        if workflow_filter:
+            criteria_instances = [c for c in criteria_instances if c.workflow_name in workflow_filter]
 
-        if not rankings and self.hybrid_classifier:
-            try:
-                # Filter workflows if specified
-                workflows_to_use = self.data_store.workflows
-                if workflow_filter:
-                    workflows_to_use = {k: v for k, v in self.data_store.workflows.items() if k in workflow_filter}
-                result = await self.hybrid_classifier.classify(
-                    email_data, workflows_to_use, criteria_instances
-                )
-                rankings = result["rankings"]
-            except Exception as e:
-                logger.warning(f"Hybrid classification failed: {e}, falling back to similarity")
-
-        if not rankings:
-            rankings = self.similarity_engine.rank_workflows(
-                email_data["features"], criteria_instances, self.max_suggestions
+        similarity_rankings = []
+        if criteria_instances:
+            similarity_rankings = self.similarity_engine.rank_workflows(
+                email_features, criteria_instances, top_n=self.max_suggestions
             )
+
+        # Check similarity gate - skip if below threshold
+        # Gate only activates after we have enough training examples
+        max_similarity = similarity_rankings[0][1] if similarity_rankings else 0.0
+        position = email_data.get("_position", 1)
+        total = email_data.get("_total", 1)
+        has_enough_training = len(criteria_instances) >= min_training
+
+        if has_enough_training and max_similarity < similarity_min:
+            logger.info(f"[{position}/{total}] Similarity gate: {max_similarity:.2f} < {similarity_min} - skipping")
+            return None
+
+        # Check if similarity is high enough to skip LLM (only with sufficient training)
+        if has_enough_training and max_similarity >= similarity_skip_llm:
+            suggestion = similarity_rankings[0][0]
+            logger.info(f"[{position}/{total}] High similarity {max_similarity:.2f} >= {similarity_skip_llm} - accepting '{suggestion}' without LLM")
+            # Record the decision (skip in replay mode to avoid duplicates)
+            if not skip_training:
+                instance = CriteriaInstance(
+                    email_id=email_data.get("message_id", ""),
+                    workflow_name=suggestion,
+                    timestamp=datetime.now(),
+                    email_features=email_features,
+                    user_confirmed=False,  # Auto-accepted via similarity
+                    confidence_score=max_similarity,
+                )
+                self.data_store.add_criteria_instance(instance)
+            email_data["_rankings"] = [(suggestion, max_similarity, [])]
+            return suggestion
+
+        # Step 2: Get ranked workflows via llm-archivist (LLM classification)
+        from mailflow.archivist_integration import classify_with_archivist
+
+        arch_result = await classify_with_archivist(
+            email_data,
+            self.data_store,
+            interactive=True,
+            allow_llm=True,
+            max_candidates=self.max_suggestions,
+            workflow_filter=workflow_filter,
+        )
+        rankings = arch_result.get("rankings") or []
 
         # Filter rankings to only include existing workflows (and workflow filter if specified)
         valid_workflows = set(self.data_store.workflows.keys())
@@ -99,10 +125,35 @@ class WorkflowSelector:
 
         # Apply min_confidence gate - skip email if below threshold
         if min_confidence is not None and confidence < min_confidence:
-            position = email_data.get("_position", 1)
-            total = email_data.get("_total", 1)
             logger.info(f"[{position}/{total}] Skipping: confidence {confidence:.2f} < {min_confidence}")
             return None
+
+        # Auto-accept if confidence >= auto_threshold (non-interactive mode)
+        if auto_threshold is not None and suggestion and confidence >= auto_threshold:
+            position = email_data.get("_position", 1)
+            total = email_data.get("_total", 1)
+            logger.info(f"[{position}/{total}] Auto-accepting: {suggestion} ({confidence:.2f} >= {auto_threshold})")
+            # Record the decision (skip in replay mode to avoid duplicates)
+            if not skip_training:
+                instance = CriteriaInstance(
+                    email_id=email_data.get("message_id", ""),
+                    workflow_name=suggestion,
+                    timestamp=datetime.now(),
+                    email_features=email_data.get("features", {}),
+                    user_confirmed=False,  # Auto-accepted, not user confirmed
+                    confidence_score=confidence,
+                )
+                self.data_store.add_criteria_instance(instance)
+
+                # Send feedback to external classifier if available
+                try:
+                    if arch_result and arch_result.get("decision_id"):
+                        from mailflow.archivist_integration import record_feedback
+                        await record_feedback(int(arch_result["decision_id"]), suggestion, "auto-accepted")
+                except Exception as e:
+                    logger.debug(f"archivist feedback not recorded: {e}")
+
+            return suggestion
 
         # Get thread info if available
         thread_info = email_data.get("_thread_info")

@@ -50,11 +50,8 @@ def _build_text(email_data: dict) -> str:
     return header.strip()
 
 
-def _render_email_pdf_to_file(email_data: dict) -> str | None:
-    """Render email to PDF temp file if body is HTML. Returns path or None.
-
-    Caller is responsible for cleanup. Falls back to None on failure.
-    """
+def _render_email_pdf_to_file_sync(email_data: dict) -> str | None:
+    """Sync implementation of PDF rendering. Runs in thread pool."""
     message_obj = email_data.get("_message_obj")
     if not message_obj:
         return None
@@ -73,6 +70,17 @@ def _render_email_pdf_to_file(email_data: dict) -> str | None:
     except Exception as e:
         logger.warning(f"PDF rendering failed, falling back to text-only: {e}")
         return None
+
+
+async def _render_email_pdf_to_file(email_data: dict) -> str | None:
+    """Render email to PDF temp file if body is HTML. Returns path or None.
+
+    Runs sync Playwright in a thread pool to avoid blocking the event loop.
+    Caller is responsible for cleanup. Falls back to None on failure.
+    """
+    import asyncio
+
+    return await asyncio.to_thread(_render_email_pdf_to_file_sync, email_data)
 
 
 def _build_meta(email_data: dict) -> dict:
@@ -140,7 +148,7 @@ async def classify_with_archivist(
     }
 
     # Render HTML email to PDF for LLM context (if applicable)
-    pdf_path = _render_email_pdf_to_file(email_data)
+    pdf_path = await _render_email_pdf_to_file(email_data)
 
     try:
         # Allow tests to inject a fake classifier; otherwise use shared archivist client.

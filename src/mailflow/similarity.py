@@ -1,5 +1,13 @@
-# ABOUTME: Similarity scoring between emails and learned workflow criteria
-# ABOUTME: Uses weighted Jaccard similarity on domains, subjects, and attachments
+# ABOUTME: Similarity scoring as a fast pre-filter before LLM classification.
+# ABOUTME: Uses weighted Jaccard similarity on email features (domain, subject, attachments).
+# ABOUTME:
+# ABOUTME: Role in the classification pipeline:
+# ABOUTME:   1. Similarity check (fast, local, free)
+# ABOUTME:   2. If score < min_threshold: skip email - not relevant to any workflow
+# ABOUTME:   3. If score >= skip_llm_threshold (98%): accept similarity result directly
+# ABOUTME:   4. Otherwise: send to LLM (llm-archivist) for proper classification
+# ABOUTME:
+# ABOUTME: This avoids LLM costs for obviously irrelevant emails.
 from typing import Any
 
 

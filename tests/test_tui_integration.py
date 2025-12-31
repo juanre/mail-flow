@@ -22,6 +22,7 @@ class TestWorkflowSelectorTUI:
 
         email = {
             "from": "billing@test.com",
+            "to": "user@example.com",
             "subject": "Invoice #123",
             "body": "Please find attached",
             "attachments": [{"filename": "invoice.pdf", "size": 1024}],
@@ -54,6 +55,7 @@ class TestWorkflowSelectorTUI:
 
         email = {
             "from": "billing@test.com",
+            "to": "user@example.com",
             "subject": "Invoice #123",
             "body": "Please find attached",
             "attachments": [],

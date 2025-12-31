@@ -98,7 +98,6 @@ def register(cli):
 
     @cli.command()
     @click.argument("directory", type=click.Path(exists=True))
-    @click.option("--llm/--no-llm", default=None, help="Enable/disable LLM (overrides config)")
     @click.option("--llm-model", default=None, help="LLM model: fast, balanced, or deep")
     @click.option("--auto-threshold", default=0.85, type=float, help="Auto-process above this confidence")
     @click.option("--dry-run", is_flag=True, help="Preview without executing workflows")
@@ -110,17 +109,15 @@ def register(cli):
     @click.option("--before", default=None, help="Only emails before this date (YYYY-MM-DD)")
     @click.option("--workflows", "-w", default=None, help="Only classify against these workflows (comma-separated)")
     @click.option("--min-confidence", default=None, type=float, help="Skip emails below this confidence (default 0.45 when --workflows set)")
-    def batch(directory, llm, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence):
+    def batch(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence):
         """Process multiple emails from a directory (.eml files)."""
         asyncio.run(
-            _batch_async(directory, llm, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence)
+            _batch_async(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence)
         )
 
-    async def _batch_async(directory, llm, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after=None, before=None, workflows=None, min_confidence=None):
+    async def _batch_async(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after=None, before=None, workflows=None, min_confidence=None):
         """Async implementation of batch email processing."""
         from mailflow.email_extractor import EmailExtractor
-        from mailflow.hybrid_classifier import HybridClassifier
-        from mailflow.llm_classifier import LLMClassifier
         from mailflow.similarity import SimilarityEngine
 
         # Validate mutually exclusive flags
@@ -142,8 +139,6 @@ def register(cli):
 
         config = Config()
 
-        if llm is not None:
-            config.settings["llm"]["enabled"] = llm
         if llm_model is not None:
             config.settings["llm"]["model_alias"] = llm_model
 
@@ -162,16 +157,6 @@ def register(cli):
                 raise SystemExit(1)
             click.echo(f"Focused training: {', '.join(workflow_filter)} (min confidence: {min_confidence})")
 
-        hybrid_classifier = None
-        if config.settings.get("llm", {}).get("enabled", False):
-            try:
-                model_alias = config.settings["llm"].get("model_alias", "balanced")
-                llm_classifier = LLMClassifier(model_alias=model_alias)
-                hybrid_classifier = HybridClassifier(similarity_engine, llm_classifier)
-                click.echo(f"LLM enabled (model: {model_alias})")
-            except Exception as e:
-                click.echo(f"LLM setup failed: {e}, using similarity only", err=True)
-
         directory_path = Path(directory).expanduser()
         email_files = _discover_email_files(directory_path)
         if max_emails:
@@ -182,7 +167,8 @@ def register(cli):
 
         click.echo(f"Found {len(email_files)} emails to process")
 
-        if hybrid_classifier and not dry_run and not train_only:
+        # Cost warning for LLM classification (archivist uses LLM for all classifications)
+        if not dry_run and not train_only:
             estimated_llm_calls = len(email_files) * 0.2
             estimated_cost = estimated_llm_calls * 0.003
             click.echo(f"Estimated LLM cost: ${estimated_cost:.2f} (assumes ~20% need LLM assist)")
@@ -272,6 +258,7 @@ def register(cli):
                     "_thread_info": get_thread_info(email_data, threads),
                     "_workflow_filter": workflow_filter,
                     "_min_confidence": min_confidence,
+                    "_auto_threshold": auto_threshold,
                 }
 
                 # Process one email through standard pipeline (interactive selection)
@@ -303,7 +290,6 @@ def register(cli):
     # Alias: mailflow fetch files
     @fetch.command(name="files")
     @click.argument("directory", type=click.Path(exists=True))
-    @click.option("--llm/--no-llm", default=None, help="Enable/disable LLM (overrides config)")
     @click.option("--llm-model", default=None, help="LLM model: fast, balanced, or deep")
     @click.option("--auto-threshold", default=0.85, type=float, help="Auto-process above this confidence")
     @click.option("--dry-run", is_flag=True, help="Preview without executing workflows")
@@ -315,9 +301,9 @@ def register(cli):
     @click.option("--before", default=None, help="Only emails before this date (YYYY-MM-DD)")
     @click.option("--workflows", "-w", default=None, help="Only classify against these workflows (comma-separated)")
     @click.option("--min-confidence", default=None, type=float, help="Skip emails below this confidence (default 0.45 when --workflows set)")
-    def fetch_files(directory, llm, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence):
+    def fetch_files(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence):
         """Same as `mailflow batch`"""
-        return batch.callback(directory, llm, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence)  # type: ignore[attr-defined]
+        return batch.callback(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence)  # type: ignore[attr-defined]
 
     @cli.command()
     @click.option("--limit", "-n", default=10, help="Number of workflows to show")

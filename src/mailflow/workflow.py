@@ -78,23 +78,22 @@ def save_attachment(
                     mimetype, content, filename = convert_attachment(filename, mimetype, content)
                 except Exception as e:
                     logger.warning(f"Attachment conversion failed for {filename}: {e}")
-            # Optional classification (shared classifier)
+            # Add classification metadata from shared classifier
             origin_extra = {}
             try:
-                if config.settings.get("classifier", {}).get("enabled", False):
-                    model_path = str(config.state_dir / "classifier.json")
-                    model = Model(model_path)
-                    feats = extract_features(mimetype, {
-                        "origin": {
-                            "subject": message.get("subject"),
-                            "from": message.get("from"),
-                            "attachment_filename": filename,
-                        }
-                    })
-                    ranked = model.predict(feats, top_k=1)
-                    if ranked:
-                        wf, score = ranked[0]
-                        origin_extra = {"classifier": {"workflow_suggestion": wf, "type": "", "category": "", "confidence": score}}
+                model_path = str(config.state_dir / "classifier.json")
+                model = Model(model_path)
+                feats = extract_features(mimetype, {
+                    "origin": {
+                        "subject": message.get("subject"),
+                        "from": message.get("from"),
+                        "attachment_filename": filename,
+                    }
+                })
+                ranked = model.predict(feats, top_k=1)
+                if ranked:
+                    wf, score = ranked[0]
+                    origin_extra = {"classifier": {"workflow_suggestion": wf, "type": "", "category": "", "confidence": score}}
             except Exception:
                 pass
             subdirectory = directory or parse_doctype_from_workflow(workflow)
@@ -333,32 +332,31 @@ def save_pdf(
             logger.info(f"Found {len(pdf_attachments)} PDF attachment(s)")
             results = []
             for filename, content, mimetype in pdf_attachments:
-                # Optional classification (shared classifier) for attachment
+                # Add classification metadata from shared classifier for attachment
                 origin_extra = {}
                 try:
-                    if config.settings.get("classifier", {}).get("enabled", False):
-                        from file_classifier import classify
+                    from file_classifier import classify
 
-                        ctx = {
-                            "entity": entity,
-                            "source": "email",
-                            "origin": {
-                                "message_id": message.get("message_id"),
-                                "subject": message.get("subject"),
-                                "from": message.get("from"),
-                                "to": message.get("to"),
-                                "attachment_filename": filename,
-                            },
+                    ctx = {
+                        "entity": entity,
+                        "source": "email",
+                        "origin": {
+                            "message_id": message.get("message_id"),
+                            "subject": message.get("subject"),
+                            "from": message.get("from"),
+                            "to": message.get("to"),
+                            "attachment_filename": filename,
+                        },
+                    }
+                    pred = classify(content, mimetype, ctx)
+                    origin_extra = {
+                        "classifier": {
+                            "workflow_suggestion": pred.workflow_suggestion,
+                            "type": pred.type,
+                            "category": pred.category,
+                            "confidence": pred.confidence,
                         }
-                        pred = classify(content, mimetype, ctx)
-                        origin_extra = {
-                            "classifier": {
-                                "workflow_suggestion": pred.workflow_suggestion,
-                                "type": pred.type,
-                                "category": pred.category,
-                                "confidence": pred.confidence,
-                            }
-                        }
+                    }
                 except Exception as e:
                     logger.warning(f"Classifier unavailable or failed: {e}")
 
@@ -440,22 +438,21 @@ def save_pdf(
             logger.info("No PDF attachments found, converting email to PDF")
             pdf_bytes = email_to_pdf_bytes(message_obj, message)
 
-            # Optional classification for converted email content
+            # Add classification metadata from shared classifier
             origin_extra = {}
             try:
-                if config.settings.get("classifier", {}).get("enabled", False):
-                    model_path = str(config.state_dir / "classifier.json")
-                    model = Model(model_path)
-                    feats = extract_features("application/pdf", {
-                        "origin": {
-                            "subject": message.get("subject"),
-                            "from": message.get("from"),
-                        }
-                    })
-                    ranked = model.predict(feats, top_k=1)
-                    if ranked:
-                        wf, score = ranked[0]
-                        origin_extra = {"classifier": {"workflow_suggestion": wf, "type": "", "category": "", "confidence": score}}
+                model_path = str(config.state_dir / "classifier.json")
+                model = Model(model_path)
+                feats = extract_features("application/pdf", {
+                    "origin": {
+                        "subject": message.get("subject"),
+                        "from": message.get("from"),
+                    }
+                })
+                ranked = model.predict(feats, top_k=1)
+                if ranked:
+                    wf, score = ranked[0]
+                    origin_extra = {"classifier": {"workflow_suggestion": wf, "type": "", "category": "", "confidence": score}}
             except Exception:
                 pass
 
