@@ -10,8 +10,7 @@ from mailflow.attachment_handler import extract_attachments
 from mailflow.exceptions import WorkflowError
 from mailflow.pdf_converter import email_to_pdf_bytes
 from mailflow.security import validate_path
-from mailflow.utils import write_original_file, parse_doctype_from_workflow
-from file_classifier import Model, extract_features
+from mailflow.utils import write_original_file, parse_doctype_from_workflow, get_classifier_suggestion
 from mailflow.attachment_conversion import convert_attachment
 
 logger = logging.getLogger(__name__)
@@ -79,23 +78,11 @@ def save_attachment(
                 except Exception as e:
                     logger.warning(f"Attachment conversion failed for {filename}: {e}")
             # Add classification metadata from shared classifier
-            origin_extra = {}
-            try:
-                model_path = str(config.state_dir / "classifier.json")
-                model = Model(model_path)
-                feats = extract_features(mimetype, {
-                    "origin": {
-                        "subject": message.get("subject"),
-                        "from": message.get("from"),
-                        "attachment_filename": filename,
-                    }
-                })
-                ranked = model.predict(feats, top_k=1)
-                if ranked:
-                    wf, score = ranked[0]
-                    origin_extra = {"classifier": {"workflow_suggestion": wf, "type": "", "category": "", "confidence": score}}
-            except Exception:
-                pass
+            origin_extra = get_classifier_suggestion(config, mimetype, {
+                "subject": message.get("subject"),
+                "from": message.get("from"),
+                "attachment_filename": filename,
+            })
             subdirectory = directory or parse_doctype_from_workflow(workflow)
             document_id, content_path, metadata_path = writer.write_document(
                 workflow=workflow,
@@ -421,7 +408,7 @@ def save_pdf(
         else:
             # No PDF attachments. Optionally apply Gate (worth archiving?)
             gate_cfg = config.settings.get("classifier", {})
-            if gate_cfg.get("enabled", False) and gate_cfg.get("gate_enabled", False):
+            if gate_cfg.get("gate_enabled", False):
                 try:
                     from file_classifier import should_archive_email
 
@@ -439,22 +426,10 @@ def save_pdf(
             pdf_bytes = email_to_pdf_bytes(message_obj, message)
 
             # Add classification metadata from shared classifier
-            origin_extra = {}
-            try:
-                model_path = str(config.state_dir / "classifier.json")
-                model = Model(model_path)
-                feats = extract_features("application/pdf", {
-                    "origin": {
-                        "subject": message.get("subject"),
-                        "from": message.get("from"),
-                    }
-                })
-                ranked = model.predict(feats, top_k=1)
-                if ranked:
-                    wf, score = ranked[0]
-                    origin_extra = {"classifier": {"workflow_suggestion": wf, "type": "", "category": "", "confidence": score}}
-            except Exception:
-                pass
+            origin_extra = get_classifier_suggestion(config, "application/pdf", {
+                "subject": message.get("subject"),
+                "from": message.get("from"),
+            })
 
             subdirectory = directory or parse_doctype_from_workflow(workflow)
             document_id, content_path, metadata_path = writer.write_document(

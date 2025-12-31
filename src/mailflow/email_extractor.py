@@ -356,10 +356,7 @@ class EmailExtractor:
                 logger.warning(f"Failed to extract domain: {e}")
 
         # Include raw recipient for to_address similarity
-        try:
-            features["to"] = email_data.get("to", "").lower()
-        except Exception:
-            features["to"] = ""
+        features["to"] = email_data.get("to", "").lower()
 
         # Attachment features
         features["has_pdf"] = any(att.get("is_pdf", False) for att in email_data["attachments"])
