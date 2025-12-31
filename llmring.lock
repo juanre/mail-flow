@@ -33,7 +33,7 @@ models = [ "anthropic:claude-3-5-haiku-20241022",]
 
 [[profiles.default.bindings]]
 alias = "balanced"
-models = [ "anthropic:claude-3-5-sonnet-20241022",]
+models = [ "google:gemini-2.5-pro", "anthropic:claude-opus-4-1-20250805",]
 
 [[profiles.default.bindings]]
 alias = "deep"
