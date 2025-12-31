@@ -159,11 +159,13 @@ async def classify_with_archivist(
         return {"label": None, "confidence": 0.0, "candidates": []}
     finally:
         # Cleanup temp PDF file
-        if pdf_path and os.path.exists(pdf_path):
+        if pdf_path:
             try:
                 os.unlink(pdf_path)
+            except FileNotFoundError:
+                pass  # Already cleaned up
             except Exception as e:
-                logger.debug(f"Failed to cleanup temp PDF: {e}")
+                logger.debug(f"Failed to cleanup temp PDF {pdf_path}: {e}")
 
     candidates = decision.get("candidates") or []
     rankings: List[Tuple[str, float, list]] = [
