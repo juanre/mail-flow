@@ -31,10 +31,11 @@ async def classify(
     meta: Dict[str, Any],
     workflows: List[Workflow],
     opts: Optional[ClassifyOpts] = None,
+    pdf_path: Optional[str] = None,
 ) -> Decision:
     """Classify using archivist. Must be awaited within an event loop."""
     clf = await _get_classifier()
-    return await clf.classify_async(text, meta, workflows, opts=opts)
+    return await clf.classify_async(text, meta, workflows, opts=opts, pdf_path=pdf_path)
 
 
 async def feedback(decision_id: int, label: str, reason: str | None = None) -> None:

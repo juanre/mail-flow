@@ -6,6 +6,8 @@ All classification functions are async for proper connection pool management."""
 from __future__ import annotations
 
 import logging
+import os
+import tempfile
 from typing import Any, Dict, List, Optional, Tuple
 
 from llm_archivist import Workflow
@@ -17,23 +19,60 @@ from mailflow.archivist_client import feedback as archivist_feedback
 
 
 def _build_text(email_data: dict) -> str:
-    """Build classifier text from email fields."""
+    """Build classifier text from email fields.
+
+    Raises:
+        ValueError: If from or to address is missing.
+    """
     subject = (email_data.get("subject") or "").strip()
-    body = (email_data.get("body") or "")[:2000]
+    body = email_data.get("body") or ""  # Full body, no truncation
     from_addr = (email_data.get("from") or "").strip()
     to_addr = (email_data.get("to") or "").strip()
 
+    if not from_addr or not to_addr:
+        raise ValueError("Email missing required from/to address")
+
+    # Get PDF attachment names
+    attachments = email_data.get("attachments") or []
+    pdf_names = [a["filename"] for a in attachments if a.get("is_pdf") and a.get("filename")]
+
     header_lines = [
         "Source: email",
-        f"From: {from_addr}" if from_addr else "",
-        f"To: {to_addr}" if to_addr else "",
+        f"From: {from_addr}",
+        f"To: {to_addr}",
         f"Subject: {subject}" if subject else "",
+        f"PDF attachments: {', '.join(pdf_names)}" if pdf_names else "",
     ]
     header = "\n".join([h for h in header_lines if h])
 
     if body:
         return f"{header}\n\n{body}".strip()
     return header.strip()
+
+
+def _render_email_pdf_to_file(email_data: dict) -> str | None:
+    """Render email to PDF temp file if body is HTML. Returns path or None.
+
+    Caller is responsible for cleanup. Falls back to None on failure.
+    """
+    message_obj = email_data.get("_message_obj")
+    if not message_obj:
+        return None
+
+    try:
+        from mailflow.pdf_converter import email_to_pdf_bytes, extract_best_html_from_message
+
+        _, is_html = extract_best_html_from_message(message_obj)
+        if not is_html:
+            return None
+
+        pdf_bytes = email_to_pdf_bytes(message_obj, email_data)
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp.write(pdf_bytes)
+            return tmp.name
+    except Exception as e:
+        logger.warning(f"PDF rendering failed, falling back to text-only: {e}")
+        return None
 
 
 def _build_meta(email_data: dict) -> dict:
@@ -100,19 +139,31 @@ async def classify_with_archivist(
         "max_candidates": int(max_candidates),
     }
 
-    # Allow tests to inject a fake classifier; otherwise use shared archivist client.
+    # Render HTML email to PDF for LLM context (if applicable)
+    pdf_path = _render_email_pdf_to_file(email_data)
+
     try:
+        # Allow tests to inject a fake classifier; otherwise use shared archivist client.
         if classifier is not None:
             # Test classifiers may be sync or async
             if hasattr(classifier, "classify_async"):
-                decision = await classifier.classify_async(text, meta, workflows, opts=opts)
+                decision = await classifier.classify_async(
+                    text, meta, workflows, opts=opts, pdf_path=pdf_path
+                )
             else:
-                decision = classifier.classify(text, meta, workflows, opts=opts)
+                decision = classifier.classify(text, meta, workflows, opts=opts, pdf_path=pdf_path)
         else:
-            decision = await archivist_classify(text, meta, workflows, opts=opts)
+            decision = await archivist_classify(text, meta, workflows, opts=opts, pdf_path=pdf_path)
     except Exception as e:
         logger.warning(f"Classification failed: {e}")
         return {"label": None, "confidence": 0.0, "candidates": []}
+    finally:
+        # Cleanup temp PDF file
+        if pdf_path and os.path.exists(pdf_path):
+            try:
+                os.unlink(pdf_path)
+            except Exception as e:
+                logger.debug(f"Failed to cleanup temp PDF: {e}")
 
     candidates = decision.get("candidates") or []
     rankings: List[Tuple[str, float, list]] = [

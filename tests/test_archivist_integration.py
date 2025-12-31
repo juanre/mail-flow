@@ -29,7 +29,7 @@ class _FakeClassifier:
     def __init__(self, decision):
         self._decision = decision
 
-    def classify(self, text, meta, workflows, opts=None):
+    def classify(self, text, meta, workflows, opts=None, pdf_path=None):
         return self._decision
 
 
