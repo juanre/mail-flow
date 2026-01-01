@@ -5,6 +5,7 @@
 import asyncio
 import json
 import logging
+import os
 import re
 import sys
 from pathlib import Path
@@ -464,6 +465,79 @@ def setup_workflows():
     click.echo(f"✓ Created {created_count} new workflows")
     click.echo(f"  Total workflows: {total_workflows}")
     click.echo(f"\nWorkflows saved to: {config.config_dir / 'workflows.json'}")
+
+
+@cli.command()
+@click.option("--yes", is_flag=True, help="Skip confirmation prompt")
+def reset_training(yes):
+    """Reset all training data for a fresh training run.
+
+    Clears:
+    - criteria_instances.json (local similarity examples)
+    - processed_emails.db (email tracking database)
+    - PostgreSQL tables: decisions, embeddings, feedback
+
+    Use this before re-training to ensure clean, unpolluted data.
+    """
+    config = Config()
+
+    if not yes:
+        click.echo("\n⚠️  This will delete ALL training data:")
+        click.echo(f"  - {config.data_dir / 'criteria_instances.json'}")
+        click.echo(f"  - {config.config_dir / 'processed_emails.db'}")
+        click.echo("  - PostgreSQL: decisions, embeddings, feedback tables")
+        if not click.confirm("\nContinue?", default=False):
+            click.echo("Cancelled.")
+            return
+
+    click.echo("\nResetting training data...")
+
+    # 1. Clear criteria_instances.json
+    criteria_file = config.data_dir / "criteria_instances.json"
+    if criteria_file.exists():
+        criteria_file.write_text("[]")
+        click.echo(f"  ✓ Cleared {criteria_file}")
+    else:
+        click.echo(f"  - {criteria_file} (not found)")
+
+    # 2. Delete processed_emails.db
+    processed_db = config.config_dir / "processed_emails.db"
+    if processed_db.exists():
+        processed_db.unlink()
+        click.echo(f"  ✓ Deleted {processed_db}")
+    else:
+        click.echo(f"  - {processed_db} (not found)")
+
+    # 3. Truncate PostgreSQL tables
+    db_url = os.getenv("DATABASE_URL")
+    schema = os.getenv("ARCHIVIST_DB_SCHEMA", "archivist")
+
+    if not db_url:
+        click.echo("  ⚠ DATABASE_URL not set, skipping PostgreSQL tables")
+    else:
+        try:
+
+            async def _truncate_tables():
+                from pgdbm import AsyncDatabaseManager, DatabaseConfig
+
+                cfg = DatabaseConfig(connection_string=db_url, schema=schema)
+                db = AsyncDatabaseManager(cfg)
+                await db.connect()
+                try:
+                    await db.execute(
+                        f"TRUNCATE {schema}.embeddings, {schema}.feedback, "
+                        f"{schema}.decisions RESTART IDENTITY CASCADE"
+                    )
+                finally:
+                    await db.disconnect()
+
+            asyncio.run(_truncate_tables())
+            click.echo(f"  ✓ Truncated PostgreSQL tables in schema '{schema}'")
+        except Exception as e:
+            click.echo(f"  ✗ PostgreSQL error: {e}", err=True)
+
+    click.echo("\n✓ Training data reset complete.")
+    click.echo("  Run 'mailflow batch ... --train-only' to retrain.")
 
 
 @cli.command()
