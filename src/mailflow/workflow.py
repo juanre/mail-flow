@@ -37,10 +37,22 @@ def save_attachment(
         dict with success status and saved documents
     """
     try:
+        from email.utils import parsedate_to_datetime
+
         from archive_protocol import RepositoryWriter, RepositoryConfig
         from mailflow.utils import parse_entity_from_workflow
 
         entity = parse_entity_from_workflow(workflow)
+
+        # Parse created_at from email Date header (source timestamp)
+        created_at = None
+        if message.get("date"):
+            try:
+                created_at = parsedate_to_datetime(message["date"])
+            except Exception:
+                pass
+        if created_at is None:
+            created_at = datetime.datetime.now()
 
         archive_cfg = config.settings.get("archive", {})
         archive_config = RepositoryConfig(
@@ -97,6 +109,7 @@ def save_attachment(
                     "attachment_filename": filename,
                     **origin_extra,
                 },
+                created_at=created_at,
                 document_type="attachment",
                 original_filename=filename,
                 subdirectory=subdirectory
@@ -112,19 +125,6 @@ def save_attachment(
             # Optionally store original file
             if archive_cfg.get("save_originals", False):
                 try:
-                    from email.utils import parsedate_to_datetime
-
-                    created_at = None
-                    if message.get("date"):
-                        try:
-                            created_at = parsedate_to_datetime(message["date"])  # type: ignore
-                        except Exception:
-                            created_at = None
-                    if created_at is None:
-                        import datetime as _dt
-
-                        created_at = _dt.datetime.now()
-
                     write_original_file(
                         base_path=archive_cfg.get("base_path", "~/Archive"),
                         entity=entity,
@@ -209,10 +209,22 @@ def save_email_pdf(
         dict with document_id, content_path, success status
     """
     try:
+        from email.utils import parsedate_to_datetime
+
         from archive_protocol import RepositoryWriter, RepositoryConfig
         from mailflow.utils import parse_entity_from_workflow
 
         entity = parse_entity_from_workflow(workflow)
+
+        # Parse created_at from email Date header (source timestamp)
+        created_at = None
+        if message.get("date"):
+            try:
+                created_at = parsedate_to_datetime(message["date"])
+            except Exception:
+                pass
+        if created_at is None:
+            created_at = datetime.datetime.now()
 
         archive_cfg = config.settings.get("archive", {})
         archive_config = RepositoryConfig(
@@ -245,6 +257,7 @@ def save_email_pdf(
                 "date": message.get("date"),
                 "converted_from_email": True
             },
+            created_at=created_at,
             document_type="email",
             original_filename=f"{message.get('subject', 'email')}.pdf",
             subdirectory=subdirectory
@@ -291,10 +304,22 @@ def save_pdf(
         dict with document_id, content_path, success status
     """
     try:
+        from email.utils import parsedate_to_datetime
+
         from archive_protocol import RepositoryWriter, RepositoryConfig
         from mailflow.utils import parse_entity_from_workflow
 
         entity = parse_entity_from_workflow(workflow)
+
+        # Parse created_at from email Date header (source timestamp)
+        created_at = None
+        if message.get("date"):
+            try:
+                created_at = parsedate_to_datetime(message["date"])
+            except Exception:
+                pass
+        if created_at is None:
+            created_at = datetime.datetime.now()
 
         archive_cfg = config.settings.get("archive", {})
         archive_config = RepositoryConfig(
@@ -361,6 +386,7 @@ def save_pdf(
                         "attachment_filename": filename,
                         **origin_extra,
                     },
+                    created_at=created_at,
                     document_type="document",
                     original_filename=filename,
                     subdirectory=subdirectory
@@ -376,19 +402,6 @@ def save_pdf(
                 # Optionally store original PDF
                 if archive_cfg.get("save_originals", False):
                     try:
-                        from email.utils import parsedate_to_datetime
-
-                        created_at = None
-                        if message.get("date"):
-                            try:
-                                created_at = parsedate_to_datetime(message["date"])  # type: ignore
-                            except Exception:
-                                created_at = None
-                        if created_at is None:
-                            import datetime as _dt
-
-                            created_at = _dt.datetime.now()
-
                         write_original_file(
                             base_path=archive_cfg.get("base_path", "~/Archive"),
                             entity=entity,
@@ -445,6 +458,7 @@ def save_pdf(
                     "converted_from_email": True,
                     **origin_extra,
                 },
+                created_at=created_at,
                 document_type="email",
                 original_filename=f"{message.get('subject', 'email')}.pdf",
                 subdirectory=subdirectory
