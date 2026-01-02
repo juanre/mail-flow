@@ -1,41 +1,53 @@
 # ABOUTME: Configuration management using XDG Base Directory specification
 # ABOUTME: Handles config files, data storage, state/logs, and cache directories
-import json
+# ABOUTME: Uses ~/.config/docflow as the unified config root for all docflow components
 import logging
 import os
+import tomllib
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
+class ConfigurationError(Exception):
+    """Raised when required configuration is missing or invalid."""
+
+    pass
+
+
 class Config:
     """
-    Configuration management for mailflow using XDG Base Directory specification.
+    Configuration management for docflow using XDG Base Directory specification.
 
-    Directories (following XDG standard):
-    - Config: $XDG_CONFIG_HOME/mailflow (default: ~/.config/mailflow)
-    - Data: $XDG_DATA_HOME/mailflow (default: ~/.local/share/mailflow)
-    - State: $XDG_STATE_HOME/mailflow (default: ~/.local/state/mailflow)
-    - Cache: $XDG_CACHE_HOME/mailflow (default: ~/.cache/mailflow)
+    Config root: $XDG_CONFIG_HOME/docflow (default: ~/.config/docflow)
+
+    The config.toml file follows the docflow SOT structure with sections:
+    - [archive] - Archive storage settings
+    - [archivist] - LLM-archivist database settings (required for classification)
+    - [llmemory] - LLMory search settings
+    - [mailflow] - Mailflow-specific settings
     """
+
+    # Default app name for XDG directories
+    APP_NAME = "docflow"
 
     def __init__(self, config_dir: str | None = None):
         if config_dir is None:
-            # Use XDG Base Directory specification
+            # Use XDG Base Directory specification with docflow as the app name
             xdg_config_home = os.environ.get('XDG_CONFIG_HOME', os.path.expanduser('~/.config'))
-            config_dir = os.path.join(xdg_config_home, 'mailflow')
+            config_dir = os.path.join(xdg_config_home, self.APP_NAME)
             logger.info(f"Using XDG config directory: {config_dir}")
 
             # Use XDG paths for other directories
             xdg_data_home = os.environ.get('XDG_DATA_HOME', os.path.expanduser('~/.local/share'))
-            self.data_dir = Path(xdg_data_home) / 'mailflow'
+            self.data_dir = Path(xdg_data_home) / self.APP_NAME
 
             xdg_state_home = os.environ.get('XDG_STATE_HOME', os.path.expanduser('~/.local/state'))
-            self.state_dir = Path(xdg_state_home) / 'mailflow'
+            self.state_dir = Path(xdg_state_home) / self.APP_NAME
 
             xdg_cache_home = os.environ.get('XDG_CACHE_HOME', os.path.expanduser('~/.cache'))
-            self.cache_dir = Path(xdg_cache_home) / 'mailflow'
+            self.cache_dir = Path(xdg_cache_home) / self.APP_NAME
         else:
             # When config_dir is explicitly provided (e.g., in tests),
             # derive all other directories from it to keep everything isolated
@@ -75,77 +87,73 @@ class Config:
             logger.error(f"Failed to create directories: {e}")
             raise
 
-    def _validate_config_structure(self, settings: dict) -> bool:
-        """Validate that loaded config has required structure."""
-        required_keys = {
-            "feature_weights": dict,
-            "ui": dict,
-            "learning": dict,
-            "storage": dict,
-            "security": dict,
-            "llm": dict,
-            "archive": dict,
-        }
-
-        for key, expected_type in required_keys.items():
-            if key not in settings:
-                logger.error(f"Config missing required key: {key}")
-                return False
-            if not isinstance(settings[key], expected_type):
-                logger.error(f"Config key {key} has wrong type: {type(settings[key])}")
-                return False
-
-        return True
-
     def _load_config(self):
-        """Load configuration with structure validation"""
-        config_file = self.config_dir / "config.json"
+        """Load configuration from config.toml.
+
+        The config.toml file must exist and contain valid TOML.
+        Uses defaults for mailflow-internal settings while requiring
+        SOT-defined settings for cross-component integration.
+        """
+        config_file = self.config_dir / "config.toml"
+
         if config_file.exists():
             try:
-                with open(config_file) as f:
-                    loaded_settings = json.load(f)
-
-                # Validate structure
-                if not self._validate_config_structure(loaded_settings):
-                    # Backup the bad config
-                    from datetime import datetime
-
-                    ts = datetime.now().strftime("%Y%m%d%H%M%S")
-                    backup_path = config_file.parent / f"config.json.invalid_{ts}"
-                    config_file.rename(backup_path)
-                    logger.error(f"Invalid config structure, backed up to {backup_path}")
-                    print(f"\n⚠️  WARNING: Invalid config.json structure!")
-                    print(f"   Backed up to: {backup_path}")
-                    print(f"   Using default settings instead.")
-                    print(f"   Check the backup file and fix the structure.\n")
-                    self.settings = self._default_settings()
-                    self.save_config()
-                else:
-                    self.settings = loaded_settings
-                    self._validate_settings()
-            except json.JSONDecodeError as e:
-                logger.error(f"Invalid JSON in config file: {e}")
-                from datetime import datetime
-
-                ts = datetime.now().strftime("%Y%m%d%H%M%S")
-                backup_path = config_file.parent / f"config.json.invalid_{ts}"
-                config_file.rename(backup_path)
-                print(f"\n⚠️  WARNING: Invalid JSON in config.json!")
-                print(f"   Backed up to: {backup_path}")
-                print(f"   Error: {e}")
-                print(f"   Using default settings instead.\n")
-                self.settings = self._default_settings()
-                self.save_config()
+                with open(config_file, "rb") as f:
+                    loaded_settings = tomllib.load(f)
+                self.settings = self._merge_with_defaults(loaded_settings)
+                self._validate_settings()
+            except tomllib.TOMLDecodeError as e:
+                raise ConfigurationError(
+                    f"Invalid TOML in config file {config_file}: {e}\n"
+                    f"Fix the syntax error and try again."
+                )
             except Exception as e:
-                logger.error(f"Failed to load config: {e}")
-                self.settings = self._default_settings()
+                raise ConfigurationError(f"Failed to load config from {config_file}: {e}")
         else:
+            # No config.toml found - use defaults for testing/development
+            # In production, components that require config will fail at preflight
+            logger.warning(f"No config.toml found at {config_file}, using defaults")
             self.settings = self._default_settings()
-            self.save_config()
+
+    def _merge_with_defaults(self, loaded: dict) -> dict:
+        """Merge loaded settings with defaults, preserving loaded values."""
+        defaults = self._default_settings()
+
+        # Deep merge: loaded values override defaults
+        result = defaults.copy()
+        for section, values in loaded.items():
+            if section in result and isinstance(result[section], dict) and isinstance(values, dict):
+                result[section] = {**result[section], **values}
+            else:
+                result[section] = values
+
+        return result
 
     def _default_settings(self) -> dict[str, Any]:
-        """Default configuration settings"""
+        """Default configuration settings.
+
+        Structure includes both SOT-defined sections and internal mailflow settings:
+        - [archive] - Archive storage settings (SOT)
+        - [archivist] - LLM-archivist database settings (SOT)
+        - [llmemory] - LLMory search settings (SOT)
+        - Plus internal settings at top level for backward compatibility
+        """
         return {
+            # SOT-defined sections
+            "archive": {
+                "base_path": "~/Archive",
+            },
+            "archivist": {
+                # These are required for classification - preflight will check
+                # "database_url": required,
+                # "db_schema": required,
+                "similarity_threshold": 0.95,
+            },
+            "llmemory": {
+                # "database_url": optional,
+                # "default_owner_id": optional,
+            },
+            # Internal mailflow settings (kept at top level for backward compat)
             "feature_weights": {
                 "from_domain": 0.3,
                 "subject_similarity": 0.25,
@@ -167,77 +175,79 @@ class Config:
             "llm": {
                 "model_alias": "balanced",  # fast, balanced, or deep
             },
-            "archive": {
-                "enabled": True,  # Use archive-protocol for document storage
-                "base_path": "~/Archive",  # Repository base path
-                "layout": "v2",  # v2 layout (docs/ + nested streams)
-                "save_originals": False,  # Also store original files
-                "originals_prefix_date": False,  # Prepend yyyy-mm-dd- to originals
-                "convert_attachments": False,  # Convert non-PDF attachments to PDF/CSV
-            },
             "classifier": {
-                "gate_enabled": False,  # Email worth-archiving gate
+                "gate_enabled": False,
                 "gate_min_confidence": 0.7,
             },
             "similarity": {
-                # Similarity is a fast local pre-filter before LLM classification.
-                # Below min_threshold: skip email (not relevant to any workflow).
-                # Above min_threshold: send to LLM for classification.
-                # Above skip_llm_threshold: use similarity result directly (cost optimization).
-                # Gate only activates after min_training_examples are collected.
-                "min_threshold": 0.5,  # Skip emails below this similarity
-                "skip_llm_threshold": 0.98,  # Accept without LLM above this
-                "min_training_examples": 10,  # Gate only active after N examples
+                "min_threshold": 0.5,
+                "skip_llm_threshold": 0.98,
+                "min_training_examples": 10,
             },
         }
 
     def _validate_settings(self):
-        """Validate settings are within acceptable ranges"""
+        """Validate settings are within acceptable ranges."""
         # Ensure weights sum to 1.0
         weights = self.settings.get("feature_weights", {})
-        total_weight = sum(weights.values())
-        if abs(total_weight - 1.0) > 0.01:  # Allow small floating point errors
-            logger.warning(f"Feature weights sum to {total_weight}, normalizing to 1.0")
-            # Normalize weights
-            if total_weight > 0:
-                for key in weights:
-                    weights[key] = weights[key] / total_weight
+        if weights:
+            total_weight = sum(weights.values())
+            if abs(total_weight - 1.0) > 0.01:  # Allow small floating point errors
+                logger.warning(f"Feature weights sum to {total_weight}, normalizing to 1.0")
+                if total_weight > 0:
+                    for key in weights:
+                        weights[key] = weights[key] / total_weight
 
-        # Ensure reasonable limits
+        # Ensure reasonable limits for UI settings
         ui_settings = self.settings.get("ui", {})
-        ui_settings["max_suggestions"] = min(max(1, ui_settings.get("max_suggestions", 5)), 20)
+        if ui_settings:
+            ui_settings["max_suggestions"] = min(max(1, ui_settings.get("max_suggestions", 5)), 20)
 
-        # Validate LLM settings
+        # Validate LLM model alias
         llm_settings = self.settings.get("llm", {})
+        if llm_settings:
+            valid_models = ["fast", "balanced", "deep"]
+            model_alias = llm_settings.get("model_alias", "balanced")
+            if model_alias not in valid_models:
+                logger.warning(
+                    f"Invalid LLM model '{model_alias}', defaulting to 'balanced'. "
+                    f"Valid options: {', '.join(valid_models)}"
+                )
+                llm_settings["model_alias"] = "balanced"
 
-        # Validate model alias
-        valid_models = ["fast", "balanced", "deep"]
-        model_alias = llm_settings.get("model_alias", "balanced")
-        if model_alias not in valid_models:
-            logger.warning(
-                f"Invalid LLM model '{model_alias}', defaulting to 'balanced'. "
-                f"Valid options: {', '.join(valid_models)}"
+    def preflight_archivist(self) -> None:
+        """Preflight check for archivist configuration.
+
+        Must be called before any archive writes that require classification.
+        Raises ConfigurationError if required archivist settings are missing.
+        """
+        archivist = self.settings.get("archivist", {})
+
+        missing = []
+        if not archivist.get("database_url"):
+            missing.append("archivist.database_url")
+        if not archivist.get("db_schema"):
+            missing.append("archivist.db_schema")
+
+        if missing:
+            config_path = self.config_dir / "config.toml"
+            raise ConfigurationError(
+                f"Missing required archivist configuration: {', '.join(missing)}\n"
+                f"Add these to [archivist] section in {config_path}:\n\n"
+                f"[archivist]\n"
+                f'database_url = "postgresql://user:pass@localhost:5432/docflow"\n'
+                f'db_schema = "archivist"\n'
             )
-            llm_settings["model_alias"] = "balanced"
 
-        # Archive layout should default to v2; coerce older configs gently
-        archive_settings = self.settings.get("archive", {})
-        layout = archive_settings.get("layout")
-        if layout != "v2":
-            logger.warning(
-                f"Archive layout is '{layout}', switching to 'v2' (docs/ + streams) for consistency"
-            )
-            archive_settings["layout"] = "v2"
+    def get_archivist_database_url(self) -> str:
+        """Get archivist database URL, running preflight check first."""
+        self.preflight_archivist()
+        return self.settings["archivist"]["database_url"]
 
-    def save_config(self):
-        """Save configuration to disk"""
-        config_file = self.config_dir / "config.json"
-        try:
-            with open(config_file, "w") as f:
-                json.dump(self.settings, f, indent=2, sort_keys=True)
-            logger.debug("Configuration saved")
-        except Exception as e:
-            logger.error(f"Failed to save config: {e}")
+    def get_archivist_db_schema(self) -> str:
+        """Get archivist database schema, running preflight check first."""
+        self.preflight_archivist()
+        return self.settings["archivist"]["db_schema"]
 
     def get_workflows_file(self) -> Path:
         return self.config_dir / "workflows.json"

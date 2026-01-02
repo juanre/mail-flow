@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from mailflow.config import Config
+import pytest
+
+from mailflow.config import Config, ConfigurationError
 
 
 class TestConfig:
@@ -30,16 +32,33 @@ class TestConfig:
         assert config.settings["ui"]["max_suggestions"] == 5
         assert config.settings["learning"]["min_confidence_threshold"] == 0.3
 
-    def test_save_and_load_config(self, temp_config_dir):
+        # Check SOT-defined sections exist
+        assert "archive" in config.settings
+        assert "archivist" in config.settings
+        assert "llmemory" in config.settings
+
+    def test_load_toml_config(self, temp_config_dir):
+        """Test loading config from TOML file."""
+        config_file = Path(temp_config_dir) / "config.toml"
+        config_file.write_text('''
+[archive]
+base_path = "~/MyArchive"
+
+[archivist]
+database_url = "postgresql://localhost/test"
+db_schema = "test_schema"
+
+[ui]
+max_suggestions = 10
+''')
+
         config = Config(config_dir=temp_config_dir)
 
-        # Modify settings
-        config.settings["ui"]["max_suggestions"] = 10
-        config.save_config()
-
-        # Create new config instance and check it loads the saved settings
-        config2 = Config(config_dir=temp_config_dir)
-        assert config2.settings["ui"]["max_suggestions"] == 10
+        # Check loaded values override defaults
+        assert config.settings["archive"]["base_path"] == "~/MyArchive"
+        assert config.settings["archivist"]["database_url"] == "postgresql://localhost/test"
+        assert config.settings["archivist"]["db_schema"] == "test_schema"
+        assert config.settings["ui"]["max_suggestions"] == 10
 
     def test_backup_file(self, temp_config_dir):
         config = Config(config_dir=temp_config_dir)
@@ -56,94 +75,108 @@ class TestConfig:
         assert len(backups) == 1
         assert backups[0].read_text() == '{"test": true}'
 
-    def test_invalid_config_structure_missing_keys(self, temp_config_dir, capsys):
-        """Test that missing required keys are detected and config is restored to defaults"""
-        # Create config with missing keys
-        config_file = Path(temp_config_dir) / "config.json"
-        config_file.write_text('{"feature_weights": {}, "ui": {}}')
+    def test_invalid_toml_syntax(self, temp_config_dir):
+        """Test that invalid TOML syntax raises ConfigurationError."""
+        config_file = Path(temp_config_dir) / "config.toml"
+        config_file.write_text('[archive\nbase_path = "broken"')
 
-        # Load config - should detect invalid structure
+        with pytest.raises(ConfigurationError) as exc_info:
+            Config(config_dir=temp_config_dir)
+
+        assert "Invalid TOML" in str(exc_info.value)
+
+    def test_valid_config_loaded_correctly(self, temp_config_dir):
+        """Test that valid config is loaded correctly."""
+        config_file = Path(temp_config_dir) / "config.toml"
+        config_file.write_text('''
+[archive]
+base_path = "~/Archive"
+
+[feature_weights]
+from_domain = 0.5
+subject_similarity = 0.5
+
+[ui]
+max_suggestions = 8
+
+[learning]
+min_confidence_threshold = 0.4
+
+[llm]
+model_alias = "fast"
+''')
+
         config = Config(config_dir=temp_config_dir)
 
-        # Should use defaults
-        assert "learning" in config.settings
-        assert "storage" in config.settings
-        assert "security" in config.settings
-        assert "llm" in config.settings
-
-        # Should backup invalid config
-        invalid_backups = list(Path(temp_config_dir).glob("config.json.invalid*"))
-        assert len(invalid_backups) == 1
-
-        # Should print warning to user
-        captured = capsys.readouterr()
-        assert "WARNING" in captured.out
-        assert "Invalid config.json structure" in captured.out
-
-    def test_invalid_config_structure_wrong_type(self, temp_config_dir, capsys):
-        """Test that wrong types for required keys are detected"""
-        # Create config with wrong type (string instead of dict)
-        config_file = Path(temp_config_dir) / "config.json"
-        config_file.write_text('{"feature_weights": "not a dict", "ui": {}, "learning": {}, "storage": {}, "security": {}, "llm": {}}')
-
-        # Load config - should detect invalid structure
-        config = Config(config_dir=temp_config_dir)
-
-        # Should use defaults
-        assert isinstance(config.settings["feature_weights"], dict)
-
-        # Should backup invalid config
-        invalid_backups = list(Path(temp_config_dir).glob("config.json.invalid*"))
-        assert len(invalid_backups) == 1
-
-        # Should print warning to user
-        captured = capsys.readouterr()
-        assert "WARNING" in captured.out
-        assert "Invalid config.json structure" in captured.out
-
-    def test_invalid_json_syntax(self, temp_config_dir, capsys):
-        """Test that invalid JSON syntax is handled gracefully"""
-        # Create config with invalid JSON
-        config_file = Path(temp_config_dir) / "config.json"
-        config_file.write_text('{"feature_weights": {')
-
-        # Load config - should detect invalid JSON
-        config = Config(config_dir=temp_config_dir)
-
-        # Should use defaults
-        assert "feature_weights" in config.settings
-        assert isinstance(config.settings["feature_weights"], dict)
-
-        # Should backup invalid config
-        invalid_backups = list(Path(temp_config_dir).glob("config.json.invalid*"))
-        assert len(invalid_backups) == 1
-
-        # Should print warning to user
-        captured = capsys.readouterr()
-        assert "WARNING" in captured.out
-        assert "Invalid JSON" in captured.out
-
-    def test_valid_config_structure_loaded_correctly(self, temp_config_dir):
-        """Test that valid config structure is loaded without backup"""
-        # Create valid config with custom values
-        config_file = Path(temp_config_dir) / "config.json"
-        config_file.write_text('''{
-            "feature_weights": {"from_domain": 0.5, "subject_similarity": 0.5},
-            "ui": {"max_suggestions": 8},
-            "learning": {"min_confidence_threshold": 0.4},
-            "storage": {"max_criteria_instances": 5000},
-            "security": {"allowed_directories": ["~"]},
-            "llm": {"enabled": true},
-            "archive": {"enabled": true, "base_path": "~/Archive"}
-        }''')
-
-        # Load config
-        config = Config(config_dir=temp_config_dir)
-
-        # Should load custom values
+        # Check loaded values
         assert config.settings["ui"]["max_suggestions"] == 8
         assert config.settings["learning"]["min_confidence_threshold"] == 0.4
+        assert config.settings["llm"]["model_alias"] == "fast"
 
-        # Should NOT create backup
-        invalid_backups = list(Path(temp_config_dir).glob("config.json.invalid*"))
-        assert len(invalid_backups) == 0
+    def test_uses_docflow_directory(self, monkeypatch, tmp_path):
+        """Test that default config uses docflow instead of mailflow."""
+        xdg_config = tmp_path / "config"
+        xdg_config.mkdir()
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_config))
+
+        config = Config()
+
+        # Should use docflow, not mailflow
+        assert "docflow" in str(config.config_dir)
+        assert "mailflow" not in str(config.config_dir)
+
+
+class TestArchivistPreflight:
+    """Test archivist preflight checks."""
+
+    def test_preflight_missing_database_url(self, temp_config_dir):
+        """Test preflight fails when database_url is missing."""
+        config = Config(config_dir=temp_config_dir)
+
+        with pytest.raises(ConfigurationError) as exc_info:
+            config.preflight_archivist()
+
+        assert "archivist.database_url" in str(exc_info.value)
+
+    def test_preflight_missing_db_schema(self, temp_config_dir):
+        """Test preflight fails when db_schema is missing."""
+        config_file = Path(temp_config_dir) / "config.toml"
+        config_file.write_text('''
+[archivist]
+database_url = "postgresql://localhost/test"
+''')
+
+        config = Config(config_dir=temp_config_dir)
+
+        with pytest.raises(ConfigurationError) as exc_info:
+            config.preflight_archivist()
+
+        assert "archivist.db_schema" in str(exc_info.value)
+
+    def test_preflight_passes_with_all_required(self, temp_config_dir):
+        """Test preflight passes when all required settings present."""
+        config_file = Path(temp_config_dir) / "config.toml"
+        config_file.write_text('''
+[archivist]
+database_url = "postgresql://localhost/test"
+db_schema = "test_schema"
+''')
+
+        config = Config(config_dir=temp_config_dir)
+
+        # Should not raise
+        config.preflight_archivist()
+
+    def test_get_archivist_database_url(self, temp_config_dir):
+        """Test getting archivist database URL with preflight."""
+        config_file = Path(temp_config_dir) / "config.toml"
+        config_file.write_text('''
+[archivist]
+database_url = "postgresql://localhost/docflow"
+db_schema = "archivist"
+''')
+
+        config = Config(config_dir=temp_config_dir)
+
+        assert config.get_archivist_database_url() == "postgresql://localhost/docflow"
+        assert config.get_archivist_db_schema() == "archivist"
