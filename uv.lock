@@ -6,12 +6,6 @@ resolution-markers = [
     "python_full_version < '3.13'",
 ]
 
-[manifest]
-members = [
-    "file-classifier-core",
-    "mailflow",
-]
-
 [[package]]
 name = "aiohappyeyeballs"
 version = "2.6.1"
@@ -479,11 +473,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/b2/9d/c3b43da9515bd270d
 wheels = [
     { url = "https://files.pythonhosted.org/packages/55/e2/2537ebcff11c1ee1ff17d8d0b6f4db75873e3b0fb32c2d4a2ee31ecb310a/docstring_parser-0.17.0-py3-none-any.whl", hash = "sha256:cf2569abd23dce8099b300f9b4fa8191e9582dda731fd533daf54c4551658708", size = 36896, upload-time = "2025-07-21T07:35:00.684Z" },
 ]
-
-[[package]]
-name = "file-classifier-core"
-version = "0.1.0"
-source = { editable = "file-classifier-core" }
 
 [[package]]
 name = "frozenlist"
@@ -1027,7 +1016,6 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "black" },
-    { name = "file-classifier-core" },
     { name = "isort" },
     { name = "mypy" },
     { name = "pytest" },
@@ -1055,7 +1043,6 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "black", specifier = ">=25.1.0" },
-    { name = "file-classifier-core", editable = "file-classifier-core" },
     { name = "isort", specifier = ">=6.0.1" },
     { name = "mypy", specifier = ">=1.17.1" },
     { name = "pytest", specifier = ">=8.4.1" },
