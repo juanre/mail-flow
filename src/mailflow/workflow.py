@@ -45,14 +45,18 @@ def save_attachment(
         entity = parse_entity_from_workflow(workflow)
 
         # Parse created_at from email Date header (source timestamp)
+        # Must be timezone-aware and UTC-normalized
         created_at = None
         if message.get("date"):
             try:
-                created_at = parsedate_to_datetime(message["date"])
+                dt = parsedate_to_datetime(message["date"])
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=datetime.timezone.utc)
+                created_at = dt.astimezone(datetime.timezone.utc)
             except Exception:
                 pass
         if created_at is None:
-            created_at = datetime.datetime.now()
+            created_at = datetime.datetime.now(datetime.timezone.utc)
 
         archive_cfg = config.settings.get("archive", {})
         archive_config = RepositoryConfig(
@@ -217,14 +221,18 @@ def save_email_pdf(
         entity = parse_entity_from_workflow(workflow)
 
         # Parse created_at from email Date header (source timestamp)
+        # Must be timezone-aware and UTC-normalized
         created_at = None
         if message.get("date"):
             try:
-                created_at = parsedate_to_datetime(message["date"])
+                dt = parsedate_to_datetime(message["date"])
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=datetime.timezone.utc)
+                created_at = dt.astimezone(datetime.timezone.utc)
             except Exception:
                 pass
         if created_at is None:
-            created_at = datetime.datetime.now()
+            created_at = datetime.datetime.now(datetime.timezone.utc)
 
         archive_cfg = config.settings.get("archive", {})
         archive_config = RepositoryConfig(
@@ -312,14 +320,18 @@ def save_pdf(
         entity = parse_entity_from_workflow(workflow)
 
         # Parse created_at from email Date header (source timestamp)
+        # Must be timezone-aware and UTC-normalized
         created_at = None
         if message.get("date"):
             try:
-                created_at = parsedate_to_datetime(message["date"])
+                dt = parsedate_to_datetime(message["date"])
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=datetime.timezone.utc)
+                created_at = dt.astimezone(datetime.timezone.utc)
             except Exception:
                 pass
         if created_at is None:
-            created_at = datetime.datetime.now()
+            created_at = datetime.datetime.now(datetime.timezone.utc)
 
         archive_cfg = config.settings.get("archive", {})
         archive_config = RepositoryConfig(
