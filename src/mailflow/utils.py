@@ -1,5 +1,5 @@
 # ABOUTME: Common utility functions for atomic file operations and JSON handling.
-# ABOUTME: Provides file locking, safe writes, hashing, retry logic, and classifier helpers.
+# ABOUTME: Provides file locking, safe writes, hashing, and retry logic.
 """Utility functions for mailflow"""
 
 import hashlib
@@ -355,40 +355,3 @@ def write_original_file(
         f.write(content)
 
     return str(out_path)
-
-
-def get_classifier_suggestion(config, mimetype: str, origin: dict) -> dict:
-    """Get workflow suggestion from shared classifier.
-
-    Uses file-classifier to predict the most likely workflow based on
-    email origin metadata (subject, from, attachment filename).
-
-    Args:
-        config: Config object with state_dir
-        mimetype: MIME type of the document (e.g., "application/pdf")
-        origin: Origin metadata dict with keys like "subject", "from", "attachment_filename"
-
-    Returns:
-        Dict with classifier metadata for archive-protocol origin, or empty dict on failure.
-        Example: {"classifier": {"workflow_suggestion": "jro-invoice", "confidence": 0.85}}
-    """
-    try:
-        from file_classifier import Model, extract_features
-
-        model_path = str(config.state_dir / "classifier.json")
-        model = Model(model_path)
-        feats = extract_features(mimetype, {"origin": origin})
-        ranked = model.predict(feats, top_k=1)
-        if ranked:
-            wf, score = ranked[0]
-            return {
-                "classifier": {
-                    "workflow_suggestion": wf,
-                    "type": "",
-                    "category": "",
-                    "confidence": score,
-                }
-            }
-    except Exception:
-        pass
-    return {}

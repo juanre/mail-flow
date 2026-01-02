@@ -10,7 +10,7 @@ from mailflow.attachment_handler import extract_attachments
 from mailflow.exceptions import WorkflowError
 from mailflow.pdf_converter import email_to_pdf_bytes
 from mailflow.security import validate_path
-from mailflow.utils import write_original_file, parse_doctype_from_workflow, get_classifier_suggestion
+from mailflow.utils import write_original_file, parse_doctype_from_workflow
 from mailflow.attachment_conversion import convert_attachment
 
 logger = logging.getLogger(__name__)
@@ -93,12 +93,6 @@ def save_attachment(
                     mimetype, content, filename = convert_attachment(filename, mimetype, content)
                 except Exception as e:
                     logger.warning(f"Attachment conversion failed for {filename}: {e}")
-            # Add classification metadata from shared classifier
-            origin_extra = get_classifier_suggestion(config, mimetype, {
-                "subject": message.get("subject"),
-                "from": message.get("from"),
-                "attachment_filename": filename,
-            })
             subdirectory = directory or parse_doctype_from_workflow(workflow)
             document_id, content_path, metadata_path = writer.write_document(
                 workflow=workflow,
@@ -111,7 +105,6 @@ def save_attachment(
                     "to": message.get("to"),
                     "date": message.get("date"),
                     "attachment_filename": filename,
-                    **origin_extra,
                 },
                 created_at=created_at,
                 document_type="attachment",
@@ -356,34 +349,6 @@ def save_pdf(
             logger.info(f"Found {len(pdf_attachments)} PDF attachment(s)")
             results = []
             for filename, content, mimetype in pdf_attachments:
-                # Add classification metadata from shared classifier for attachment
-                origin_extra = {}
-                try:
-                    from file_classifier import classify
-
-                    ctx = {
-                        "entity": entity,
-                        "source": "email",
-                        "origin": {
-                            "message_id": message.get("message_id"),
-                            "subject": message.get("subject"),
-                            "from": message.get("from"),
-                            "to": message.get("to"),
-                            "attachment_filename": filename,
-                        },
-                    }
-                    pred = classify(content, mimetype, ctx)
-                    origin_extra = {
-                        "classifier": {
-                            "workflow_suggestion": pred.workflow_suggestion,
-                            "type": pred.type,
-                            "category": pred.category,
-                            "confidence": pred.confidence,
-                        }
-                    }
-                except Exception as e:
-                    logger.warning(f"Classifier unavailable or failed: {e}")
-
                 subdirectory = directory or parse_doctype_from_workflow(workflow)
                 document_id, content_path, metadata_path = writer.write_document(
                     workflow=workflow,
@@ -396,7 +361,6 @@ def save_pdf(
                         "to": message.get("to"),
                         "date": message.get("date"),
                         "attachment_filename": filename,
-                        **origin_extra,
                     },
                     created_at=created_at,
                     document_type="document",
@@ -431,30 +395,9 @@ def save_pdf(
                 "documents": results
             }
         else:
-            # No PDF attachments. Optionally apply Gate (worth archiving?)
-            gate_cfg = config.settings.get("classifier", {})
-            if gate_cfg.get("gate_enabled", False):
-                try:
-                    from file_classifier import should_archive_email
-
-                    decision, conf, expl = should_archive_email(message)
-                    if not decision and conf >= float(gate_cfg.get("gate_min_confidence", 0.7)):
-                        logger.info(
-                            f"Gate rejected email for archiving (confidence={conf:.2f})"
-                        )
-                        return {"success": True, "skipped": True, "reason": "gate_rejected"}
-                except Exception as e:
-                    logger.warning(f"Gate classifier unavailable or failed: {e}")
-
-            # Convert email to PDF
+            # No PDF attachments - convert email to PDF
             logger.info("No PDF attachments found, converting email to PDF")
             pdf_bytes = email_to_pdf_bytes(message_obj, message)
-
-            # Add classification metadata from shared classifier
-            origin_extra = get_classifier_suggestion(config, "application/pdf", {
-                "subject": message.get("subject"),
-                "from": message.get("from"),
-            })
 
             subdirectory = directory or parse_doctype_from_workflow(workflow)
             document_id, content_path, metadata_path = writer.write_document(
@@ -468,7 +411,6 @@ def save_pdf(
                     "to": message.get("to"),
                     "date": message.get("date"),
                     "converted_from_email": True,
-                    **origin_extra,
                 },
                 created_at=created_at,
                 document_type="email",

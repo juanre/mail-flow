@@ -107,56 +107,31 @@ def register(cli):
     @cli.command()
     @click.argument("directory", type=click.Path(exists=True))
     @click.option("--llm-model", default=None, help="LLM model: fast, balanced, or deep")
-    @click.option("--auto-threshold", default=0.85, type=float, help="Auto-process above this confidence")
     @click.option("--dry-run", is_flag=True, help="Preview without executing workflows")
-    @click.option("--train-only", is_flag=True, help="Train classifier and store decisions, but don't execute workflows")
-    @click.option("--replay", is_flag=True, help="Execute stored decisions without re-asking or re-training")
     @click.option("--max-emails", default=None, type=int, help="Limit number of emails to process")
     @click.option("--force", is_flag=True, help="Reprocess already processed emails")
     @click.option("--after", default=None, help="Only emails after this date (YYYY-MM-DD)")
     @click.option("--before", default=None, help="Only emails before this date (YYYY-MM-DD)")
     @click.option("--workflows", "-w", default=None, help="Only classify against these workflows (comma-separated)")
-    @click.option("--min-confidence", default=None, type=float, help="Skip emails below this confidence (default 0.45 when --workflows set)")
-    @click.option("--similarity-threshold", default=None, type=float, help="Override similarity gate threshold (default 0.5)")
-    @click.option("--trust-llm", default=None, type=click.FloatRange(0.0, 1.0), help="Trust LLM judgment without user confirmation. Value is confidence threshold (e.g., 0.8). Accepts above threshold, skips below.")
     @click.option("--interactive", is_flag=True, help="Interactive mode: prompt user to validate each classification")
-    def batch(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence, similarity_threshold, trust_llm, interactive):
+    def batch(directory, llm_model, dry_run, max_emails, force, after, before, workflows, interactive):
         """Process multiple emails from a directory (.eml files).
 
         By default, runs in non-interactive mode: llm-archivist decisions are
         accepted automatically. Use --interactive to prompt for confirmation.
         """
         asyncio.run(
-            _batch_async(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence, similarity_threshold, trust_llm, interactive)
+            _batch_async(directory, llm_model, dry_run, max_emails, force, after, before, workflows, interactive)
         )
 
-    async def _batch_async(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after=None, before=None, workflows=None, min_confidence=None, similarity_threshold=None, trust_llm=None, interactive=False):
+    async def _batch_async(directory, llm_model, dry_run, max_emails, force, after=None, before=None, workflows=None, interactive=False):
         """Async implementation of batch email processing."""
         from mailflow.email_extractor import EmailExtractor
-
-        # Validate mutually exclusive flags
-        mode_flags = sum([dry_run, train_only, replay])
-        if mode_flags > 1:
-            click.echo("Error: --dry-run, --train-only, and --replay are mutually exclusive", err=True)
-            raise SystemExit(1)
-
-        # --trust-llm sets both auto_threshold and min_confidence to the same value
-        # This means: accept if LLM confidence >= threshold, skip if below
-        if trust_llm is not None:
-            auto_threshold = trust_llm
-            min_confidence = trust_llm
-            click.echo(f"Trust LLM mode: accepting >= {trust_llm}, skipping below")
-
-        if replay and force:
-            click.echo("Error: --replay and --force are mutually exclusive (replay uses stored decisions)", err=True)
-            raise SystemExit(1)
 
         # Parse workflow filter
         workflow_filter = None
         if workflows:
             workflow_filter = [w.strip() for w in workflows.split(",") if w.strip()]
-            if min_confidence is None:
-                min_confidence = 0.45  # Default when --workflows is specified
 
         config = Config()
 
@@ -175,7 +150,7 @@ def register(cli):
                 click.echo(f"Error: Unknown workflows: {', '.join(invalid)}", err=True)
                 click.echo(f"Available: {', '.join(sorted(valid_workflows)[:10])}...")
                 raise SystemExit(1)
-            click.echo(f"Focused training: {', '.join(workflow_filter)} (min confidence: {min_confidence})")
+            click.echo(f"Filtering to workflows: {', '.join(workflow_filter)}")
 
         directory_path = Path(directory).expanduser()
         email_files = _discover_email_files(directory_path)
@@ -187,21 +162,8 @@ def register(cli):
 
         click.echo(f"Found {len(email_files)} emails to process")
 
-        # Cost warning for LLM classification (archivist uses LLM for all classifications)
-        if not dry_run and not train_only:
-            estimated_llm_calls = len(email_files) * 0.2
-            estimated_cost = estimated_llm_calls * 0.003
-            click.echo(f"Estimated LLM cost: ${estimated_cost:.2f} (assumes ~20% need LLM assist)")
-            if not click.confirm("Continue with processing?", default=True):
-                click.echo("Cancelled by user")
-                return
-
         if dry_run:
             click.echo("DRY RUN MODE - no workflows will be executed")
-        elif train_only:
-            click.echo("TRAIN-ONLY MODE - decisions will be stored and classifier trained, but workflows won't execute")
-        elif replay:
-            click.echo("REPLAY MODE - executing stored decisions without re-asking or re-training")
 
         # Pre-extract all emails to detect threads
         click.echo("Analyzing email threads...")
@@ -277,9 +239,6 @@ def register(cli):
                     "_total": total,
                     "_thread_info": get_thread_info(email_data, threads),
                     "_workflow_filter": workflow_filter,
-                    "_min_confidence": min_confidence,
-                    "_auto_threshold": auto_threshold,
-                    "_similarity_threshold": similarity_threshold,
                 }
 
                 # Process one email through standard pipeline
@@ -288,8 +247,6 @@ def register(cli):
                     config=config,
                     force=force,
                     dry_run=dry_run,
-                    train_only=train_only,
-                    replay=replay,
                     context=context,
                     interactive=interactive
                 )
@@ -304,31 +261,21 @@ def register(cli):
         click.echo(f"  Errors: {stats['errors']}")
         if dry_run:
             click.echo("DRY RUN - No workflows were executed")
-        elif train_only:
-            click.echo("TRAIN-ONLY - Decisions stored and classifier trained, no workflows executed")
-        elif replay:
-            click.echo("REPLAY - Stored decisions executed without re-training")
 
     # Alias: mailflow fetch files
     @fetch.command(name="files")
     @click.argument("directory", type=click.Path(exists=True))
     @click.option("--llm-model", default=None, help="LLM model: fast, balanced, or deep")
-    @click.option("--auto-threshold", default=0.85, type=float, help="Auto-process above this confidence")
     @click.option("--dry-run", is_flag=True, help="Preview without executing workflows")
-    @click.option("--train-only", is_flag=True, help="Train classifier and store decisions, but don't execute workflows")
-    @click.option("--replay", is_flag=True, help="Execute stored decisions without re-asking or re-training")
     @click.option("--max-emails", default=None, type=int, help="Limit number of emails to process")
     @click.option("--force", is_flag=True, help="Reprocess already processed emails")
     @click.option("--after", default=None, help="Only emails after this date (YYYY-MM-DD)")
     @click.option("--before", default=None, help="Only emails before this date (YYYY-MM-DD)")
     @click.option("--workflows", "-w", default=None, help="Only classify against these workflows (comma-separated)")
-    @click.option("--min-confidence", default=None, type=float, help="Skip emails below this confidence (default 0.45 when --workflows set)")
-    @click.option("--similarity-threshold", default=None, type=float, help="Override similarity gate threshold (default 0.5)")
-    @click.option("--trust-llm", default=None, type=click.FloatRange(0.0, 1.0), help="Trust LLM judgment without user confirmation. Value is confidence threshold (e.g., 0.8). Accepts above threshold, skips below.")
     @click.option("--interactive", is_flag=True, help="Interactive mode: prompt user to validate each classification")
-    def fetch_files(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence, similarity_threshold, trust_llm, interactive):
+    def fetch_files(directory, llm_model, dry_run, max_emails, force, after, before, workflows, interactive):
         """Same as `mailflow batch`"""
-        return batch.callback(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence, similarity_threshold, trust_llm, interactive)  # type: ignore[attr-defined]
+        return batch.callback(directory, llm_model, dry_run, max_emails, force, after, before, workflows, interactive)  # type: ignore[attr-defined]
 
     @cli.command()
     @click.option("--limit", "-n", default=10, help="Number of workflows to show")

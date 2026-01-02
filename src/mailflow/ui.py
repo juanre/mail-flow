@@ -22,7 +22,7 @@ class WorkflowSelector:
         self.max_suggestions = config.settings["ui"]["max_suggestions"]
         self.show_confidence = config.settings["ui"]["show_confidence"]
 
-    async def select_workflow(self, email_data: dict, skip_training: bool = False) -> str | None:
+    async def select_workflow(self, email_data: dict) -> str | None:
         """Select workflow using llm-archivist classification.
 
         In non-interactive mode (default): accept llm-archivist decision automatically.
@@ -30,7 +30,6 @@ class WorkflowSelector:
 
         Args:
             email_data: Extracted email data
-            skip_training: If True, skip sending feedback to classifier (for replay mode)
 
         Returns:
             Selected workflow name, or None if skipped/null
@@ -39,8 +38,6 @@ class WorkflowSelector:
 
         # Extract workflow filter and context from email_data
         workflow_filter = email_data.get("_workflow_filter")
-        min_confidence = email_data.get("_min_confidence")
-        auto_threshold = email_data.get("_auto_threshold")
         position = email_data.get("_position", 1)
         total = email_data.get("_total", 1)
 
@@ -73,17 +70,9 @@ class WorkflowSelector:
             suggestion = rankings[0][0]
             confidence = rankings[0][1]
 
-        # Apply min_confidence gate - skip email if below threshold
-        if min_confidence is not None and confidence < min_confidence:
-            logger.info(f"[{position}/{total}] Skipping: confidence {confidence:.2f} < {min_confidence}")
-            return None
-
         # Non-interactive mode: accept llm-archivist decision automatically
         if not self.interactive:
-            # Auto-accept if we have a suggestion above auto_threshold (or any suggestion in pure non-interactive)
-            if auto_threshold is not None and suggestion and confidence >= auto_threshold:
-                logger.info(f"[{position}/{total}] Auto-accepting: {suggestion} ({confidence:.2f} >= {auto_threshold})")
-            elif suggestion:
+            if suggestion:
                 logger.info(f"[{position}/{total}] Non-interactive: accepting {suggestion} ({confidence:.2f})")
             else:
                 # No suggestion (null) - skip
@@ -91,7 +80,6 @@ class WorkflowSelector:
                 return None
 
             # Return the suggestion without prompting
-            # Note: no feedback sent in non-interactive mode (system learns from its own decisions)
             return suggestion
 
         # Interactive mode: prompt user to validate classification
@@ -124,7 +112,7 @@ class WorkflowSelector:
             if not choice and suggestion:
                 selected = suggestion
                 # Send feedback: user confirmed the suggestion
-                if not skip_training and arch_result.get("decision_id"):
+                if arch_result.get("decision_id"):
                     try:
                         from mailflow.archivist_integration import record_feedback
                         await record_feedback(int(arch_result["decision_id"]), selected, "confirmed")
@@ -152,7 +140,7 @@ class WorkflowSelector:
                 selected = self._create_new_workflow()
                 if selected:
                     # Send feedback: user corrected to new workflow
-                    if not skip_training and arch_result.get("decision_id"):
+                    if arch_result.get("decision_id"):
                         try:
                             from mailflow.archivist_integration import record_feedback
                             await record_feedback(int(arch_result["decision_id"]), selected, "corrected")
@@ -168,7 +156,7 @@ class WorkflowSelector:
                 if 0 <= idx < len(workflow_names):
                     selected = workflow_names[idx]
                     # Send feedback: user corrected (if different from suggestion) or confirmed
-                    if not skip_training and arch_result.get("decision_id"):
+                    if arch_result.get("decision_id"):
                         try:
                             from mailflow.archivist_integration import record_feedback
                             reason = "confirmed" if selected == suggestion else "corrected"
@@ -184,7 +172,7 @@ class WorkflowSelector:
             if choice in workflows_to_show:
                 selected = choice
                 # Send feedback: user corrected or confirmed
-                if not skip_training and arch_result.get("decision_id"):
+                if arch_result.get("decision_id"):
                     try:
                         from mailflow.archivist_integration import record_feedback
                         reason = "confirmed" if selected == suggestion else "corrected"

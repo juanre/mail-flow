@@ -171,10 +171,6 @@ class Config:
             "llm": {
                 "model_alias": "balanced",  # fast, balanced, or deep
             },
-            "classifier": {
-                "gate_enabled": False,
-                "gate_min_confidence": 0.7,
-            },
         }
 
     def _validate_settings(self):

@@ -13,7 +13,6 @@ from mailflow.models import DataStore
 from mailflow.processed_emails_tracker import ProcessedEmailsTracker
 from mailflow.ui import WorkflowSelector
 from mailflow.workflow import Workflows
-from file_classifier import Model, extract_features
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +23,6 @@ async def process(
     llm_model: str | None = None,
     force: bool = False,
     dry_run: bool = False,
-    train_only: bool = False,
-    replay: bool = False,
     context: dict | None = None,
     interactive: bool = False,
 ) -> None:
@@ -38,8 +35,6 @@ async def process(
         llm_model: Override config LLM model alias (fast, balanced, deep)
         force: Force reprocessing of already processed emails
         dry_run: Preview mode - don't execute or store anything
-        train_only: Train classifier and store decisions, but don't execute workflows
-        replay: Execute stored decisions without re-asking or re-training
         context: Optional extra context to merge into email_data (e.g., _position, _total, _thread_info)
         interactive: If True, prompt user to validate classification; if False, accept automatically
     """
@@ -77,41 +72,15 @@ async def process(
             if processed_info:
                 prev_workflow = processed_info.get("workflow_name", "unknown")
                 prev_date = processed_info.get("processed_at", "unknown")
+                print(f"\n⊘ Email already processed:")
+                print(f"  Workflow: {prev_workflow}")
+                print(f"  Date: {prev_date}")
+                print(f"\nUse --force to reprocess")
+                logger.info(f"Email {message_id} already processed, skipping")
+                return
 
-                # In replay mode, use the stored decision
-                if replay:
-                    # Validate workflow still exists
-                    if prev_workflow not in data_store.workflows:
-                        print(f"\n✗ REPLAY ERROR: Stored workflow '{prev_workflow}' no longer exists")
-                        available = ", ".join(sorted(data_store.workflows.keys())[:5])
-                        print(f"  Available workflows: {available}...")
-                        logger.error(f"Replay mode: workflow '{prev_workflow}' not found")
-                        return
-                    print(f"\n⊘ REPLAY: Using stored decision '{prev_workflow}' from {prev_date}")
-                    logger.info(f"Replay mode: using stored workflow '{prev_workflow}'")
-                    selected_workflow = prev_workflow
-                    # Skip to execution (don't return, continue below)
-                else:
-                    print(f"\n⊘ Email already processed:")
-                    print(f"  Workflow: {prev_workflow}")
-                    print(f"  Date: {prev_date}")
-                    print(f"\nUse --force to reprocess")
-                    logger.info(f"Email {message_id} already processed, skipping")
-                    return
-            else:
-                selected_workflow = None
-        else:
-            selected_workflow = None
-
-        # In replay mode with no stored decision, skip this email
-        if replay and selected_workflow is None:
-            print("\n⊘ REPLAY: No stored decision found, skipping")
-            logger.info("Replay mode: no stored decision, skipping")
-            return
-
-        # Let user select workflow (unless we already have one from replay)
-        if selected_workflow is None:
-            selected_workflow = await ui.select_workflow(email_data, skip_training=replay)
+        # Let user select workflow
+        selected_workflow = await ui.select_workflow(email_data)
 
         if selected_workflow:
             print(f"\n{'='*60}")
@@ -142,14 +111,8 @@ async def process(
                         if dry_run:
                             print("(dry-run) Skipping action execution and processed marker")
                             logger.info("dry-run: not executing action or marking processed")
-                        elif train_only:
-                            # Train-only mode: store decision but don't execute workflow
-                            print(f"(train-only) Storing decision '{selected_workflow}', skipping workflow execution")
-                            logger.info(f"train-only: storing decision '{selected_workflow}'")
-                            tracker.mark_as_processed(message, message_id, selected_workflow)
                         else:
-                            # Normal or replay mode: execute the workflow
-                            # Call action based on type
+                            # Execute the workflow
                             if workflow_def.action_type in ["save_attachment", "save_pdf", "save_email_as_pdf"]:
                                 # Archive-protocol actions (document storage)
                                 action_func(
@@ -165,25 +128,8 @@ async def process(
                             print(f"\n✓ Workflow '{selected_workflow}' completed!")
                             logger.info(f"Workflow '{selected_workflow}' completed successfully")
 
-                            # Mark as processed (update timestamp even in replay for audit trail)
+                            # Mark as processed
                             tracker.mark_as_processed(message, message_id, selected_workflow)
-
-                        # Train shared classifier (skip in replay mode to avoid duplicates)
-                        if not replay:
-                            try:
-                                model_path = str(config.state_dir / "classifier.json")
-                                model = Model(model_path)
-                                feats = extract_features("application/pdf", {  # modality-agnostic baseline
-                                    "origin": {
-                                        "subject": email_data.get("subject", ""),
-                                        "from": email_data.get("from", ""),
-                                    }
-                                })
-                                model.add_example(feats, selected_workflow)
-                                model.save()
-                            except Exception as e:
-                                print(f"\n⚠ Warning: Failed to train shared classifier: {e}")
-                                logger.error(f"Failed to train shared classifier: {e}")
                     except WorkflowError as e:
                         print(f"\n✗ Workflow error: {e}")
                         logger.error(f"Workflow execution failed: {e}")
