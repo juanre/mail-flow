@@ -17,6 +17,7 @@ wheels/
 # Authentication and secrets
 mailflow-auth/
 .emacs-bu
+file-classifier-core
 file-classifier-core/
 llm-archivist
 llmemory
