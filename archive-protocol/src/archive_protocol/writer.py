@@ -3,7 +3,7 @@
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -101,7 +101,7 @@ class RepositoryWriter:
             WriteError: If write operation fails
         """
         if created_at is None:
-            created_at = datetime.now()
+            created_at = datetime.now(timezone.utc)
 
         # Validate workflow
         if not workflow.islower() or not workflow.replace('-', '').replace('_', '').isalnum():
@@ -197,7 +197,7 @@ class RepositoryWriter:
             WriteError: If write operation fails
         """
         if created_at is None:
-            created_at = datetime.now()
+            created_at = datetime.now(timezone.utc)
 
         # Validate stream name
         # Validate stream name; in v2 allow nested names like 'slack/general'
