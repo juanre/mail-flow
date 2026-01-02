@@ -45,6 +45,9 @@ XERO_BILLS_COLUMNS = [
     "Reference",
 ]
 
+# Required fields per SOT (expense data is invalid without these)
+REQUIRED_EXPENSE_FIELDS = ["expense_date", "vendor", "total_amount", "currency"]
+
 
 def find_sidecars_with_expenses(archive_path: Path, entity: str | None = None) -> Iterator[tuple[Path, dict]]:
     """Find all sidecar JSON files containing accounting.expense data.
@@ -76,18 +79,24 @@ def find_sidecars_with_expenses(archive_path: Path, entity: str | None = None) -
             continue
 
 
-def sidecar_to_expense_row(sidecar_data: dict, archive_path: Path) -> dict:
+def sidecar_to_expense_row(sidecar_data: dict) -> dict | None:
     """Convert a sidecar with expense data to an expenses.csv row.
 
     Args:
         sidecar_data: Parsed sidecar JSON
-        archive_path: Root archive path for computing relative paths
 
     Returns:
-        Dictionary with expenses.csv column values
+        Dictionary with expenses.csv column values, or None if required fields are missing
     """
     expense = sidecar_data.get("accounting", {}).get("expense", {})
     origin = sidecar_data.get("origin", {})
+
+    # Validate required fields per SOT
+    missing = [f for f in REQUIRED_EXPENSE_FIELDS if not expense.get(f)]
+    if missing:
+        doc_id = sidecar_data.get("id", "unknown")
+        logger.warning(f"Skipping expense {doc_id}: missing required fields {missing}")
+        return None
 
     return {
         "entity": sidecar_data.get("entity", ""),
@@ -111,20 +120,28 @@ def sidecar_to_expense_row(sidecar_data: dict, archive_path: Path) -> dict:
     }
 
 
-def sidecar_to_xero_row(sidecar_data: dict) -> dict:
+def sidecar_to_xero_row(sidecar_data: dict) -> dict | None:
     """Convert a sidecar with expense data to a Xero bills CSV row.
 
     Args:
         sidecar_data: Parsed sidecar JSON
 
     Returns:
-        Dictionary with Xero bills CSV column values
+        Dictionary with Xero bills CSV column values, or None if required fields are missing
 
     Traceability per SOT:
         - Reference MUST include document_id
         - Description MUST include archive_path
     """
     expense = sidecar_data.get("accounting", {}).get("expense", {})
+
+    # Validate required fields per SOT
+    missing = [f for f in REQUIRED_EXPENSE_FIELDS if not expense.get(f)]
+    if missing:
+        doc_id = sidecar_data.get("id", "unknown")
+        logger.warning(f"Skipping Xero bill {doc_id}: missing required fields {missing}")
+        return None
+
     document_id = sidecar_data.get("id", "")
     archive_path = expense.get("source_path", "")
 
@@ -134,7 +151,7 @@ def sidecar_to_xero_row(sidecar_data: dict) -> dict:
         "InvoiceDate": expense.get("expense_date", ""),
         "DueDate": "",  # May be empty if unknown
         "Description": f"Archived: {archive_path}",
-        "Quantity": "1",
+        "Quantity": "1",  # One bill per expense; line items not yet supported
         "UnitAmount": expense.get("total_amount", ""),
         "AccountCode": "",  # May be empty until configured per entity
         "TaxType": "",  # May be empty until configured per entity
@@ -162,8 +179,9 @@ def export_expenses_csv(
 
     rows = []
     for sidecar_path, sidecar_data in find_sidecars_with_expenses(archive_path, entity):
-        row = sidecar_to_expense_row(sidecar_data, archive_path)
-        rows.append(row)
+        row = sidecar_to_expense_row(sidecar_data)
+        if row is not None:
+            rows.append(row)
 
     # Sort by expense_date for stable output
     rows.sort(key=lambda r: (r.get("expense_date", ""), r.get("document_id", "")))
@@ -198,7 +216,8 @@ def export_xero_bills_csv(
     rows = []
     for sidecar_path, sidecar_data in find_sidecars_with_expenses(archive_path, entity):
         row = sidecar_to_xero_row(sidecar_data)
-        rows.append(row)
+        if row is not None:
+            rows.append(row)
 
     # Sort by InvoiceDate for stable output
     rows.sort(key=lambda r: (r.get("InvoiceDate", ""), r.get("Reference", "")))

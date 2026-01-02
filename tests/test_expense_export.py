@@ -234,3 +234,150 @@ class TestXeroBillsExport:
             assert 'tsm/docs/2025/2025-12-15-mail-abc123.pdf' in row['Description']
         finally:
             output_path.unlink(missing_ok=True)
+
+
+class TestExpenseValidation:
+    """Test expense data validation."""
+
+    def test_expenses_csv_skips_missing_required_fields(self, tmp_path):
+        """Test that sidecars with missing required fields are skipped."""
+        # Create directory structure
+        docs_dir = tmp_path / "tsm" / "docs" / "2025"
+        docs_dir.mkdir(parents=True)
+
+        # Create sidecar with expense but missing vendor field
+        sidecar_path = docs_dir / "incomplete.json"
+        sidecar_data = {
+            "id": "mail=tsm-expense/2025-12-15T10:30:00Z/sha256:incomplete",
+            "entity": "tsm",
+            "source": "mail",
+            "workflow": "tsm-expense",
+            "accounting": {
+                "expense": {
+                    "expense_date": "2025-12-15",
+                    # vendor is missing!
+                    "total_amount": "100.00",
+                    "currency": "USD",
+                    "category": "software"
+                }
+            }
+        }
+        sidecar_path.write_text(json.dumps(sidecar_data))
+
+        from mailflow.expense_export import export_expenses_csv
+
+        output_path = tmp_path / "output.csv"
+        count = export_expenses_csv(
+            archive_path=tmp_path,
+            output_path=output_path,
+            entity="tsm"
+        )
+
+        # Should skip the invalid expense
+        assert count == 0
+
+        # CSV should have headers only
+        with open(output_path, 'r') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+        assert len(rows) == 0
+
+    def test_expenses_csv_exports_valid_skips_invalid(self, tmp_path):
+        """Test export with mix of valid and invalid sidecars."""
+        docs_dir = tmp_path / "tsm" / "docs" / "2025"
+        docs_dir.mkdir(parents=True)
+
+        # Create valid sidecar
+        valid_sidecar = docs_dir / "valid.json"
+        valid_sidecar.write_text(json.dumps({
+            "id": "mail=tsm-expense/2025-12-15T10:30:00Z/sha256:valid",
+            "entity": "tsm",
+            "source": "mail",
+            "workflow": "tsm-expense",
+            "accounting": {
+                "expense": {
+                    "expense_date": "2025-12-15",
+                    "vendor": "Valid Vendor",
+                    "total_amount": "100.00",
+                    "currency": "USD",
+                    "category": "software",
+                    "source_path": "tsm/docs/2025/valid.pdf"
+                }
+            }
+        }))
+
+        # Create invalid sidecar (missing currency)
+        invalid_sidecar = docs_dir / "invalid.json"
+        invalid_sidecar.write_text(json.dumps({
+            "id": "mail=tsm-expense/2025-12-15T10:30:00Z/sha256:invalid",
+            "entity": "tsm",
+            "source": "mail",
+            "workflow": "tsm-expense",
+            "accounting": {
+                "expense": {
+                    "expense_date": "2025-12-15",
+                    "vendor": "Invalid Vendor",
+                    "total_amount": "50.00",
+                    # currency is missing!
+                    "category": "software"
+                }
+            }
+        }))
+
+        from mailflow.expense_export import export_expenses_csv
+
+        output_path = tmp_path / "output.csv"
+        count = export_expenses_csv(
+            archive_path=tmp_path,
+            output_path=output_path,
+            entity="tsm"
+        )
+
+        # Should export only the valid expense
+        assert count == 1
+
+        with open(output_path, 'r') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+
+        assert len(rows) == 1
+        assert rows[0]['vendor'] == 'Valid Vendor'
+
+    def test_malformed_json_is_skipped(self, tmp_path):
+        """Test that malformed JSON files are logged and skipped."""
+        docs_dir = tmp_path / "tsm" / "docs" / "2025"
+        docs_dir.mkdir(parents=True)
+
+        # Create valid sidecar
+        valid_sidecar = docs_dir / "valid.json"
+        valid_sidecar.write_text(json.dumps({
+            "id": "mail=tsm-expense/2025-12-15T10:30:00Z/sha256:valid",
+            "entity": "tsm",
+            "source": "mail",
+            "workflow": "tsm-expense",
+            "accounting": {
+                "expense": {
+                    "expense_date": "2025-12-15",
+                    "vendor": "Valid Vendor",
+                    "total_amount": "100.00",
+                    "currency": "USD",
+                    "source_path": "tsm/docs/2025/valid.pdf"
+                }
+            }
+        }))
+
+        # Create malformed JSON file
+        malformed = docs_dir / "malformed.json"
+        malformed.write_text("{ this is not valid json }")
+
+        from mailflow.expense_export import export_expenses_csv
+
+        output_path = tmp_path / "output.csv"
+        count = export_expenses_csv(
+            archive_path=tmp_path,
+            output_path=output_path,
+            entity="tsm"
+        )
+
+        # Should export only the valid expense (malformed skipped)
+        assert count == 1
