@@ -226,6 +226,33 @@ class Config:
         self.preflight_archivist()
         return self.settings["archivist"]["db_schema"]
 
+    def preflight_llmemory(self) -> None:
+        """Preflight check for llmemory configuration.
+
+        Must be called before any llmemory indexing operations.
+        Raises ConfigurationError if required llmemory settings are missing.
+        """
+        llmemory = self.settings.get("llmemory", {})
+
+        if not llmemory.get("database_url"):
+            config_path = self.config_dir / "config.toml"
+            raise ConfigurationError(
+                f"Missing required llmemory configuration: llmemory.database_url\n"
+                f"Add this to [llmemory] section in {config_path}:\n\n"
+                f"[llmemory]\n"
+                f'database_url = "postgresql://user:pass@localhost:5432/docflow"\n'
+            )
+
+    def get_llmemory_database_url(self) -> str:
+        """Get llmemory database URL, running preflight check first."""
+        self.preflight_llmemory()
+        return self.settings["llmemory"]["database_url"]
+
+    def has_llmemory_config(self) -> bool:
+        """Check if llmemory configuration is present (without failing)."""
+        llmemory = self.settings.get("llmemory", {})
+        return bool(llmemory.get("database_url"))
+
     def get_workflows_file(self) -> Path:
         return self.config_dir / "workflows.json"
 
