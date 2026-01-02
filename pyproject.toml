@@ -38,6 +38,7 @@ dev = [
     "pytest-asyncio>=0.26.0",
     "pytest>=8.4.1",
     "ruff>=0.12.7",
+    "file-classifier-core",
 ]
 
 [tool.black]
@@ -78,11 +79,13 @@ asyncio_mode = "auto"
 norecursedirs = ["llmring"]
 
 [tool.uv.sources]
-llmring = { path = "../llmring" }
+llmring = { path = "../../llmring-all/llmring" }
 archive-protocol = { workspace = true }
+file-classifier-core = { workspace = true }
 llm-archivist = { path = "../llm-archivist" }
 
 [tool.uv.workspace]
 members = [
     "archive-protocol",
+    "file-classifier-core",
 ]
