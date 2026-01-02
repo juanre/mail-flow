@@ -2,7 +2,7 @@
 # ABOUTME: Creates consistent metadata documents for all connectors
 
 import socket
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -73,7 +73,7 @@ class MetadataBuilder:
             Complete metadata dictionary
         """
         if created_at is None:
-            created_at = datetime.now()
+            created_at = datetime.now(timezone.utc)
 
         # Build content metadata
         content_meta = ContentMetadata(
@@ -87,7 +87,7 @@ class MetadataBuilder:
         # Build ingest metadata
         ingest_meta = IngestMetadata(
             connector=f"{self.source}@{self.connector_version}",
-            ingested_at=datetime.now(),
+            ingested_at=datetime.now(timezone.utc),
             hostname=socket.gethostname(),
             workflow_run_id=None
         )

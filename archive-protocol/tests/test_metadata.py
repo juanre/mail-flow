@@ -1,7 +1,7 @@
 # ABOUTME: Tests for MetadataBuilder class
 # ABOUTME: Validates metadata generation, document ID creation, and schema compliance
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -160,7 +160,7 @@ class TestMetadataBuilder:
             workflow="expenses"
         )
 
-        before = datetime.now()
+        before = datetime.now(timezone.utc)
         metadata = builder.build(
             document_id="mail=expenses/2025-10-23T14:30:00Z/sha256:abc123",
             content_path="content.pdf",
@@ -169,7 +169,7 @@ class TestMetadataBuilder:
             mimetype="application/pdf",
             origin={"email_id": "12345"}
         )
-        after = datetime.now()
+        after = datetime.now(timezone.utc)
 
         validated = validate_metadata(metadata)
         assert before <= validated.created_at <= after
@@ -182,7 +182,7 @@ class TestMetadataBuilder:
             workflow="expenses"
         )
 
-        before = datetime.now()
+        before = datetime.now(timezone.utc)
         metadata = builder.build(
             document_id="mail=expenses/2025-10-23T14:30:00Z/sha256:abc123",
             content_path="content.pdf",
@@ -192,7 +192,7 @@ class TestMetadataBuilder:
             origin={"email_id": "12345"},
             created_at=datetime(2025, 10, 20, 10, 0, 0)  # Earlier date
         )
-        after = datetime.now()
+        after = datetime.now(timezone.utc)
 
         validated = validate_metadata(metadata)
         assert before <= validated.ingest.ingested_at <= after
