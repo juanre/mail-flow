@@ -47,7 +47,7 @@ class TestMetadataBuilder:
             workflow="expenses"
         )
 
-        created_at = datetime(2025, 10, 23, 14, 30, 0)
+        created_at = datetime(2025, 10, 23, 14, 30, 0, tzinfo=timezone.utc)
         metadata = builder.build(
             document_id="mail=expenses/2025-10-23T14:30:00Z/sha256:abc123",
             content_path="content.pdf",
@@ -83,7 +83,7 @@ class TestMetadataBuilder:
             connector_version="2.0.0"
         )
 
-        created_at = datetime(2025, 10, 23, 14, 30, 0)
+        created_at = datetime(2025, 10, 23, 14, 30, 0, tzinfo=timezone.utc)
         metadata = builder.build(
             document_id="mail=expenses/2025-10-23T14:30:00Z/sha256:abc123",
             content_path="content.pdf",
@@ -190,7 +190,7 @@ class TestMetadataBuilder:
             content_size=1024,
             mimetype="application/pdf",
             origin={"email_id": "12345"},
-            created_at=datetime(2025, 10, 20, 10, 0, 0)  # Earlier date
+            created_at=datetime(2025, 10, 20, 10, 0, 0, tzinfo=timezone.utc)  # Earlier date
         )
         after = datetime.now(timezone.utc)
 
@@ -249,7 +249,7 @@ class TestMetadataBuilder:
             workflow="expenses"
         )
 
-        created_at = datetime(2025, 10, 23, 14, 30, 0)
+        created_at = datetime(2025, 10, 23, 14, 30, 0, tzinfo=timezone.utc)
         content_hash = "sha256:abc123def456" + "0" * 52
 
         doc_id = builder.generate_document_id(
@@ -268,7 +268,7 @@ class TestMetadataBuilder:
             source="mail"
         )
 
-        created_at = datetime(2025, 1, 5, 9, 5, 3)
+        created_at = datetime(2025, 1, 5, 9, 5, 3, tzinfo=timezone.utc)
         content_hash = "sha256:abc123" + "0" * 58
 
         doc_id = builder.generate_document_id(
@@ -287,7 +287,7 @@ class TestMetadataBuilder:
             workflow=None
         )
 
-        created_at = datetime(2025, 10, 23, 14, 30, 0)
+        created_at = datetime(2025, 10, 23, 14, 30, 0, tzinfo=timezone.utc)
         content_hash = "sha256:abc123" + "0" * 58
 
         doc_id = builder.generate_document_id(

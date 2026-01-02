@@ -1,6 +1,6 @@
 # ABOUTME: Tests for RepositoryWriter using layout v2 (docs/ + nested streams)
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from archive_protocol.config import RepositoryConfig
 from archive_protocol.writer import RepositoryWriter
@@ -11,7 +11,7 @@ def test_write_document_v2_docs_dir(tmp_path):
     cfg = RepositoryConfig(base_path=str(base))
     writer = RepositoryWriter(cfg, entity="acme", source="mail", connector_version="1.0.0")
 
-    created_at = datetime(2025, 11, 5, 12, 0, 0)
+    created_at = datetime(2025, 11, 5, 12, 0, 0, tzinfo=timezone.utc)
     _, content_path, _ = writer.write_document(
         workflow="invoices",
         content=b"PDF bytes",
@@ -32,7 +32,7 @@ def test_write_stream_v2_nested_stream(tmp_path):
     cfg = RepositoryConfig(base_path=str(base))
     writer = RepositoryWriter(cfg, entity="acme", source="slack", connector_version="1.0.0")
 
-    created_at = datetime(2025, 11, 5, 9, 30, 0)
+    created_at = datetime(2025, 11, 5, 9, 30, 0, tzinfo=timezone.utc)
     _, content_path, _ = writer.write_stream(
         stream_name="slack/general",
         content=b"# Transcript\n",

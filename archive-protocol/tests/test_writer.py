@@ -2,7 +2,7 @@
 # ABOUTME: Validates document writing, path resolution, and metadata generation
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -77,7 +77,7 @@ class TestRepositoryWriter:
     def test_write_document_minimal(self, writer, temp_repo):
         """Test writing document with minimal fields."""
         content = b"Test document content"
-        created_at = datetime(2025, 10, 23, 14, 30, 0)
+        created_at = datetime(2025, 10, 23, 14, 30, 0, tzinfo=timezone.utc)
 
         doc_id, content_path, metadata_path = writer.write_document(
             workflow="expenses",
@@ -114,7 +114,7 @@ class TestRepositoryWriter:
     def test_write_document_with_all_fields(self, writer, temp_repo):
         """Test writing document with all optional fields."""
         content = b"Test document content"
-        created_at = datetime(2025, 10, 23, 14, 30, 0)
+        created_at = datetime(2025, 10, 23, 14, 30, 0, tzinfo=timezone.utc)
         attachments = [b"attachment1", b"attachment2"]
         attachment_mimetypes = ["image/jpeg", "image/png"]
 
@@ -182,7 +182,7 @@ class TestRepositoryWriter:
     def test_write_stream_minimal(self, writer, temp_repo):
         """Test writing stream document with minimal fields."""
         content = b"Test stream content"
-        created_at = datetime(2025, 10, 23, 14, 30, 0)
+        created_at = datetime(2025, 10, 23, 14, 30, 0, tzinfo=timezone.utc)
 
         doc_id, content_path, metadata_path = writer.write_stream(
             stream_name="inbox-stream",
@@ -220,7 +220,7 @@ class TestRepositoryWriter:
 
     def test_filename_generation(self, writer, temp_repo):
         """Test filename generation format."""
-        created_at = datetime(2025, 10, 23, 14, 30, 0)
+        created_at = datetime(2025, 10, 23, 14, 30, 0, tzinfo=timezone.utc)
 
         _, content_path, _ = writer.write_document(
             workflow="expenses",
@@ -237,7 +237,7 @@ class TestRepositoryWriter:
 
     def test_collision_handling(self, writer, temp_repo):
         """Test that filename collisions are handled."""
-        created_at = datetime(2025, 10, 23, 14, 30, 0)
+        created_at = datetime(2025, 10, 23, 14, 30, 0, tzinfo=timezone.utc)
 
         # Write first document
         doc_id1, path1, _ = writer.write_document(
@@ -328,8 +328,8 @@ class TestRepositoryWriter:
 
     def test_path_resolution_workflow(self, writer, temp_repo):
         """Test workflow path resolution."""
-        from datetime import datetime
-        created_at = datetime(2025, 10, 23, 14, 30, 0)
+        from datetime import datetime, timezone
+        created_at = datetime(2025, 10, 23, 14, 30, 0, tzinfo=timezone.utc)
 
         path = writer._resolve_workflow_path("expenses", created_at)
 
@@ -339,8 +339,8 @@ class TestRepositoryWriter:
 
     def test_path_resolution_stream(self, writer, temp_repo):
         """Test stream path resolution."""
-        from datetime import datetime
-        created_at = datetime(2025, 10, 23, 14, 30, 0)
+        from datetime import datetime, timezone
+        created_at = datetime(2025, 10, 23, 14, 30, 0, tzinfo=timezone.utc)
 
         path = writer._resolve_stream_path("inbox-stream", created_at)
 
@@ -350,7 +350,7 @@ class TestRepositoryWriter:
 
     def test_generate_document_id_format(self, writer):
         """Test document ID generation format."""
-        created_at = datetime(2025, 10, 23, 14, 30, 0)
+        created_at = datetime(2025, 10, 23, 14, 30, 0, tzinfo=timezone.utc)
         content_hash = "sha256:abc123" + "0" * 58
 
         from archive_protocol.metadata import MetadataBuilder

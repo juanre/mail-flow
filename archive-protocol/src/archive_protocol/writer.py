@@ -199,9 +199,8 @@ class RepositoryWriter:
         if created_at is None:
             created_at = datetime.now(timezone.utc)
 
-        # Validate stream name
-        # Validate stream name; in v2 allow nested names like 'slack/general'
-        if (self.config.layout_version or "v1").lower() == "v2" and "/" in stream_name:
+        # Validate stream name (allow nested names like 'slack/general')
+        if "/" in stream_name:
             parts = [p for p in stream_name.split("/") if p]
             for p in parts:
                 if not p.islower() or not p.replace('-', '').replace('_', '').isalnum():

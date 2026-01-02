@@ -1,7 +1,7 @@
 # ABOUTME: Tests for Pydantic schema models in archive_protocol.schema
 # ABOUTME: Validates document metadata, content metadata, and schema validation
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from pydantic import ValidationError
@@ -383,7 +383,7 @@ class TestDocumentMetadata:
                 source="mail",
                 workflow="test",
                 type="document",
-                created_at=datetime.now(),
+                created_at=datetime.now(timezone.utc),
                 content=ContentMetadata(
                     path="test.pdf",
                     hash="sha256:" + "a" * 64,
@@ -393,7 +393,7 @@ class TestDocumentMetadata:
                 origin={},
                 ingest=IngestMetadata(
                     connector="test@1.0.0",
-                    ingested_at=datetime.now()
+                    ingested_at=datetime.now(timezone.utc)
                 )
             )
             assert doc.entity == entity
@@ -414,7 +414,7 @@ class TestDocumentMetadata:
                     source="mail",
                     workflow="test",
                     type="document",
-                    created_at=datetime.now(),
+                    created_at=datetime.now(timezone.utc),
                     content=ContentMetadata(
                         path="test.pdf",
                         hash="sha256:" + "a" * 64,
@@ -424,7 +424,7 @@ class TestDocumentMetadata:
                     origin={},
                     ingest=IngestMetadata(
                         connector="test@1.0.0",
-                        ingested_at=datetime.now()
+                        ingested_at=datetime.now(timezone.utc)
                     )
                 )
 
@@ -440,7 +440,7 @@ class TestDocumentMetadata:
                 source=source,
                 workflow="test",
                 type="document",
-                created_at=datetime.now(),
+                created_at=datetime.now(timezone.utc),
                 content=ContentMetadata(
                     path="test.pdf",
                     hash="sha256:" + "a" * 64,
@@ -450,7 +450,7 @@ class TestDocumentMetadata:
                 origin={},
                 ingest=IngestMetadata(
                     connector="test@1.0.0",
-                    ingested_at=datetime.now()
+                    ingested_at=datetime.now(timezone.utc)
                 )
             )
             assert doc.source == source
@@ -466,7 +466,7 @@ class TestDocumentMetadata:
                     source=source,
                     workflow="test",
                     type="document",
-                    created_at=datetime.now(),
+                    created_at=datetime.now(timezone.utc),
                     content=ContentMetadata(
                         path="test.pdf",
                         hash="sha256:" + "a" * 64,
@@ -476,7 +476,7 @@ class TestDocumentMetadata:
                     origin={},
                     ingest=IngestMetadata(
                         connector="test@1.0.0",
-                        ingested_at=datetime.now()
+                        ingested_at=datetime.now(timezone.utc)
                     )
                 )
 
@@ -489,7 +489,7 @@ class TestDocumentMetadata:
             source="mail",
             workflow=None,
             type="document",
-            created_at=datetime.now(),
+            created_at=datetime.now(timezone.utc),
             content=ContentMetadata(
                 path="test.pdf",
                 hash="sha256:" + "a" * 64,
@@ -499,7 +499,7 @@ class TestDocumentMetadata:
             origin={},
             ingest=IngestMetadata(
                 connector="test@1.0.0",
-                ingested_at=datetime.now()
+                ingested_at=datetime.now(timezone.utc)
             )
         )
         assert doc.workflow is None
@@ -512,7 +512,7 @@ class TestDocumentMetadata:
                 source="mail",
                 workflow="Invalid-Workflow",  # Uppercase not allowed
                 type="document",
-                created_at=datetime.now(),
+                created_at=datetime.now(timezone.utc),
                 content=ContentMetadata(
                     path="test.pdf",
                     hash="sha256:" + "a" * 64,
@@ -522,7 +522,7 @@ class TestDocumentMetadata:
                 origin={},
                 ingest=IngestMetadata(
                     connector="test@1.0.0",
-                    ingested_at=datetime.now()
+                    ingested_at=datetime.now(timezone.utc)
                 )
             )
 
@@ -536,7 +536,7 @@ class TestDocumentMetadata:
                 source="mail",
                 workflow="test",
                 type="document",
-                created_at=datetime.now(),
+                created_at=datetime.now(timezone.utc),
                 content=ContentMetadata(
                     path="test.pdf",
                     hash="sha256:" + "a" * 64,
@@ -546,7 +546,7 @@ class TestDocumentMetadata:
                 origin={},
                 ingest=IngestMetadata(
                     connector="test@1.0.0",
-                    ingested_at=datetime.now()
+                    ingested_at=datetime.now(timezone.utc)
                 )
             )
 
@@ -558,7 +558,7 @@ class TestDocumentMetadata:
                 source="MAIL",
                 workflow="test",
                 type="document",
-                created_at=datetime.now(),
+                created_at=datetime.now(timezone.utc),
                 content=ContentMetadata(
                     path="test.pdf",
                     hash="sha256:" + "a" * 64,
@@ -568,7 +568,7 @@ class TestDocumentMetadata:
                 origin={},
                 ingest=IngestMetadata(
                     connector="test@1.0.0",
-                    ingested_at=datetime.now()
+                    ingested_at=datetime.now(timezone.utc)
                 )
             )
 
@@ -589,7 +589,7 @@ class TestDocumentMetadata:
                 source="mail",
                 workflow="test",
                 type="document",
-                created_at=datetime.now(),
+                created_at=datetime.now(timezone.utc),
                 content=ContentMetadata(
                     path="test.pdf",
                     hash="sha256:" + "a" * 64,
@@ -599,7 +599,7 @@ class TestDocumentMetadata:
                 origin=origin,
                 ingest=IngestMetadata(
                     connector="test@1.0.0",
-                    ingested_at=datetime.now()
+                    ingested_at=datetime.now(timezone.utc)
                 )
             )
             assert doc.origin == origin

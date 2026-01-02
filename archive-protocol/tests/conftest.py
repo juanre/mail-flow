@@ -1,7 +1,7 @@
 # ABOUTME: Pytest fixtures for archive-protocol tests
 # ABOUTME: Provides common test fixtures for repository, config, and sample data
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -52,7 +52,7 @@ def sample_metadata():
         "workflow": "expenses",
         "type": "receipt",
         "subtype": "digital",
-        "created_at": datetime(2025, 10, 23, 14, 30, 0).isoformat(),
+        "created_at": datetime(2025, 10, 23, 14, 30, 0, tzinfo=timezone.utc).isoformat(),
         "content": {
             "path": "content.pdf",
             "hash": "sha256:abc123def456" + "0" * 52,
@@ -69,7 +69,7 @@ def sample_metadata():
         "relationships": [],
         "ingest": {
             "connector": "mail@1.0.0",
-            "ingested_at": datetime(2025, 10, 23, 14, 35, 0).isoformat(),
+            "ingested_at": datetime(2025, 10, 23, 14, 35, 0, tzinfo=timezone.utc).isoformat(),
             "hostname": "test-host",
             "workflow_run_id": None
         },
