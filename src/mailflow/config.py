@@ -141,7 +141,7 @@ class Config:
         - [archive] - Archive storage settings (SOT)
         - [archivist] - LLM-archivist database settings (SOT)
         - [llmemory] - LLMory search settings (SOT)
-        - Plus internal settings at top level for backward compatibility
+        - Plus internal settings at top level
         """
         return {
             # SOT-defined sections
@@ -158,22 +158,13 @@ class Config:
                 # "database_url": optional,
                 # "default_owner_id": optional,
             },
-            # Internal mailflow settings (kept at top level for backward compat)
-            "feature_weights": {
-                "from_domain": 0.3,
-                "subject_similarity": 0.25,
-                "has_pdf": 0.2,
-                "body_keywords": 0.15,
-                "to_address": 0.1,
-            },
+            # Internal mailflow settings
             "ui": {
                 "max_suggestions": 5,
                 "show_confidence": True,
                 "confirm_before_execute": True,
             },
-            "learning": {"min_confidence_threshold": 0.3},
             "storage": {
-                "max_criteria_instances": 10000,
                 "max_workflows": 100,
             },
             "security": {"max_email_size_mb": 25},
@@ -184,25 +175,10 @@ class Config:
                 "gate_enabled": False,
                 "gate_min_confidence": 0.7,
             },
-            "similarity": {
-                "min_threshold": 0.5,
-                "skip_llm_threshold": 0.98,
-                "min_training_examples": 10,
-            },
         }
 
     def _validate_settings(self):
         """Validate settings are within acceptable ranges."""
-        # Ensure weights sum to 1.0
-        weights = self.settings.get("feature_weights", {})
-        if weights:
-            total_weight = sum(weights.values())
-            if abs(total_weight - 1.0) > 0.01:  # Allow small floating point errors
-                logger.warning(f"Feature weights sum to {total_weight}, normalizing to 1.0")
-                if total_weight > 0:
-                    for key in weights:
-                        weights[key] = weights[key] / total_weight
-
         # Ensure reasonable limits for UI settings
         ui_settings = self.settings.get("ui", {})
         if ui_settings:
@@ -256,9 +232,6 @@ class Config:
 
     def get_workflows_file(self) -> Path:
         return self.config_dir / "workflows.json"
-
-    def get_criteria_instances_file(self) -> Path:
-        return self.data_dir / "criteria_instances.json"
 
     def get_history_dir(self) -> Path:
         return self.state_dir / "history"

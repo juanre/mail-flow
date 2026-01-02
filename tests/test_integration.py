@@ -10,8 +10,7 @@ import pytest
 
 from mailflow.config import Config
 from mailflow.email_extractor import EmailExtractor
-from mailflow.models import CriteriaInstance, DataStore
-from mailflow.similarity import SimilarityEngine
+from mailflow.models import DataStore, WorkflowDefinition
 from mailflow.ui import WorkflowSelector
 
 
@@ -35,8 +34,7 @@ class TestIntegration:
         config = Config(config_dir=temp_config_dir)
         data_store = DataStore(config)
         extractor = EmailExtractor()
-        similarity_engine = SimilarityEngine(config)
-        ui = WorkflowSelector(config, data_store, similarity_engine)
+        ui = WorkflowSelector(config, data_store)
 
         # Process first email (no history, should show default workflows)
         if "amazon_invoice" in sample_emails:
@@ -59,27 +57,16 @@ class TestIntegration:
                     selected = await ui.select_workflow(email_data)
                     assert selected == "save-invoices"
 
-            # Verify workflow was created and decision was saved
+            # Verify workflow was created
             assert "save-invoices" in data_store.workflows
-            assert len(data_store.criteria_instances) == 1
-            assert data_store.criteria_instances[0].workflow_name == "save-invoices"
 
-    async def test_workflow_with_learning(self, temp_config_dir, sample_emails):
-        """Test workflow after system has learned from examples"""
+    async def test_workflow_selection(self, temp_config_dir, sample_emails):
+        """Test workflow selection from existing workflows"""
         config = Config(config_dir=temp_config_dir)
         data_store = DataStore(config)
         extractor = EmailExtractor()
 
-        # First, train the system with a few examples
-        training_emails = [
-            ("amazon_invoice", "save-invoices"),
-            ("prodigi_failed", "save-errors"),
-            ("github_notification", "create-todos"),
-        ]
-
         # Create workflows
-        from mailflow.models import WorkflowDefinition
-
         workflows = {
             "save-invoices": WorkflowDefinition(
                 name="save-invoices",
@@ -104,95 +91,18 @@ class TestIntegration:
         for workflow in workflows.values():
             data_store.add_workflow(workflow)
 
-        # Add training data
-        for email_name, workflow_name in training_emails:
-            if email_name in sample_emails:
-                email_data = extractor.extract(sample_emails[email_name])
-                instance = CriteriaInstance(
-                    email_id=email_data["message_id"],
-                    workflow_name=workflow_name,
-                    timestamp=datetime.now(),
-                    email_features=email_data["features"],
-                )
-                data_store.add_criteria_instance(instance)
-
-        # Now test with a similar email (cloudflare invoice)
-        similarity_engine = SimilarityEngine(config)
-        ui = WorkflowSelector(config, data_store, similarity_engine)
+        ui = WorkflowSelector(config, data_store)
 
         if "cloudflare_invoice" in sample_emails:
             email_data = extractor.extract(sample_emails["cloudflare_invoice"])
 
-            # Mock user selecting the suggested workflow
-            # select_workflow now uses builtins.input
-            with patch("builtins.input", return_value="1"):  # Select first suggestion
+            # Mock user selecting first workflow
+            with patch("builtins.input", return_value="1"):
                 selected = await ui.select_workflow(email_data)
 
-            # The system should have selected something (user pressed "1")
+            # Should have selected something
             assert selected is not None
             assert selected in data_store.workflows
-
-            # Verify the decision was recorded
-            assert len(data_store.criteria_instances) == len(training_emails) + 1
-
-    def test_similarity_improvement_over_time(self, temp_config_dir, sample_emails):
-        """Test that similarity scores improve as more examples are added"""
-        config = Config(config_dir=temp_config_dir)
-        data_store = DataStore(config)
-        extractor = EmailExtractor()
-        similarity_engine = SimilarityEngine(config)
-
-        # Create invoice workflow
-        from mailflow.models import WorkflowDefinition
-
-        invoice_workflow = WorkflowDefinition(
-            name="save-invoices",
-            description="Save invoices",
-            action_type="save_attachment",
-            action_params={"directory": "~/invoices"},
-        )
-        data_store.add_workflow(invoice_workflow)
-
-        # Test email
-        test_email = None
-        if "other_invoice" in sample_emails:
-            test_email = extractor.extract(sample_emails["other_invoice"])
-
-        if not test_email:
-            pytest.skip("No test email available")
-
-        scores = []
-
-        # Add training examples one by one and measure improvement
-        training_emails = ["amazon_invoice", "cloudflare_invoice"]
-
-        for i, email_name in enumerate(training_emails):
-            if email_name in sample_emails:
-                # Add training example
-                email_data = extractor.extract(sample_emails[email_name])
-                instance = CriteriaInstance(
-                    email_id=email_data["message_id"],
-                    workflow_name="save-invoices",
-                    timestamp=datetime.now(),
-                    email_features=email_data["features"],
-                )
-                data_store.add_criteria_instance(instance)
-
-                # Test similarity
-                rankings = similarity_engine.rank_workflows(
-                    test_email["features"], data_store.criteria_instances, top_n=1
-                )
-
-                if rankings and rankings[0][0] == "save-invoices":
-                    scores.append(rankings[0][1])
-                else:
-                    scores.append(0.0)
-
-        # Scores should generally improve or stay stable
-        if len(scores) >= 2:
-            print(f"\nSimilarity scores over time: {scores}")
-            # At least one score should be positive
-            assert any(score > 0 for score in scores)
 
     async def test_workflow_execution(self, temp_config_dir, sample_emails):
         """Test that workflows can be executed"""

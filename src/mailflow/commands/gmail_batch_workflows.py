@@ -128,7 +128,6 @@ def register(cli):
     async def _batch_async(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after=None, before=None, workflows=None, min_confidence=None, similarity_threshold=None, trust_llm=None):
         """Async implementation of batch email processing."""
         from mailflow.email_extractor import EmailExtractor
-        from mailflow.similarity import SimilarityEngine
 
         # Validate mutually exclusive flags
         mode_flags = sum([dry_run, train_only, replay])
@@ -161,7 +160,6 @@ def register(cli):
 
         data_store = DataStore(config)
         extractor = EmailExtractor()
-        similarity_engine = SimilarityEngine(config)
         tracker = ProcessedEmailsTracker(config)
 
         # Validate workflow filter

@@ -329,33 +329,30 @@ def init(reset):
 
 @cli.command()
 def stats():
-    """Show learning statistics"""
+    """Show mailflow statistics"""
+    import asyncio
     config = Config()
     data_store = DataStore(config)
 
     click.echo("\n📊 mailflow Statistics\n")
     click.echo(f"Total workflows: {len(data_store.workflows)}")
-    click.echo(f"Total examples: {len(data_store.criteria_instances)}")
 
-    # Count examples per workflow
-    workflow_counts = {}
-    for instance in data_store.criteria_instances:
-        workflow_name = instance.workflow_name
-        workflow_counts[workflow_name] = workflow_counts.get(workflow_name, 0) + 1
+    if data_store.workflows:
+        click.echo("\nConfigured workflows:")
+        for name, wf in sorted(data_store.workflows.items()):
+            click.echo(f"  {name}: {wf.action_type}")
 
-    if workflow_counts:
-        click.echo("\nExamples per workflow:")
-        for workflow, count in sorted(workflow_counts.items(), key=lambda x: x[1], reverse=True):
-            click.echo(f"  {workflow}: {count}")
-
-    # Show recent activity
-    if data_store.criteria_instances:
-        recent = sorted(data_store.criteria_instances, key=lambda x: x.timestamp, reverse=True)[:5]
-        click.echo("\nRecent classifications:")
-        for instance in recent:
-            click.echo(
-                f"  {instance.timestamp.strftime('%Y-%m-%d %H:%M')} - {instance.workflow_name}"
-            )
+    # Get learning metrics from llm-archivist
+    try:
+        from mailflow.archivist_client import get_metrics, set_config
+        set_config(config)
+        metrics = asyncio.run(get_metrics())
+        if metrics:
+            click.echo("\nClassifier metrics (llm-archivist):")
+            click.echo(f"  Total decisions: {metrics.get('total_decisions', 0)}")
+            click.echo(f"  Feedback count: {metrics.get('feedback_count', 0)}")
+    except Exception as e:
+        click.echo(f"\n(Classifier metrics unavailable: {e})")
 
 
 @cli.command()
@@ -473,9 +470,8 @@ def reset_training(yes):
     """Reset all training data for a fresh training run.
 
     Clears:
-    - criteria_instances.json (local similarity examples)
     - processed_emails.db (email tracking database)
-    - PostgreSQL tables: decisions, embeddings, feedback
+    - PostgreSQL tables: decisions, embeddings, feedback (llm-archivist)
 
     Use this before re-training to ensure clean, unpolluted data.
     """
@@ -483,7 +479,6 @@ def reset_training(yes):
 
     if not yes:
         click.echo("\n⚠️  This will delete ALL training data:")
-        click.echo(f"  - {config.data_dir / 'criteria_instances.json'}")
         click.echo(f"  - {config.config_dir / 'processed_emails.db'}")
         click.echo("  - PostgreSQL: decisions, embeddings, feedback tables")
         if not click.confirm("\nContinue?", default=False):
@@ -491,14 +486,6 @@ def reset_training(yes):
             return
 
     click.echo("\nResetting training data...")
-
-    # 1. Clear criteria_instances.json
-    criteria_file = config.data_dir / "criteria_instances.json"
-    if criteria_file.exists():
-        criteria_file.write_text("[]")
-        click.echo(f"  ✓ Cleared {criteria_file}")
-    else:
-        click.echo(f"  - {criteria_file} (not found)")
 
     # 2. Delete processed_emails.db
     processed_db = config.config_dir / "processed_emails.db"

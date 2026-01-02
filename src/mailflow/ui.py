@@ -1,13 +1,12 @@
 # ABOUTME: Interactive UI for workflow selection and creation in mailflow.
 # ABOUTME: Handles user interaction for classifying and processing emails with workflows.
 import logging
-from datetime import datetime
 
 from rich.console import Console
 from rich.panel import Panel
 
 from mailflow.linein import LineInput
-from mailflow.models import CriteriaInstance, WorkflowDefinition
+from mailflow.models import WorkflowDefinition
 from mailflow.tui import display_email, format_workflow_choices, get_workflow_prompt
 
 logger = logging.getLogger(__name__)
@@ -16,24 +15,20 @@ logger = logging.getLogger(__name__)
 class WorkflowSelector:
     """Interactive UI for selecting workflows"""
 
-    def __init__(self, config, data_store, similarity_engine):
+    def __init__(self, config, data_store):
         self.config = config
         self.data_store = data_store
-        self.similarity_engine = similarity_engine
         self.max_suggestions = config.settings["ui"]["max_suggestions"]
         self.show_confidence = config.settings["ui"]["show_confidence"]
 
     async def select_workflow(self, email_data: dict, skip_training: bool = False) -> str | None:
         """Present workflow options using rich TUI and get user selection.
 
-        Classification pipeline:
-        1. Similarity pre-filter (fast, local, free) - skip irrelevant emails
-        2. LLM classification (llm-archivist) - for emails that pass the gate
-        3. User confirmation for interactive mode
+        Classification uses llm-archivist (vector KNN + LLM arbiter).
 
         Args:
             email_data: Extracted email data
-            skip_training: If True, skip training the classifier (for replay mode)
+            skip_training: If True, skip sending feedback to classifier (for replay mode)
         """
         console = Console()
 
@@ -41,61 +36,10 @@ class WorkflowSelector:
         workflow_filter = email_data.get("_workflow_filter")
         min_confidence = email_data.get("_min_confidence")
         auto_threshold = email_data.get("_auto_threshold")
-
-        # Get similarity thresholds from config (with CLI override)
-        similarity_config = self.config.settings.get("similarity", {})
-        cli_threshold = email_data.get("_similarity_threshold")
-        similarity_min = cli_threshold if cli_threshold is not None else similarity_config.get("min_threshold", 0.5)
-        similarity_skip_llm = similarity_config.get("skip_llm_threshold", 0.98)
-        min_training = similarity_config.get("min_training_examples", 10)
-
-        # Step 1: Run similarity pre-filter (fast, local)
-        email_features = email_data.get("features", {})
-        # Filter out special markers (_skip) and apply workflow filter
-        criteria_instances = [
-            c for c in self.data_store.criteria_instances
-            if c.workflow_name != "_skip"
-        ]
-
-        if workflow_filter:
-            criteria_instances = [c for c in criteria_instances if c.workflow_name in workflow_filter]
-
-        similarity_rankings = []
-        if criteria_instances:
-            similarity_rankings = self.similarity_engine.rank_workflows(
-                email_features, criteria_instances, top_n=self.max_suggestions
-            )
-
-        # Check similarity gate - skip if below threshold
-        # Gate only activates after we have enough training examples
-        max_similarity = similarity_rankings[0][1] if similarity_rankings else 0.0
         position = email_data.get("_position", 1)
         total = email_data.get("_total", 1)
-        has_enough_training = len(criteria_instances) >= min_training
 
-        if has_enough_training and max_similarity < similarity_min:
-            logger.info(f"[{position}/{total}] Similarity gate: {max_similarity:.2f} < {similarity_min} - skipping")
-            return None
-
-        # Check if similarity is high enough to skip LLM (only with sufficient training)
-        if has_enough_training and max_similarity >= similarity_skip_llm:
-            suggestion = similarity_rankings[0][0]
-            logger.info(f"[{position}/{total}] High similarity {max_similarity:.2f} >= {similarity_skip_llm} - accepting '{suggestion}' without LLM")
-            # Record the decision (skip in replay mode to avoid duplicates)
-            if not skip_training:
-                instance = CriteriaInstance(
-                    email_id=email_data.get("message_id", ""),
-                    workflow_name=suggestion,
-                    timestamp=datetime.now(),
-                    email_features=email_features,
-                    user_confirmed=False,  # Auto-accepted via similarity
-                    confidence_score=max_similarity,
-                )
-                self.data_store.add_criteria_instance(instance)
-            email_data["_rankings"] = [(suggestion, max_similarity, [])]
-            return suggestion
-
-        # Step 2: Get ranked workflows via llm-archivist (LLM classification)
+        # Classify via llm-archivist (vector KNN + LLM arbiter)
         from mailflow.archivist_integration import classify_with_archivist
 
         arch_result = await classify_with_archivist(
@@ -131,22 +75,9 @@ class WorkflowSelector:
 
         # Auto-accept if confidence >= auto_threshold (non-interactive mode)
         if auto_threshold is not None and suggestion and confidence >= auto_threshold:
-            position = email_data.get("_position", 1)
-            total = email_data.get("_total", 1)
             logger.info(f"[{position}/{total}] Auto-accepting: {suggestion} ({confidence:.2f} >= {auto_threshold})")
-            # Record the decision (skip in replay mode to avoid duplicates)
+            # Send feedback to llm-archivist (skip in replay mode to avoid duplicates)
             if not skip_training:
-                instance = CriteriaInstance(
-                    email_id=email_data.get("message_id", ""),
-                    workflow_name=suggestion,
-                    timestamp=datetime.now(),
-                    email_features=email_data.get("features", {}),
-                    user_confirmed=False,  # Auto-accepted, not user confirmed
-                    confidence_score=confidence,
-                )
-                self.data_store.add_criteria_instance(instance)
-
-                # Send feedback to external classifier if available
                 try:
                     if arch_result and arch_result.get("decision_id"):
                         from mailflow.archivist_integration import record_feedback
@@ -160,8 +91,6 @@ class WorkflowSelector:
         thread_info = email_data.get("_thread_info")
 
         # Display email using rich TUI
-        position = email_data.get("_position", 1)
-        total = email_data.get("_total", 1)
         display_email(console, email_data, position, total, thread_info)
 
         # Show workflow choices (filtered if specified)
@@ -185,16 +114,8 @@ class WorkflowSelector:
                 selected = suggestion
                 break
 
-            # Handle skip
-            if choice == 's':
-                self.data_store.record_skip(
-                    email_data.get("message_id", ""),
-                    email_data.get("features", {})
-                )
-                return None
-
-            # Handle next (no action)
-            if choice == 'n':
+            # Handle skip (s) or next (n) - no feedback for skips
+            if choice in ('s', 'n'):
                 return None
 
             # Handle expand
@@ -234,21 +155,8 @@ class WorkflowSelector:
 
             console.print(f"Unknown choice: {choice}", style="red")
 
-        # Record the decision (skip in replay mode to avoid duplicates)
+        # Send feedback to llm-archivist (skip in replay mode to avoid duplicates)
         if selected and not skip_training:
-            instance = CriteriaInstance(
-                email_id=email_data.get("message_id", ""),
-                workflow_name=selected,
-                timestamp=datetime.now(),
-                email_features=email_data.get("features", {}),
-                user_confirmed=True,
-                confidence_score=(
-                    rankings[0][1] if rankings and rankings[0][0] == selected else 0.0
-                ),
-            )
-            self.data_store.add_criteria_instance(instance)
-
-            # Send feedback to external classifier if available
             try:
                 if arch_result and arch_result.get("decision_id"):
                     from mailflow.archivist_integration import record_feedback

@@ -11,7 +11,6 @@ from mailflow.exceptions import EmailParsingError, MailflowError, WorkflowError
 from mailflow.logging_config import setup_logging
 from mailflow.models import DataStore
 from mailflow.processed_emails_tracker import ProcessedEmailsTracker
-from mailflow.similarity import SimilarityEngine
 from mailflow.ui import WorkflowSelector
 from mailflow.workflow import Workflows
 from file_classifier import Model, extract_features
@@ -56,9 +55,8 @@ async def process(
 
         extractor = EmailExtractor()
         data_store = DataStore(config)
-        similarity_engine = SimilarityEngine(config)
 
-        ui = WorkflowSelector(config, data_store, similarity_engine)
+        ui = WorkflowSelector(config, data_store)
 
         # Extract email data
         logger.debug("Extracting email features")

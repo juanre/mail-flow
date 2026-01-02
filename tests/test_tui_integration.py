@@ -8,7 +8,6 @@ import pytest
 
 from mailflow.config import Config
 from mailflow.models import DataStore
-from mailflow.similarity import SimilarityEngine
 from mailflow.ui import WorkflowSelector
 
 
@@ -16,9 +15,8 @@ class TestWorkflowSelectorTUI:
     async def test_displays_email_info(self, temp_config_dir):
         config = Config(config_dir=temp_config_dir)
         data_store = DataStore(config)
-        similarity = SimilarityEngine(config)
 
-        selector = WorkflowSelector(config, data_store, similarity)
+        selector = WorkflowSelector(config, data_store)
 
         email = {
             "from": "billing@test.com",
@@ -41,7 +39,6 @@ class TestWorkflowSelectorTUI:
     async def test_number_selection_returns_workflow(self, temp_config_dir):
         config = Config(config_dir=temp_config_dir)
         data_store = DataStore(config)
-        similarity = SimilarityEngine(config)
 
         # Add some workflows
         from mailflow.models import WorkflowDefinition
@@ -51,7 +48,7 @@ class TestWorkflowSelectorTUI:
             action_type="save_pdf",
         ))
 
-        selector = WorkflowSelector(config, data_store, similarity)
+        selector = WorkflowSelector(config, data_store)
 
         email = {
             "from": "billing@test.com",

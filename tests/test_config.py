@@ -23,19 +23,15 @@ class TestConfig:
         config = Config(config_dir=temp_config_dir)
 
         # Check default settings
-        assert "feature_weights" in config.settings
         assert "ui" in config.settings
-        assert "learning" in config.settings
-
-        # Check specific defaults
-        assert config.settings["feature_weights"]["from_domain"] == 0.3
-        assert config.settings["ui"]["max_suggestions"] == 5
-        assert config.settings["learning"]["min_confidence_threshold"] == 0.3
-
-        # Check SOT-defined sections exist
         assert "archive" in config.settings
         assert "archivist" in config.settings
         assert "llmemory" in config.settings
+        assert "llm" in config.settings
+
+        # Check specific defaults
+        assert config.settings["ui"]["max_suggestions"] == 5
+        assert config.settings["llm"]["model_alias"] == "balanced"
 
     def test_load_toml_config(self, temp_config_dir):
         """Test loading config from TOML file."""
@@ -92,15 +88,8 @@ max_suggestions = 10
 [archive]
 base_path = "~/Archive"
 
-[feature_weights]
-from_domain = 0.5
-subject_similarity = 0.5
-
 [ui]
 max_suggestions = 8
-
-[learning]
-min_confidence_threshold = 0.4
 
 [llm]
 model_alias = "fast"
@@ -110,7 +99,6 @@ model_alias = "fast"
 
         # Check loaded values
         assert config.settings["ui"]["max_suggestions"] == 8
-        assert config.settings["learning"]["min_confidence_threshold"] == 0.4
         assert config.settings["llm"]["model_alias"] == "fast"
 
     def test_uses_docflow_directory(self, monkeypatch, tmp_path):

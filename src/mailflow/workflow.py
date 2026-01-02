@@ -498,7 +498,3 @@ Workflows = {
     "save_pdf": save_pdf,
     "create_todo": create_todo,
 }
-
-
-# Note: The old Criteria and Rules classes have been moved to models.py
-# as CriteriaInstance and DataStore for better organization

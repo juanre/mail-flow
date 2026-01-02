@@ -1,47 +1,6 @@
 from datetime import datetime
 
-from mailflow.models import CriteriaInstance, DataStore, WorkflowDefinition
-
-
-class TestCriteriaInstance:
-    def test_criteria_instance_creation(self):
-        now = datetime.now()
-        instance = CriteriaInstance(
-            email_id="test123",
-            workflow_name="archive",
-            timestamp=now,
-            email_features={"from_domain": "example.com"},
-            user_confirmed=True,
-            confidence_score=0.85,
-        )
-
-        assert instance.email_id == "test123"
-        assert instance.workflow_name == "archive"
-        assert instance.timestamp == now
-        assert instance.email_features["from_domain"] == "example.com"
-        assert instance.user_confirmed is True
-        assert instance.confidence_score == 0.85
-
-    def test_criteria_instance_serialization(self):
-        now = datetime.now()
-        instance = CriteriaInstance(
-            email_id="test123",
-            workflow_name="archive",
-            timestamp=now,
-            email_features={"from_domain": "example.com"},
-        )
-
-        # Convert to dict
-        data = instance.to_dict()
-        assert data["email_id"] == "test123"
-        assert data["workflow_name"] == "archive"
-        assert data["timestamp"] == now.isoformat()
-
-        # Convert back from dict
-        instance2 = CriteriaInstance.from_dict(data)
-        assert instance2.email_id == instance.email_id
-        assert instance2.workflow_name == instance.workflow_name
-        assert instance2.timestamp == instance.timestamp
+from mailflow.models import DataStore, WorkflowDefinition
 
 
 class TestWorkflowDefinition:
@@ -84,41 +43,6 @@ class TestDataStore:
 
         # DataStore should start empty (users run 'init' to create workflows)
         assert len(store.workflows) == 0
-        assert len(store.criteria_instances) == 0
-
-    def test_add_criteria_instance(self, test_config):
-        store = DataStore(test_config)
-
-        # First create a test workflow
-        workflow = WorkflowDefinition(
-            name="test-workflow",
-            description="Test workflow",
-            action_type="save_pdf",
-            action_params={"directory": "~/test"},
-        )
-        store.add_workflow(workflow)
-
-        instance = CriteriaInstance(
-            email_id="test123",
-            workflow_name="test-workflow",
-            timestamp=datetime.now(),
-            email_features={"from_domain": "example.com"},
-        )
-
-        store.add_criteria_instance(instance)
-
-        # Check it was added
-        assert len(store.criteria_instances) == 1
-        assert store.criteria_instances[0].email_id == "test123"
-
-        # Check it was saved to file
-        criteria_file = test_config.get_criteria_instances_file()
-        assert criteria_file.exists()
-
-        # Create new store and check it loads
-        store2 = DataStore(test_config)
-        assert len(store2.criteria_instances) == 1
-        assert store2.criteria_instances[0].email_id == "test123"
 
     def test_add_workflow(self, test_config):
         store = DataStore(test_config)
@@ -139,40 +63,3 @@ class TestDataStore:
         # Check persistence
         store2 = DataStore(test_config)
         assert "custom-workflow" in store2.workflows
-
-    def test_get_criteria_for_workflow(self, test_config):
-        store = DataStore(test_config)
-
-        # Create test workflows
-        workflow1 = WorkflowDefinition(
-            name="test-workflow-1",
-            description="Test workflow 1",
-            action_type="save_pdf",
-            action_params={"directory": "~/test1"},
-        )
-        workflow2 = WorkflowDefinition(
-            name="test-workflow-2",
-            description="Test workflow 2",
-            action_type="save_pdf",
-            action_params={"directory": "~/test2"},
-        )
-        store.add_workflow(workflow1)
-        store.add_workflow(workflow2)
-
-        # Add some criteria instances
-        for i in range(3):
-            instance = CriteriaInstance(
-                email_id=f"test{i}",
-                workflow_name="test-workflow-1" if i < 2 else "test-workflow-2",
-                timestamp=datetime.now(),
-                email_features={},
-            )
-            store.add_criteria_instance(instance)
-
-        # Get criteria for test-workflow-1
-        criteria1 = store.get_criteria_for_workflow("test-workflow-1")
-        assert len(criteria1) == 2
-
-        # Get criteria for test-workflow-2
-        criteria2 = store.get_criteria_for_workflow("test-workflow-2")
-        assert len(criteria2) == 1
