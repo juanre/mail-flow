@@ -13,6 +13,7 @@ from mailflow.llmemory_indexer import (
     extract_text_from_content,
     extract_text_from_pdf,
     index_to_llmemory,
+    run_indexing,
     _update_sidecar_llmemory,
 )
 
@@ -127,7 +128,8 @@ class TestSidecarUpdate:
                 "chunks_created": 5,
             }
 
-            _update_sidecar_llmemory(metadata_path, llmemory_info)
+            result = _update_sidecar_llmemory(metadata_path, llmemory_info)
+            assert result is True
 
             # Read back and verify
             with open(metadata_path) as f:
@@ -145,9 +147,10 @@ class TestSidecarUpdate:
         metadata_path = Path("/nonexistent/path/metadata.json")
         llmemory_info = {"indexed_at": "2024-01-01T00:00:00Z"}
 
-        # Should not raise, just log warning
-        _update_sidecar_llmemory(metadata_path, llmemory_info)
+        # Should not raise, returns False and logs error
+        result = _update_sidecar_llmemory(metadata_path, llmemory_info)
 
+        assert result is False
         assert "Failed to update sidecar" in caplog.text
 
 
@@ -231,3 +234,46 @@ database_url = "postgresql://localhost/docflow"
         # If llmemory IS installed but can't connect, it will also return None
         # Either way, should not raise
         assert result is None or isinstance(result, dict)
+
+
+class TestRunIndexing:
+    """Test the sync wrapper run_indexing function."""
+
+    def test_run_indexing_from_sync_context(self, temp_config_dir):
+        """Test run_indexing works from synchronous context."""
+        config = Config(config_dir=temp_config_dir)
+
+        # Should not raise, should skip because llmemory not configured
+        result = run_indexing(
+            config=config,
+            entity="test",
+            document_id="doc-123",
+            document_name="test.pdf",
+            document_type="document",
+            content=b"Test content",
+            mimetype="text/plain",
+            created_at=datetime.now(timezone.utc),
+            metadata_path=Path("/tmp/test.json"),
+        )
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_run_indexing_from_async_context(self, temp_config_dir):
+        """Test run_indexing works from async context (uses thread pool)."""
+        config = Config(config_dir=temp_config_dir)
+
+        # Should not raise even though we're in async context
+        result = run_indexing(
+            config=config,
+            entity="test",
+            document_id="doc-123",
+            document_name="test.pdf",
+            document_type="document",
+            content=b"Test content",
+            mimetype="text/plain",
+            created_at=datetime.now(timezone.utc),
+            metadata_path=Path("/tmp/test.json"),
+        )
+
+        assert result is None

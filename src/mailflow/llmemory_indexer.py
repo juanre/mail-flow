@@ -3,6 +3,8 @@
 Indexes archived documents to llmemory for search after archive writes.
 """
 
+import asyncio
+import concurrent.futures
 import json
 import logging
 from datetime import datetime, timezone
@@ -10,6 +12,54 @@ from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+def run_indexing(
+    config,
+    entity: str,
+    document_id: str,
+    document_name: str,
+    document_type: str,
+    content: bytes,
+    mimetype: str,
+    created_at: datetime,
+    metadata_path: Path,
+    origin: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    """Run llmemory indexing from sync context.
+
+    This handles the async/sync boundary properly, detecting whether
+    there's already a running event loop and using appropriate strategy.
+
+    Args:
+        Same as index_to_llmemory()
+
+    Returns:
+        Dict with indexing results or None if indexing was skipped/failed
+    """
+    coro = index_to_llmemory(
+        config=config,
+        entity=entity,
+        document_id=document_id,
+        document_name=document_name,
+        document_type=document_type,
+        content=content,
+        mimetype=mimetype,
+        created_at=created_at,
+        metadata_path=metadata_path,
+        origin=origin,
+    )
+
+    try:
+        # Check if there's already a running event loop
+        asyncio.get_running_loop()
+        # We're in an async context - run in a separate thread
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(asyncio.run, coro)
+            return future.result()
+    except RuntimeError:
+        # No running loop - safe to use asyncio.run()
+        return asyncio.run(coro)
 
 
 async def extract_text_from_pdf(pdf_bytes: bytes) -> str:
@@ -27,16 +77,19 @@ async def extract_text_from_pdf(pdf_bytes: bytes) -> str:
         logger.warning("PyMuPDF not installed, cannot extract PDF text")
         return ""
 
+    doc = None
     try:
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         text_parts = []
         for page in doc:
             text_parts.append(page.get_text())
-        doc.close()
         return "\n".join(text_parts)
     except Exception as e:
         logger.warning(f"Failed to extract text from PDF: {e}")
         return ""
+    finally:
+        if doc is not None:
+            doc.close()
 
 
 async def extract_text_from_content(content: bytes, mimetype: str) -> str:
@@ -179,12 +232,15 @@ async def index_to_llmemory(
         return None
 
 
-def _update_sidecar_llmemory(metadata_path: Path, llmemory_info: dict[str, Any]) -> None:
+def _update_sidecar_llmemory(metadata_path: Path, llmemory_info: dict[str, Any]) -> bool:
     """Update the sidecar metadata file with llmemory indexing info.
 
     Args:
         metadata_path: Path to the metadata JSON file
         llmemory_info: Dict with llmemory indexing results
+
+    Returns:
+        True if update succeeded, False otherwise
     """
     try:
         # Read existing metadata
@@ -201,6 +257,12 @@ def _update_sidecar_llmemory(metadata_path: Path, llmemory_info: dict[str, Any])
 
         temp_path.replace(metadata_path)
         logger.debug(f"Updated sidecar with llmemory info: {metadata_path}")
+        return True
 
     except Exception as e:
-        logger.warning(f"Failed to update sidecar with llmemory info: {e}")
+        # Log at ERROR level - this is a state inconsistency (doc indexed but sidecar not updated)
+        logger.error(
+            f"Failed to update sidecar with llmemory info at {metadata_path}: {e}. "
+            f"Document was indexed but sidecar is out of sync."
+        )
+        return False

@@ -1,6 +1,5 @@
 # ABOUTME: Workflow action implementations for mailflow email processing.
 # ABOUTME: Provides functions to save attachments, create PDFs, and generate todos from emails.
-import asyncio
 import datetime
 import logging
 import os
@@ -9,7 +8,7 @@ from typing import Any
 
 from mailflow.attachment_handler import extract_attachments
 from mailflow.exceptions import WorkflowError
-from mailflow.llmemory_indexer import index_to_llmemory
+from mailflow.llmemory_indexer import run_indexing
 from mailflow.pdf_converter import email_to_pdf_bytes
 from mailflow.security import validate_path
 from mailflow.utils import write_original_file, parse_doctype_from_workflow
@@ -117,7 +116,7 @@ def save_attachment(
             logger.info(f"Saved attachment {filename} to {content_path}")
 
             # Index to llmemory if configured
-            asyncio.run(index_to_llmemory(
+            run_indexing(
                 config=config,
                 entity=entity,
                 document_id=document_id,
@@ -128,7 +127,7 @@ def save_attachment(
                 created_at=created_at,
                 metadata_path=metadata_path,
                 origin=origin,
-            ))
+            )
 
             results.append({
                 "document_id": document_id,
@@ -286,7 +285,7 @@ def save_email_pdf(
         logger.info(f"Converted email to PDF at {content_path}")
 
         # Index to llmemory if configured
-        asyncio.run(index_to_llmemory(
+        run_indexing(
             config=config,
             entity=entity,
             document_id=document_id,
@@ -297,7 +296,7 @@ def save_email_pdf(
             created_at=created_at,
             metadata_path=metadata_path,
             origin=origin,
-        ))
+        )
 
         return {
             "success": True,
@@ -405,7 +404,7 @@ def save_pdf(
                 logger.info(f"Saved PDF attachment to {content_path}")
 
                 # Index to llmemory if configured
-                asyncio.run(index_to_llmemory(
+                run_indexing(
                     config=config,
                     entity=entity,
                     document_id=document_id,
@@ -416,7 +415,7 @@ def save_pdf(
                     created_at=created_at,
                     metadata_path=metadata_path,
                     origin=origin,
-                ))
+                )
 
                 results.append({
                     "document_id": document_id,
@@ -472,7 +471,7 @@ def save_pdf(
             logger.info(f"Converted email to PDF at {content_path}")
 
             # Index to llmemory if configured
-            asyncio.run(index_to_llmemory(
+            run_indexing(
                 config=config,
                 entity=entity,
                 document_id=document_id,
@@ -483,7 +482,7 @@ def save_pdf(
                 created_at=created_at,
                 metadata_path=metadata_path,
                 origin=origin,
-            ))
+            )
 
             return {
                 "success": True,
