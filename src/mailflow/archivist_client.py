@@ -66,22 +66,22 @@ async def _initialize_classifier() -> ArchivistClassifier:
         database_url = archivist.get("database_url")
         db_schema = archivist.get("db_schema")
 
-    # Fall back to env vars if not in config
+    # Fall back to DOCFLOW_* env vars for dev overrides (1:1 mapping)
     if not database_url:
-        database_url = os.getenv("DATABASE_URL")
+        database_url = os.getenv("DOCFLOW_ARCHIVIST_DATABASE_URL")
     if not db_schema:
-        db_schema = os.getenv("ARCHIVIST_DB_SCHEMA")
+        db_schema = os.getenv("DOCFLOW_ARCHIVIST_DB_SCHEMA")
 
     if not database_url:
         raise ConfigurationError(
             "Archivist database_url not configured.\n\n"
-            "Option 1: Add to ~/.config/docflow/config.toml:\n"
+            "Add to ~/.config/docflow/config.toml:\n"
             "[archivist]\n"
             'database_url = "postgresql://user:pass@localhost:5432/docflow"\n'
             'db_schema = "archivist"\n\n'
-            "Option 2: Set environment variables:\n"
-            "  export DATABASE_URL='postgresql://...'\n"
-            "  export ARCHIVIST_DB_SCHEMA='archivist'\n"
+            "Dev override (optional):\n"
+            "  export DOCFLOW_ARCHIVIST_DATABASE_URL='postgresql://...'\n"
+            "  export DOCFLOW_ARCHIVIST_DB_SCHEMA='archivist'\n"
         )
 
     # Validate URL format
