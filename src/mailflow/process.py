@@ -27,6 +27,7 @@ async def process(
     train_only: bool = False,
     replay: bool = False,
     context: dict | None = None,
+    interactive: bool = False,
 ) -> None:
     """
     Process an email message through the mailflow workflow.
@@ -40,6 +41,7 @@ async def process(
         train_only: Train classifier and store decisions, but don't execute workflows
         replay: Execute stored decisions without re-asking or re-training
         context: Optional extra context to merge into email_data (e.g., _position, _total, _thread_info)
+        interactive: If True, prompt user to validate classification; if False, accept automatically
     """
     try:
         # Initialize components
@@ -56,7 +58,7 @@ async def process(
         extractor = EmailExtractor()
         data_store = DataStore(config)
 
-        ui = WorkflowSelector(config, data_store)
+        ui = WorkflowSelector(config, data_store, interactive=interactive)
 
         # Extract email data
         logger.debug("Extracting email features")

@@ -119,13 +119,18 @@ def register(cli):
     @click.option("--min-confidence", default=None, type=float, help="Skip emails below this confidence (default 0.45 when --workflows set)")
     @click.option("--similarity-threshold", default=None, type=float, help="Override similarity gate threshold (default 0.5)")
     @click.option("--trust-llm", default=None, type=click.FloatRange(0.0, 1.0), help="Trust LLM judgment without user confirmation. Value is confidence threshold (e.g., 0.8). Accepts above threshold, skips below.")
-    def batch(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence, similarity_threshold, trust_llm):
-        """Process multiple emails from a directory (.eml files)."""
+    @click.option("--interactive", is_flag=True, help="Interactive mode: prompt user to validate each classification")
+    def batch(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence, similarity_threshold, trust_llm, interactive):
+        """Process multiple emails from a directory (.eml files).
+
+        By default, runs in non-interactive mode: llm-archivist decisions are
+        accepted automatically. Use --interactive to prompt for confirmation.
+        """
         asyncio.run(
-            _batch_async(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence, similarity_threshold, trust_llm)
+            _batch_async(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence, similarity_threshold, trust_llm, interactive)
         )
 
-    async def _batch_async(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after=None, before=None, workflows=None, min_confidence=None, similarity_threshold=None, trust_llm=None):
+    async def _batch_async(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after=None, before=None, workflows=None, min_confidence=None, similarity_threshold=None, trust_llm=None, interactive=False):
         """Async implementation of batch email processing."""
         from mailflow.email_extractor import EmailExtractor
 
@@ -277,7 +282,7 @@ def register(cli):
                     "_similarity_threshold": similarity_threshold,
                 }
 
-                # Process one email through standard pipeline (interactive selection)
+                # Process one email through standard pipeline
                 await process_email(
                     email_content,
                     config=config,
@@ -285,7 +290,8 @@ def register(cli):
                     dry_run=dry_run,
                     train_only=train_only,
                     replay=replay,
-                    context=context
+                    context=context,
+                    interactive=interactive
                 )
                 stats["processed"] += 1
             except Exception as e:
@@ -319,9 +325,10 @@ def register(cli):
     @click.option("--min-confidence", default=None, type=float, help="Skip emails below this confidence (default 0.45 when --workflows set)")
     @click.option("--similarity-threshold", default=None, type=float, help="Override similarity gate threshold (default 0.5)")
     @click.option("--trust-llm", default=None, type=click.FloatRange(0.0, 1.0), help="Trust LLM judgment without user confirmation. Value is confidence threshold (e.g., 0.8). Accepts above threshold, skips below.")
-    def fetch_files(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence, similarity_threshold, trust_llm):
+    @click.option("--interactive", is_flag=True, help="Interactive mode: prompt user to validate each classification")
+    def fetch_files(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence, similarity_threshold, trust_llm, interactive):
         """Same as `mailflow batch`"""
-        return batch.callback(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence, similarity_threshold, trust_llm)  # type: ignore[attr-defined]
+        return batch.callback(directory, llm_model, auto_threshold, dry_run, train_only, replay, max_emails, force, after, before, workflows, min_confidence, similarity_threshold, trust_llm, interactive)  # type: ignore[attr-defined]
 
     @cli.command()
     @click.option("--limit", "-n", default=10, help="Number of workflows to show")

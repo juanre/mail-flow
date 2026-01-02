@@ -13,26 +13,31 @@ logger = logging.getLogger(__name__)
 
 
 class WorkflowSelector:
-    """Interactive UI for selecting workflows"""
+    """UI for selecting workflows (interactive or non-interactive)"""
 
-    def __init__(self, config, data_store):
+    def __init__(self, config, data_store, interactive: bool = False):
         self.config = config
         self.data_store = data_store
+        self.interactive = interactive
         self.max_suggestions = config.settings["ui"]["max_suggestions"]
         self.show_confidence = config.settings["ui"]["show_confidence"]
 
     async def select_workflow(self, email_data: dict, skip_training: bool = False) -> str | None:
-        """Present workflow options using rich TUI and get user selection.
+        """Select workflow using llm-archivist classification.
 
-        Classification uses llm-archivist (vector KNN + LLM arbiter).
+        In non-interactive mode (default): accept llm-archivist decision automatically.
+        In interactive mode: prompt user to validate/correct the classification.
 
         Args:
             email_data: Extracted email data
             skip_training: If True, skip sending feedback to classifier (for replay mode)
+
+        Returns:
+            Selected workflow name, or None if skipped/null
         """
         console = Console()
 
-        # Extract workflow filter, min confidence, and auto threshold from context
+        # Extract workflow filter and context from email_data
         workflow_filter = email_data.get("_workflow_filter")
         min_confidence = email_data.get("_min_confidence")
         auto_threshold = email_data.get("_auto_threshold")
@@ -45,7 +50,7 @@ class WorkflowSelector:
         arch_result = await classify_with_archivist(
             email_data,
             self.data_store,
-            interactive=True,
+            interactive=self.interactive,
             allow_llm=True,
             max_candidates=self.max_suggestions,
             workflow_filter=workflow_filter,
@@ -73,25 +78,31 @@ class WorkflowSelector:
             logger.info(f"[{position}/{total}] Skipping: confidence {confidence:.2f} < {min_confidence}")
             return None
 
-        # Auto-accept if confidence >= auto_threshold (non-interactive mode)
-        if auto_threshold is not None and suggestion and confidence >= auto_threshold:
-            logger.info(f"[{position}/{total}] Auto-accepting: {suggestion} ({confidence:.2f} >= {auto_threshold})")
-            # Send feedback to llm-archivist (skip in replay mode to avoid duplicates)
-            if not skip_training:
-                try:
-                    if arch_result and arch_result.get("decision_id"):
-                        from mailflow.archivist_integration import record_feedback
-                        await record_feedback(int(arch_result["decision_id"]), suggestion, "auto-accepted")
-                except Exception as e:
-                    logger.debug(f"archivist feedback not recorded: {e}")
+        # Non-interactive mode: accept llm-archivist decision automatically
+        if not self.interactive:
+            # Auto-accept if we have a suggestion above auto_threshold (or any suggestion in pure non-interactive)
+            if auto_threshold is not None and suggestion and confidence >= auto_threshold:
+                logger.info(f"[{position}/{total}] Auto-accepting: {suggestion} ({confidence:.2f} >= {auto_threshold})")
+            elif suggestion:
+                logger.info(f"[{position}/{total}] Non-interactive: accepting {suggestion} ({confidence:.2f})")
+            else:
+                # No suggestion (null) - skip
+                logger.info(f"[{position}/{total}] Non-interactive: no suggestion, skipping")
+                return None
 
+            # Return the suggestion without prompting
+            # Note: no feedback sent in non-interactive mode (system learns from its own decisions)
             return suggestion
 
+        # Interactive mode: prompt user to validate classification
         # Get thread info if available
         thread_info = email_data.get("_thread_info")
 
         # Display email using rich TUI
         display_email(console, email_data, position, total, thread_info)
+
+        # Show classification result with evidence
+        self._display_classification_evidence(console, arch_result, suggestion, confidence)
 
         # Show workflow choices (filtered if specified)
         workflows_to_show = self.data_store.workflows
@@ -109,62 +120,119 @@ class WorkflowSelector:
         while True:
             choice = input(prompt).strip().lower()
 
-            # Handle empty input (accept default)
+            # Handle empty input (accept default/confirm)
             if not choice and suggestion:
                 selected = suggestion
+                # Send feedback: user confirmed the suggestion
+                if not skip_training and arch_result.get("decision_id"):
+                    try:
+                        from mailflow.archivist_integration import record_feedback
+                        await record_feedback(int(arch_result["decision_id"]), selected, "confirmed")
+                    except Exception as e:
+                        logger.debug(f"archivist feedback not recorded: {e}")
                 break
 
-            # Handle skip (s) or next (n) - no feedback for skips
+            # Handle skip (s) or next (n) - no feedback for skips per SOT
             if choice in ('s', 'n'):
                 return None
 
             # Handle expand
             if choice == 'e':
-                # Show full content
                 body = email_data.get('body', '')
                 console.print(Panel(body, title="Full Content"))
                 continue
 
             # Handle help
             if choice == '?':
-                console.print("Enter: accept suggestion | 1-9: select workflow | s: skip | n: next | e: expand | new: create workflow")
+                console.print("Enter: confirm suggestion | 1-9: correct to workflow | s: skip | e: expand | new: create workflow")
                 continue
 
             # Handle 'new' for workflow creation
             if choice == 'new':
                 selected = self._create_new_workflow()
                 if selected:
+                    # Send feedback: user corrected to new workflow
+                    if not skip_training and arch_result.get("decision_id"):
+                        try:
+                            from mailflow.archivist_integration import record_feedback
+                            await record_feedback(int(arch_result["decision_id"]), selected, "corrected")
+                        except Exception as e:
+                            logger.debug(f"archivist feedback not recorded: {e}")
                     break
                 continue
 
-            # Handle number selection
+            # Handle number selection (correction)
             if choice.isdigit():
                 idx = int(choice) - 1
                 workflow_names = sorted(workflows_to_show.keys())
                 if 0 <= idx < len(workflow_names):
                     selected = workflow_names[idx]
+                    # Send feedback: user corrected (if different from suggestion) or confirmed
+                    if not skip_training and arch_result.get("decision_id"):
+                        try:
+                            from mailflow.archivist_integration import record_feedback
+                            reason = "confirmed" if selected == suggestion else "corrected"
+                            await record_feedback(int(arch_result["decision_id"]), selected, reason)
+                        except Exception as e:
+                            logger.debug(f"archivist feedback not recorded: {e}")
                     break
                 else:
                     console.print(f"Invalid number: {choice}", style="red")
                     continue
 
-            # Handle workflow name
+            # Handle workflow name (correction)
             if choice in workflows_to_show:
                 selected = choice
+                # Send feedback: user corrected or confirmed
+                if not skip_training and arch_result.get("decision_id"):
+                    try:
+                        from mailflow.archivist_integration import record_feedback
+                        reason = "confirmed" if selected == suggestion else "corrected"
+                        await record_feedback(int(arch_result["decision_id"]), selected, reason)
+                    except Exception as e:
+                        logger.debug(f"archivist feedback not recorded: {e}")
                 break
 
             console.print(f"Unknown choice: {choice}", style="red")
 
-        # Send feedback to llm-archivist (skip in replay mode to avoid duplicates)
-        if selected and not skip_training:
-            try:
-                if arch_result and arch_result.get("decision_id"):
-                    from mailflow.archivist_integration import record_feedback
-                    await record_feedback(int(arch_result["decision_id"]), selected, "confirmed")
-            except Exception as e:
-                logger.debug(f"archivist feedback not recorded: {e}")
-
         return selected
+
+    def _display_classification_evidence(self, console: Console, arch_result: dict, suggestion: str | None, confidence: float) -> None:
+        """Display classification evidence in interactive mode."""
+        from rich.table import Table
+
+        # Build evidence panel
+        evidence_lines = []
+
+        if suggestion:
+            evidence_lines.append(f"[bold]Proposed:[/bold] {suggestion} ({confidence:.0%} confidence)")
+        else:
+            evidence_lines.append("[bold]Proposed:[/bold] [dim]null (no match)[/dim]")
+
+        # Show which advisors were used
+        advisors = arch_result.get("advisors_used") or []
+        if advisors:
+            evidence_lines.append(f"[dim]Advisors: {', '.join(advisors)}[/dim]")
+
+        # Show LLM rationale if available
+        rationale = arch_result.get("rationale") or arch_result.get("evidence", {}).get("rationale")
+        if rationale:
+            evidence_lines.append(f"[dim]Rationale: {rationale}[/dim]")
+
+        # Show top neighbors if available
+        neighbors = arch_result.get("neighbors") or arch_result.get("evidence", {}).get("neighbors") or []
+        if neighbors:
+            evidence_lines.append("[dim]Similar past decisions:[/dim]")
+            for neighbor in neighbors[:3]:
+                if isinstance(neighbor, dict):
+                    n_label = neighbor.get("label", "?")
+                    n_score = neighbor.get("score", 0)
+                    evidence_lines.append(f"  [dim]• {n_label} ({n_score:.0%})[/dim]")
+                elif isinstance(neighbor, (list, tuple)) and len(neighbor) >= 2:
+                    evidence_lines.append(f"  [dim]• {neighbor[0]} ({neighbor[1]:.0%})[/dim]")
+
+        if evidence_lines:
+            console.print(Panel("\n".join(evidence_lines), title="Classification", border_style="blue"))
 
     def _create_new_workflow(self) -> str | None:
         """Interactive workflow creation"""

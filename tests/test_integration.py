@@ -34,7 +34,7 @@ class TestIntegration:
         config = Config(config_dir=temp_config_dir)
         data_store = DataStore(config)
         extractor = EmailExtractor()
-        ui = WorkflowSelector(config, data_store)
+        ui = WorkflowSelector(config, data_store, interactive=True)
 
         # Process first email (no history, should show default workflows)
         if "amazon_invoice" in sample_emails:
@@ -91,7 +91,7 @@ class TestIntegration:
         for workflow in workflows.values():
             data_store.add_workflow(workflow)
 
-        ui = WorkflowSelector(config, data_store)
+        ui = WorkflowSelector(config, data_store, interactive=True)
 
         if "cloudflare_invoice" in sample_emails:
             email_data = extractor.extract(sample_emails["cloudflare_invoice"])

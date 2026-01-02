@@ -28,10 +28,15 @@ logger = logging.getLogger(__name__)
 @click.option("--debug", is_flag=True, help="Enable debug logging")
 @click.option("--llm-model", default=None, help="LLM model alias: fast, balanced, or deep")
 @click.option("--force", is_flag=True, help="Reprocess already processed emails")
-def cli(ctx, debug, llm_model, force):
+@click.option("--interactive", is_flag=True, help="Interactive mode: prompt user to validate classification")
+def cli(ctx, debug, llm_model, force, interactive):
     """mailflow - Smart Email Processing for Mutt
 
     When invoked without a subcommand, processes email from stdin.
+
+    By default, mailflow runs in non-interactive mode: decisions from
+    llm-archivist are accepted automatically. Use --interactive to
+    prompt for confirmation/correction.
     """
     # Load environment from .env if present (for archivist/LLM/DB config)
     load_dotenv()
@@ -40,6 +45,7 @@ def cli(ctx, debug, llm_model, force):
     ctx.ensure_object(dict)
     ctx.obj["llm_model"] = llm_model
     ctx.obj["force"] = force
+    ctx.obj["interactive"] = interactive
 
     # Setup logging
     log_level = "DEBUG" if debug else "INFO"
@@ -62,9 +68,10 @@ def process_stdin(ctx):
         # Get options from context
         llm_model = ctx.obj.get("llm_model")
         force = ctx.obj.get("force", False)
+        interactive = ctx.obj.get("interactive", False)
 
         asyncio.run(
-            process_email(email_content, llm_model=llm_model, force=force)
+            process_email(email_content, llm_model=llm_model, force=force, interactive=interactive)
         )
     except KeyboardInterrupt:
         print("\n✗ Cancelled by user")

@@ -16,7 +16,7 @@ class TestWorkflowSelectorTUI:
         config = Config(config_dir=temp_config_dir)
         data_store = DataStore(config)
 
-        selector = WorkflowSelector(config, data_store)
+        selector = WorkflowSelector(config, data_store, interactive=True)
 
         email = {
             "from": "billing@test.com",
@@ -48,7 +48,7 @@ class TestWorkflowSelectorTUI:
             action_type="save_pdf",
         ))
 
-        selector = WorkflowSelector(config, data_store)
+        selector = WorkflowSelector(config, data_store, interactive=True)
 
         email = {
             "from": "billing@test.com",
