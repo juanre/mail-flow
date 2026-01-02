@@ -115,18 +115,13 @@ def save_attachment(
             )
             logger.info(f"Saved attachment {filename} to {content_path}")
 
-            # Index to llmemory if configured
+            # Index to llmemory (fail-fast if not configured)
             run_indexing(
                 config=config,
                 entity=entity,
                 document_id=document_id,
-                document_name=filename,
-                document_type="attachment",
-                content=content,
-                mimetype=mimetype,
-                created_at=created_at,
+                content_path=content_path,
                 metadata_path=metadata_path,
-                origin=origin,
             )
 
             results.append({
@@ -284,18 +279,13 @@ def save_email_pdf(
         )
         logger.info(f"Converted email to PDF at {content_path}")
 
-        # Index to llmemory if configured
+        # Index to llmemory (fail-fast if not configured)
         run_indexing(
             config=config,
             entity=entity,
             document_id=document_id,
-            document_name=document_name,
-            document_type="email",
-            content=pdf_bytes,
-            mimetype="application/pdf",
-            created_at=created_at,
+            content_path=content_path,
             metadata_path=metadata_path,
-            origin=origin,
         )
 
         return {
@@ -403,18 +393,13 @@ def save_pdf(
                 )
                 logger.info(f"Saved PDF attachment to {content_path}")
 
-                # Index to llmemory if configured
+                # Index to llmemory (fail-fast if not configured)
                 run_indexing(
                     config=config,
                     entity=entity,
                     document_id=document_id,
-                    document_name=filename,
-                    document_type="document",
-                    content=content,
-                    mimetype=mimetype,
-                    created_at=created_at,
+                    content_path=content_path,
                     metadata_path=metadata_path,
-                    origin=origin,
                 )
 
                 results.append({
@@ -470,18 +455,13 @@ def save_pdf(
             )
             logger.info(f"Converted email to PDF at {content_path}")
 
-            # Index to llmemory if configured
+            # Index to llmemory (fail-fast if not configured)
             run_indexing(
                 config=config,
                 entity=entity,
                 document_id=document_id,
-                document_name=document_name,
-                document_type="email",
-                content=pdf_bytes,
-                mimetype="application/pdf",
-                created_at=created_at,
+                content_path=content_path,
                 metadata_path=metadata_path,
-                origin=origin,
             )
 
             return {

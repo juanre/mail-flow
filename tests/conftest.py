@@ -1,9 +1,16 @@
 import shutil
 import tempfile
+from pathlib import Path
 
 import pytest
 
 from mailflow.config import Config
+
+# Import pgdbm test fixtures for real database testing
+from pgdbm.fixtures.conftest import *
+
+# Import llmemory test fixtures
+from llmemory.testing import *
 
 
 @pytest.fixture
@@ -12,6 +19,30 @@ def temp_config_dir():
     temp_dir = tempfile.mkdtemp()
     yield temp_dir
     shutil.rmtree(temp_dir)
+
+
+@pytest.fixture
+def temp_config_with_llmemory(temp_config_dir, memory_manager):
+    """Create a test config with llmemory database configured.
+
+    Uses real database from memory_manager fixture.
+    """
+    config_file = Path(temp_config_dir) / "config.toml"
+    # Get the DSN from the memory_manager's database
+    db_url = memory_manager.db.db_manager.config.get_dsn()
+
+    config_file.write_text(f'''
+[archive]
+base_path = "{temp_config_dir}/Archive"
+
+[llmemory]
+database_url = "{db_url}"
+''')
+
+    # Create archive directory
+    (Path(temp_config_dir) / "Archive").mkdir(exist_ok=True)
+
+    return Config(config_dir=temp_config_dir)
 
 
 @pytest.fixture

@@ -4,11 +4,10 @@ from email import encoders
 from pathlib import Path
 
 from mailflow.email_extractor import EmailExtractor
-from mailflow.config import Config
 from mailflow.workflow import save_attachment
 
 
-def test_attachment_original_filename_and_size(temp_config_dir):
+def test_attachment_original_filename_and_size(temp_config_with_llmemory):
     # Build an email with a PDF attachment
     msg = MIMEMultipart()
     msg["From"] = "sender@example.com"
@@ -28,10 +27,8 @@ def test_attachment_original_filename_and_size(temp_config_dir):
     assert email_data["attachments"][0]["original_filename"] == "Report Final.pdf"
     assert email_data["attachments"][0]["size"] > 0
 
-    # Create config with archive path
-    config = Config(config_dir=temp_config_dir)
-    archive_path = Path(temp_config_dir) / "Archive"
-    config.settings["archive"]["base_path"] = str(archive_path)
+    # Use config with archive and llmemory configured
+    config = temp_config_with_llmemory
 
     # Save using archive-protocol workflow
     result = save_attachment(

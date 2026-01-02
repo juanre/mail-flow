@@ -17,6 +17,7 @@ dependencies = [
     "google-auth-oauthlib>=1.2.2",
     "html2text>=2025.4.15",
     "llm-archivist",
+    "llmemory",
     "llmring",
     "playwright>=1.54.0",
     "python-dateutil>=2.9.0.post0",
@@ -81,3 +82,4 @@ norecursedirs = ["llmring"]
 archive-protocol = { path = "../docflow-archive" }
 llm-archivist = { path = "../llm-archivist" }
 llmring = { path = "../../llmring-all/llmring", editable = true }
+llmemory = { path = "../llmemory" }

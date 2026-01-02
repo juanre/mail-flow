@@ -4,12 +4,11 @@ from email import encoders
 from email.mime.base import MIMEBase
 from pathlib import Path
 
-from mailflow.config import Config
 from mailflow.email_extractor import EmailExtractor
 from mailflow.workflow import save_pdf
 
 
-def test_layout_v2_docs_and_originals(temp_config_dir):
+def test_layout_v2_docs_and_originals(temp_config_with_llmemory):
     # Email with one PDF attachment
     msg = MIMEMultipart()
     msg["From"] = "billing@vendor.com"
@@ -28,10 +27,9 @@ def test_layout_v2_docs_and_originals(temp_config_dir):
     extractor = EmailExtractor()
     email_data = extractor.extract(msg.as_string())
 
-    config = Config(config_dir=temp_config_dir)
-    archive_path = Path(temp_config_dir) / "Archive"
+    config = temp_config_with_llmemory
+    archive_path = Path(config.settings["archive"]["base_path"])
     cfg = config.settings["archive"]
-    cfg["base_path"] = str(archive_path)
     cfg["layout"] = "v2"
     cfg["save_originals"] = True
     cfg["originals_prefix_date"] = True

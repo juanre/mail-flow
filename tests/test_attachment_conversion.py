@@ -4,12 +4,11 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
 
-from mailflow.config import Config
 from mailflow.email_extractor import EmailExtractor
 from mailflow.workflow import save_attachment
 
 
-def test_convert_text_attachment_to_pdf(temp_config_dir):
+def test_convert_text_attachment_to_pdf(temp_config_with_llmemory):
     msg = MIMEMultipart()
     msg["From"] = "sender@example.com"
     msg["Subject"] = "Notes"
@@ -25,10 +24,8 @@ def test_convert_text_attachment_to_pdf(temp_config_dir):
     extractor = EmailExtractor()
     email_data = extractor.extract(msg.as_string())
 
-    config = Config(config_dir=temp_config_dir)
-    archive_path = Path(temp_config_dir) / "Archive"
+    config = temp_config_with_llmemory
     cfg = config.settings["archive"]
-    cfg["base_path"] = str(archive_path)
     cfg["layout"] = "v2"
     cfg["convert_attachments"] = True
 
@@ -40,7 +37,7 @@ def test_convert_text_attachment_to_pdf(temp_config_dir):
     assert path.read_bytes().startswith(b"%PDF")
 
 
-def test_keep_csv_as_csv(temp_config_dir):
+def test_keep_csv_as_csv(temp_config_with_llmemory):
     msg = MIMEMultipart()
     msg["From"] = "sender@example.com"
     msg["Subject"] = "Data"
@@ -56,10 +53,8 @@ def test_keep_csv_as_csv(temp_config_dir):
     extractor = EmailExtractor()
     email_data = extractor.extract(msg.as_string())
 
-    config = Config(config_dir=temp_config_dir)
-    archive_path = Path(temp_config_dir) / "Archive"
+    config = temp_config_with_llmemory
     cfg = config.settings["archive"]
-    cfg["base_path"] = str(archive_path)
     cfg["layout"] = "v2"
     cfg["convert_attachments"] = True
 
@@ -70,7 +65,7 @@ def test_keep_csv_as_csv(temp_config_dir):
     assert path.read_bytes() == content
 
 
-def test_convert_tsv_to_csv(temp_config_dir):
+def test_convert_tsv_to_csv(temp_config_with_llmemory):
     msg = MIMEMultipart()
     msg["From"] = "sender@example.com"
     msg["Subject"] = "Data TSV"
@@ -86,10 +81,8 @@ def test_convert_tsv_to_csv(temp_config_dir):
     extractor = EmailExtractor()
     email_data = extractor.extract(msg.as_string())
 
-    config = Config(config_dir=temp_config_dir)
-    archive_path = Path(temp_config_dir) / "Archive"
+    config = temp_config_with_llmemory
     cfg = config.settings["archive"]
-    cfg["base_path"] = str(archive_path)
     cfg["layout"] = "v2"
     cfg["convert_attachments"] = True
 
