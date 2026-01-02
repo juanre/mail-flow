@@ -80,12 +80,11 @@ norecursedirs = ["llmring"]
 
 [tool.uv.sources]
 llmring = { path = "../../llmring-all/llmring" }
-archive-protocol = { workspace = true }
+archive-protocol = { path = "../docflow-archive" }
 file-classifier-core = { workspace = true }
 llm-archivist = { path = "../llm-archivist" }
 
 [tool.uv.workspace]
 members = [
-    "archive-protocol",
     "file-classifier-core",
 ]

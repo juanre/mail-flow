@@ -8,7 +8,6 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "archive-protocol",
     "file-classifier-core",
     "mailflow",
 ]
@@ -165,16 +164,10 @@ wheels = [
 [[package]]
 name = "archive-protocol"
 version = "0.1.0"
-source = { editable = "archive-protocol" }
+source = { directory = "../docflow-archive" }
 dependencies = [
     { name = "pydantic" },
     { name = "python-dateutil" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
 ]
 
 [package.metadata]
@@ -1044,7 +1037,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "archive-protocol", editable = "archive-protocol" },
+    { name = "archive-protocol", directory = "../docflow-archive" },
     { name = "beautifulsoup4", specifier = ">=4.13.4" },
     { name = "click", specifier = ">=8.2.1" },
     { name = "gnureadline", specifier = ">=8.2.13" },
