@@ -3,7 +3,9 @@
 # ABOUTME: Uses ~/.config/docflow as the unified config root for all docflow components
 import logging
 import os
+import shutil
 import tomllib
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -56,12 +58,15 @@ class Config:
             self.state_dir = Path(config_dir) / 'state'
             self.cache_dir = Path(config_dir) / 'cache'
 
-        # Validate config directory path
+        # Validate config directory path - resolve FIRST to handle symlinks
         self.config_dir = Path(config_dir).resolve()
 
         # Security check - ensure we're not using system directories
-        restricted_dirs = ["/", "/etc", "/usr", "/bin", "/sbin", "/var", "/tmp"]
-        if str(self.config_dir) in restricted_dirs:
+        restricted_prefixes = ["/etc/", "/usr/", "/bin/", "/sbin/", "/var/", "/tmp/",
+                               "/sys/", "/proc/", "/dev/", "/boot/", "/root/"]
+        config_str = str(self.config_dir)
+        if config_str == "/" or any(config_str.startswith(p) or config_str == p.rstrip("/")
+                                     for p in restricted_prefixes):
             raise ValueError(f"Cannot use system directory as config dir: {config_dir}")
 
         self._ensure_directories()
@@ -83,9 +88,9 @@ class Config:
             # State subdirectories (for logs and history)
             (self.state_dir / "history").mkdir(exist_ok=True, mode=0o700)
             (self.state_dir / "logs").mkdir(exist_ok=True, mode=0o700)
-        except Exception as e:
+        except (OSError, PermissionError) as e:
             logger.error(f"Failed to create directories: {e}")
-            raise
+            raise ConfigurationError(f"Cannot create config directories: {e}") from e
 
     def _load_config(self):
         """Load configuration from config.toml.
@@ -107,8 +112,8 @@ class Config:
                     f"Invalid TOML in config file {config_file}: {e}\n"
                     f"Fix the syntax error and try again."
                 )
-            except Exception as e:
-                raise ConfigurationError(f"Failed to load config from {config_file}: {e}")
+            except (OSError, PermissionError, IOError) as e:
+                raise ConfigurationError(f"Failed to load config from {config_file}: {e}") from e
         else:
             # No config.toml found - use defaults for testing/development
             # In production, components that require config will fail at preflight
@@ -265,29 +270,23 @@ class Config:
         """Backup a file into the backups directory with a timestamped name.
 
         The backup filename pattern is '<stem>_<YYYYmmddHHMMSS><suffix>'.
+        Returns the backup path (even if source doesn't exist).
         """
         backups_dir = self.config_dir / "backups"
         backups_dir.mkdir(exist_ok=True, mode=0o700)
-
-        if not file_path.exists():
-            # Nothing to back up; return the intended path
-            from datetime import datetime
-
-            ts = datetime.now().strftime("%Y%m%d%H%M%S")
-            backup_name = f"{file_path.stem}_{ts}{file_path.suffix}"
-            return backups_dir / backup_name
-
-        from datetime import datetime
 
         ts = datetime.now().strftime("%Y%m%d%H%M%S")
         backup_name = f"{file_path.stem}_{ts}{file_path.suffix}"
         backup_path = backups_dir / backup_name
 
+        if not file_path.exists():
+            # Nothing to back up; return the intended path without creating a file
+            return backup_path
+
         try:
-            with open(file_path, "rb") as src, open(backup_path, "wb") as dst:
-                dst.write(src.read())
-        except Exception as e:
+            shutil.copy2(file_path, backup_path)  # Preserves metadata, streams data
+        except (OSError, IOError) as e:
             logger.error(f"Failed to backup file {file_path}: {e}")
-            raise
+            raise ConfigurationError(f"Backup failed: {e}") from e
 
         return backup_path
