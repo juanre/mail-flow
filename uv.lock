@@ -909,7 +909,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.3.0" },
-    { name = "llmring", specifier = ">=1.3.0" },
+    { name = "llmring", editable = "../../llmring-all/llmring" },
     { name = "openai", specifier = ">=2.7.1" },
     { name = "pgdbm", specifier = ">=0.2.0" },
 ]
@@ -925,7 +925,7 @@ dev = [
 [[package]]
 name = "llmring"
 version = "1.3.0"
-source = { directory = "../../llmring-all/llmring" }
+source = { editable = "../../llmring-all/llmring" }
 dependencies = [
     { name = "aiohttp" },
     { name = "anthropic" },
@@ -1034,7 +1034,7 @@ requires-dist = [
     { name = "google-auth-oauthlib", specifier = ">=1.2.2" },
     { name = "html2text", specifier = ">=2025.4.15" },
     { name = "llm-archivist", directory = "../llm-archivist" },
-    { name = "llmring", directory = "../../llmring-all/llmring" },
+    { name = "llmring", editable = "../../llmring-all/llmring" },
     { name = "playwright", specifier = ">=1.54.0" },
     { name = "python-dateutil", specifier = ">=2.9.0.post0" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
