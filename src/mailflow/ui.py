@@ -53,6 +53,8 @@ class WorkflowSelector:
             workflow_filter=workflow_filter,
         )
         rankings = arch_result.get("rankings") or []
+        decision_label = arch_result.get("label")
+        decision_confidence = float(arch_result.get("confidence", 0.0) or 0.0)
 
         # Filter rankings to only include existing workflows (and workflow filter if specified)
         valid_workflows = set(self.data_store.workflows.keys())
@@ -63,12 +65,14 @@ class WorkflowSelector:
         # Store rankings in email_data for later use
         email_data["_rankings"] = rankings
 
-        # Determine suggestion and confidence
+        # Determine suggestion and confidence.
+        # Prefer the classifier's chosen label. Rankings are only supplemental
+        # (e.g., vector neighbors/candidates) and may be empty in LLM-only decisions.
         suggestion = None
-        confidence = 0.0
-        if rankings:
-            suggestion = rankings[0][0]
-            confidence = rankings[0][1]
+        if decision_label in valid_workflows:
+            suggestion = decision_label
+
+        confidence = decision_confidence if suggestion else 0.0
 
         # Non-interactive mode: accept llm-archivist decision automatically
         if not self.interactive:

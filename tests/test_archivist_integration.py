@@ -1,5 +1,7 @@
 # ABOUTME: Unit tests for llm-archivist adapter integration without network.
 
+import os
+
 import pytest
 from mailflow.archivist_integration import classify_with_archivist, _build_workflows
 
@@ -59,3 +61,49 @@ async def test_classify_with_archivist_adapter_maps_candidates():
     assert result["rankings"][0][0] == "invoices"
     assert isinstance(result["rankings"][0][1], float)
 
+
+async def test_classify_prefers_pdf_attachment_for_llm_context(tmp_path):
+    from email.mime.application import MIMEApplication
+    from email.mime.multipart import MIMEMultipart
+
+    ds = _DS()
+
+    msg = MIMEMultipart()
+    small_pdf = MIMEApplication(b"%PDF-1.4\nsmall\n", _subtype="pdf")
+    small_pdf.add_header("Content-Disposition", "attachment", filename="small.pdf")
+    big_pdf = MIMEApplication(b"%PDF-1.4\n" + (b"x" * 2048), _subtype="pdf")
+    big_pdf.add_header("Content-Disposition", "attachment", filename="big.pdf")
+    msg.attach(small_pdf)
+    msg.attach(big_pdf)
+
+    class _AssertingClassifier:
+        def __init__(self):
+            self.seen_pdf_path = None
+            self.seen_pdf_size = None
+
+        def classify(self, text, meta, workflows, opts=None, pdf_path=None):
+            assert pdf_path is not None
+            self.seen_pdf_path = pdf_path
+            with open(pdf_path, "rb") as f:
+                self.seen_pdf_size = len(f.read())
+            return {"label": "invoices", "confidence": 0.9, "candidates": []}
+
+    fake = _AssertingClassifier()
+    email = {
+        "from": "a@b.com",
+        "to": "x@y.com",
+        "subject": "invoice attached",
+        "body": "see invoice",
+        "attachments": [{"filename": "small.pdf", "is_pdf": True}, {"filename": "big.pdf", "is_pdf": True}],
+        "_message_obj": msg,
+        "message_id": "<1@x>",
+        "date": "",
+    }
+
+    result = await classify_with_archivist(email, ds, classifier=fake)
+    assert result["label"] == "invoices"
+    assert fake.seen_pdf_size is not None
+    assert fake.seen_pdf_size >= 2048
+    assert fake.seen_pdf_path is not None
+    # Temp files should be cleaned up by classify_with_archivist.
+    assert not os.path.exists(fake.seen_pdf_path)

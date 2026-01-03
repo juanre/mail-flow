@@ -72,6 +72,46 @@ def _render_email_pdf_to_file_sync(email_data: dict) -> str | None:
         return None
 
 
+def _extract_pdf_attachment_to_file_sync(email_data: dict) -> str | None:
+    """Extract the best PDF attachment (by size) into a temp file. Returns path or None.
+
+    This provides the LLM with the actual invoice/receipt PDF when present, which is
+    typically far more informative than a rendered HTML email.
+    """
+    message_obj = email_data.get("_message_obj")
+    if not message_obj:
+        return None
+
+    try:
+        from mailflow.attachment_handler import extract_attachments
+
+        pdf_attachments = extract_attachments(message_obj, pattern="*.pdf")
+        if not pdf_attachments:
+            return None
+
+        # Prefer the largest PDF (often the primary invoice/receipt).
+        filename, content, mimetype = max(pdf_attachments, key=lambda a: len(a[1] or b""))
+        if not content:
+            return None
+        if mimetype not in ("application/pdf", "application/octet-stream"):
+            # Still allow application/octet-stream because many mailers label PDFs loosely.
+            pass
+
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp.write(content)
+            return tmp.name
+    except Exception as e:
+        logger.warning(f"PDF attachment extraction failed, falling back: {e}")
+        return None
+
+
+async def _extract_pdf_attachment_to_file(email_data: dict) -> str | None:
+    """Async wrapper around PDF attachment extraction (thread pool)."""
+    import asyncio
+
+    return await asyncio.to_thread(_extract_pdf_attachment_to_file_sync, email_data)
+
+
 async def _render_email_pdf_to_file(email_data: dict) -> str | None:
     """Render email to PDF temp file if body is HTML. Returns path or None.
 
@@ -147,8 +187,12 @@ async def classify_with_archivist(
         "max_candidates": int(max_candidates),
     }
 
-    # Render HTML email to PDF for LLM context (if applicable)
-    pdf_path = await _render_email_pdf_to_file(email_data)
+    # Provide the LLM with a PDF if available:
+    # 1) Prefer an actual PDF attachment (often the real invoice/receipt).
+    # 2) Otherwise, render the HTML email body to PDF.
+    pdf_path = await _extract_pdf_attachment_to_file(email_data)
+    if not pdf_path:
+        pdf_path = await _render_email_pdf_to_file(email_data)
 
     try:
         # Allow tests to inject a fake classifier; otherwise use shared archivist client.
