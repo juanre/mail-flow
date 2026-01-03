@@ -74,7 +74,6 @@ The `.env` file controls all configuration. Key variables:
 | `ARCHIVIST_DB_SCHEMA` | **Yes** | Schema name (e.g., `archivist_mailflow`) |
 | `ANTHROPIC_API_KEY` | For LLM | Anthropic API key (Claude models) |
 | `OPENAI_API_KEY` | For LLM | OpenAI API key (embeddings + GPT) |
-| `ARCHIVIST_PERSIST_EMBED` | Optional | Set to `1` to store embeddings |
 | `ARCHIVIST_LLM_BUDGET_USD` | Optional | Daily spending cap for LLM |
 
 See `.env.example` for full documentation of all variables.

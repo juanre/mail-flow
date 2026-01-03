@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 
-from mailflow.config import Config
 from mailflow.email_extractor import EmailExtractor
 from mailflow.workflow import save_attachment, save_email_pdf
 
@@ -24,7 +23,7 @@ class TestPDFExtractionIntegration:
         with open(email_path, "r", encoding="utf-8", errors="ignore") as f:
             return f.read()
 
-    def test_extract_pdf_from_cloudflare_email(self, temp_config_dir, cloudflare_email):
+    def test_extract_pdf_from_cloudflare_email(self, temp_config_with_llmemory, cloudflare_email):
         """Test extracting and saving PDF attachment from real Cloudflare email using archive-protocol."""
         # Extract email data
         extractor = EmailExtractor()
@@ -43,10 +42,8 @@ class TestPDFExtractionIntegration:
         assert len(pdf_attachments) == 1
         assert pdf_attachments[0]["filename"] == "cloudflare-invoice-2025-02-26.pdf"
 
-        # Create config with archive path
-        config = Config(config_dir=temp_config_dir)
-        archive_path = Path(temp_config_dir) / "Archive"
-        config.settings["archive"]["base_path"] = str(archive_path)
+        # Use config with archive and llmemory configured
+        config = temp_config_with_llmemory
 
         # Save the PDF attachment using archive-protocol workflow
         result = save_attachment(
@@ -74,7 +71,7 @@ class TestPDFExtractionIntegration:
         metadata_path = Path(result["documents"][0]["metadata_path"])
         assert metadata_path.exists()
 
-    def test_save_email_without_pdf_attachment_as_pdf(self, temp_config_dir, amazon_email):
+    def test_save_email_without_pdf_attachment_as_pdf(self, temp_config_with_llmemory, amazon_email):
         """Test converting email without PDF attachment to PDF using archive-protocol."""
         # Extract email
         extractor = EmailExtractor()
@@ -86,10 +83,8 @@ class TestPDFExtractionIntegration:
         ]
         assert len(pdf_attachments) == 0
 
-        # Create config with archive path
-        config = Config(config_dir=temp_config_dir)
-        archive_path = Path(temp_config_dir) / "Archive"
-        config.settings["archive"]["base_path"] = str(archive_path)
+        # Use config with archive and llmemory configured
+        config = temp_config_with_llmemory
 
         # Convert email to PDF using archive-protocol workflow
         result = save_email_pdf(
@@ -116,7 +111,7 @@ class TestPDFExtractionIntegration:
         metadata_path = Path(result["metadata_path"])
         assert metadata_path.exists()
 
-    def test_workflow_saves_multiple_pdf_attachments(self, temp_config_dir):
+    def test_workflow_saves_multiple_pdf_attachments(self, temp_config_with_llmemory):
         """Test saving multiple PDF attachments from a single email."""
         from email.mime.base import MIMEBase
         from email.mime.multipart import MIMEMultipart
@@ -142,10 +137,8 @@ class TestPDFExtractionIntegration:
         extractor = EmailExtractor()
         email_data = extractor.extract(msg.as_string())
 
-        # Create config with archive path
-        config = Config(config_dir=temp_config_dir)
-        archive_path = Path(temp_config_dir) / "Archive"
-        config.settings["archive"]["base_path"] = str(archive_path)
+        # Use config with archive and llmemory configured
+        config = temp_config_with_llmemory
 
         # Save all PDF attachments
         result = save_attachment(
@@ -165,7 +158,7 @@ class TestPDFExtractionIntegration:
             assert content_path.exists()
             assert content_path.suffix == ".pdf"
 
-    def test_workflow_with_pattern_filtering(self, temp_config_dir):
+    def test_workflow_with_pattern_filtering(self, temp_config_with_llmemory):
         """Test that pattern filtering works with archive-protocol workflows."""
         from email.mime.base import MIMEBase
         from email.mime.multipart import MIMEMultipart
@@ -195,10 +188,8 @@ class TestPDFExtractionIntegration:
         extractor = EmailExtractor()
         email_data = extractor.extract(msg.as_string())
 
-        # Create config with archive path
-        config = Config(config_dir=temp_config_dir)
-        archive_path = Path(temp_config_dir) / "Archive"
-        config.settings["archive"]["base_path"] = str(archive_path)
+        # Use config with archive and llmemory configured
+        config = temp_config_with_llmemory
 
         # Save only PDFs
         result = save_attachment(

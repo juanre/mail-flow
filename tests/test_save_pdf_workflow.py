@@ -6,13 +6,12 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
 
-from mailflow.config import Config
 from mailflow.email_extractor import EmailExtractor
 from mailflow.workflow import save_pdf
 
 
 class TestSaveReceiptWorkflow:
-    def test_save_receipt_with_pdf_attachment(self, temp_config_dir):
+    def test_save_receipt_with_pdf_attachment(self, temp_config_with_llmemory):
         """Test that save_pdf saves PDF attachment when present"""
         # Create email with PDF attachment
         msg = MIMEMultipart()
@@ -36,10 +35,8 @@ class TestSaveReceiptWorkflow:
         extractor = EmailExtractor()
         email_data = extractor.extract(msg.as_string())
 
-        # Create config with archive path
-        config = Config(config_dir=temp_config_dir)
-        archive_path = Path(temp_config_dir) / "Archive"
-        config.settings["archive"]["base_path"] = str(archive_path)
+        # Use config with archive and llmemory configured
+        config = temp_config_with_llmemory
 
         # Run save_pdf workflow
         result = save_pdf(
@@ -60,7 +57,7 @@ class TestSaveReceiptWorkflow:
         # Verify content
         assert content_path.read_bytes() == pdf_content
 
-    def test_save_receipt_without_pdf_creates_pdf(self, temp_config_dir):
+    def test_save_receipt_without_pdf_creates_pdf(self, temp_config_with_llmemory):
         """Test that save_pdf converts email to PDF when no PDF attachment"""
         # Create email without PDF attachment
         msg = MIMEMultipart()
@@ -86,10 +83,8 @@ class TestSaveReceiptWorkflow:
         extractor = EmailExtractor()
         email_data = extractor.extract(msg.as_string())
 
-        # Create config with archive path
-        config = Config(config_dir=temp_config_dir)
-        archive_path = Path(temp_config_dir) / "Archive"
-        config.settings["archive"]["base_path"] = str(archive_path)
+        # Use config with archive and llmemory configured
+        config = temp_config_with_llmemory
 
         # Run save_pdf workflow
         result = save_pdf(
@@ -107,7 +102,7 @@ class TestSaveReceiptWorkflow:
         assert content_path.exists()
         assert content_path.stat().st_size > 1000
 
-    def test_save_receipt_with_multiple_pdfs(self, temp_config_dir):
+    def test_save_receipt_with_multiple_pdfs(self, temp_config_with_llmemory):
         """Test that save_pdf saves all PDF attachments"""
         # Create email with multiple PDF attachments
         msg = MIMEMultipart()
@@ -133,10 +128,8 @@ class TestSaveReceiptWorkflow:
         extractor = EmailExtractor()
         email_data = extractor.extract(msg.as_string())
 
-        # Create config with archive path
-        config = Config(config_dir=temp_config_dir)
-        archive_path = Path(temp_config_dir) / "Archive"
-        config.settings["archive"]["base_path"] = str(archive_path)
+        # Use config with archive and llmemory configured
+        config = temp_config_with_llmemory
 
         # Run save_pdf workflow
         result = save_pdf(
@@ -155,7 +148,7 @@ class TestSaveReceiptWorkflow:
             content_path = Path(doc["content_path"])
             assert content_path.exists()
 
-    def test_save_receipt_with_non_pdf_attachments(self, temp_config_dir):
+    def test_save_receipt_with_non_pdf_attachments(self, temp_config_with_llmemory):
         """Test that save_pdf creates PDF when only non-PDF attachments exist"""
         # Create email with non-PDF attachments
         msg = MIMEMultipart()
@@ -176,10 +169,8 @@ class TestSaveReceiptWorkflow:
         extractor = EmailExtractor()
         email_data = extractor.extract(msg.as_string())
 
-        # Create config with archive path
-        config = Config(config_dir=temp_config_dir)
-        archive_path = Path(temp_config_dir) / "Archive"
-        config.settings["archive"]["base_path"] = str(archive_path)
+        # Use config with archive and llmemory configured
+        config = temp_config_with_llmemory
 
         # Run save_pdf workflow
         result = save_pdf(

@@ -7,7 +7,6 @@ from email.mime.text import MIMEText
 from pathlib import Path
 from unittest.mock import patch
 
-from mailflow.config import Config
 from mailflow.email_extractor import EmailExtractor
 from mailflow.workflow import save_attachment, save_email_pdf
 
@@ -48,7 +47,7 @@ class TestWorkflowIntegration:
 
         return msg.as_string()
 
-    def test_save_attachment_workflow(self, temp_config_dir):
+    def test_save_attachment_workflow(self, temp_config_with_llmemory):
         """Test saving PDF attachments from email"""
         # Create test email
         email_text = self.create_invoice_email()
@@ -61,10 +60,8 @@ class TestWorkflowIntegration:
         assert "_message_obj" in email_data
         assert email_data["_message_obj"] is not None
 
-        # Create config with archive path
-        config = Config(config_dir=temp_config_dir)
-        archive_path = Path(temp_config_dir) / "Archive"
-        config.settings["archive"]["base_path"] = str(archive_path)
+        # Use config with archive and llmemory configured
+        config = temp_config_with_llmemory
 
         # Run save_attachment workflow
         result = save_attachment(
@@ -83,7 +80,7 @@ class TestWorkflowIntegration:
         content_path = Path(result["documents"][0]["content_path"])
         assert content_path.exists()
 
-    def test_save_email_as_pdf_workflow(self, temp_config_dir):
+    def test_save_email_as_pdf_workflow(self, temp_config_with_llmemory):
         """Test saving entire email as PDF"""
         # Create test email
         email_text = self.create_invoice_email()
@@ -92,10 +89,8 @@ class TestWorkflowIntegration:
         extractor = EmailExtractor()
         email_data = extractor.extract(email_text)
 
-        # Create config with archive path
-        config = Config(config_dir=temp_config_dir)
-        archive_path = Path(temp_config_dir) / "Archive"
-        config.settings["archive"]["base_path"] = str(archive_path)
+        # Use config with archive and llmemory configured
+        config = temp_config_with_llmemory
 
         # Run save_email_pdf workflow
         with patch("builtins.print") as mock_print:
@@ -114,7 +109,7 @@ class TestWorkflowIntegration:
         assert content_path.exists()
         assert content_path.stat().st_size > 1000  # Should be at least 1KB
 
-    def test_receipt_email_no_attachment(self, temp_config_dir):
+    def test_receipt_email_no_attachment(self, temp_config_with_llmemory):
         """Test handling receipt emails without attachments"""
         # Create receipt email without attachment
         msg = MIMEMultipart()
@@ -144,10 +139,8 @@ class TestWorkflowIntegration:
         extractor = EmailExtractor()
         email_data = extractor.extract(msg.as_string())
 
-        # Create config with archive path
-        config = Config(config_dir=temp_config_dir)
-        archive_path = Path(temp_config_dir) / "Archive"
-        config.settings["archive"]["base_path"] = str(archive_path)
+        # Use config with archive and llmemory configured
+        config = temp_config_with_llmemory
 
         # Save as PDF since no attachments
         with patch("builtins.print") as mock_print:
@@ -166,7 +159,7 @@ class TestWorkflowIntegration:
         assert content_path.exists()
         assert content_path.stat().st_size > 1000
 
-    def test_multiple_attachments_filter(self, temp_config_dir):
+    def test_multiple_attachments_filter(self, temp_config_with_llmemory):
         """Test filtering specific attachment types"""
         msg = MIMEMultipart()
         msg["From"] = "docs@company.com"
@@ -191,10 +184,8 @@ class TestWorkflowIntegration:
         extractor = EmailExtractor()
         email_data = extractor.extract(msg.as_string())
 
-        # Create config with archive path
-        config = Config(config_dir=temp_config_dir)
-        archive_path = Path(temp_config_dir) / "Archive"
-        config.settings["archive"]["base_path"] = str(archive_path)
+        # Use config with archive and llmemory configured
+        config = temp_config_with_llmemory
 
         # Save only PDFs
         result = save_attachment(

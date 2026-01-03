@@ -8,6 +8,7 @@ from typing import Any
 
 from mailflow.attachment_handler import extract_attachments
 from mailflow.exceptions import WorkflowError
+from mailflow.llmemory_indexer import run_indexing
 from mailflow.pdf_converter import email_to_pdf_bytes
 from mailflow.security import validate_path
 from mailflow.utils import write_original_file, parse_doctype_from_workflow
@@ -94,24 +95,35 @@ def save_attachment(
                 except Exception as e:
                     logger.warning(f"Attachment conversion failed for {filename}: {e}")
             subdirectory = directory or parse_doctype_from_workflow(workflow)
+            origin = {
+                "message_id": message.get("message_id"),
+                "subject": message.get("subject"),
+                "from": message.get("from"),
+                "to": message.get("to"),
+                "date": message.get("date"),
+                "attachment_filename": filename,
+            }
             document_id, content_path, metadata_path = writer.write_document(
                 workflow=workflow,
                 content=content,
                 mimetype=mimetype,
-                origin={
-                    "message_id": message.get("message_id"),
-                    "subject": message.get("subject"),
-                    "from": message.get("from"),
-                    "to": message.get("to"),
-                    "date": message.get("date"),
-                    "attachment_filename": filename,
-                },
+                origin=origin,
                 created_at=created_at,
                 document_type="attachment",
                 original_filename=filename,
                 subdirectory=subdirectory
             )
             logger.info(f"Saved attachment {filename} to {content_path}")
+
+            # Index to llmemory (fail-fast if not configured)
+            run_indexing(
+                config=config,
+                entity=entity,
+                document_id=document_id,
+                content_path=content_path,
+                metadata_path=metadata_path,
+            )
+
             results.append({
                 "document_id": document_id,
                 "content_path": str(content_path),
@@ -246,24 +258,35 @@ def save_email_pdf(
         pdf_bytes = email_to_pdf_bytes(message_obj, message)
 
         subdirectory = directory or parse_doctype_from_workflow(workflow)
+        document_name = f"{message.get('subject', 'email')}.pdf"
+        origin = {
+            "message_id": message.get("message_id"),
+            "subject": message.get("subject"),
+            "from": message.get("from"),
+            "to": message.get("to"),
+            "date": message.get("date"),
+            "converted_from_email": True
+        }
         document_id, content_path, metadata_path = writer.write_document(
             workflow=workflow,
             content=pdf_bytes,
             mimetype="application/pdf",
-            origin={
-                "message_id": message.get("message_id"),
-                "subject": message.get("subject"),
-                "from": message.get("from"),
-                "to": message.get("to"),
-                "date": message.get("date"),
-                "converted_from_email": True
-            },
+            origin=origin,
             created_at=created_at,
             document_type="email",
-            original_filename=f"{message.get('subject', 'email')}.pdf",
+            original_filename=document_name,
             subdirectory=subdirectory
         )
         logger.info(f"Converted email to PDF at {content_path}")
+
+        # Index to llmemory (fail-fast if not configured)
+        run_indexing(
+            config=config,
+            entity=entity,
+            document_id=document_id,
+            content_path=content_path,
+            metadata_path=metadata_path,
+        )
 
         return {
             "success": True,
@@ -350,24 +373,35 @@ def save_pdf(
             results = []
             for filename, content, mimetype in pdf_attachments:
                 subdirectory = directory or parse_doctype_from_workflow(workflow)
+                origin = {
+                    "message_id": message.get("message_id"),
+                    "subject": message.get("subject"),
+                    "from": message.get("from"),
+                    "to": message.get("to"),
+                    "date": message.get("date"),
+                    "attachment_filename": filename,
+                }
                 document_id, content_path, metadata_path = writer.write_document(
                     workflow=workflow,
                     content=content,
                     mimetype=mimetype,
-                    origin={
-                        "message_id": message.get("message_id"),
-                        "subject": message.get("subject"),
-                        "from": message.get("from"),
-                        "to": message.get("to"),
-                        "date": message.get("date"),
-                        "attachment_filename": filename,
-                    },
+                    origin=origin,
                     created_at=created_at,
                     document_type="document",
                     original_filename=filename,
                     subdirectory=subdirectory
                 )
                 logger.info(f"Saved PDF attachment to {content_path}")
+
+                # Index to llmemory (fail-fast if not configured)
+                run_indexing(
+                    config=config,
+                    entity=entity,
+                    document_id=document_id,
+                    content_path=content_path,
+                    metadata_path=metadata_path,
+                )
+
                 results.append({
                     "document_id": document_id,
                     "content_path": str(content_path),
@@ -400,24 +434,35 @@ def save_pdf(
             pdf_bytes = email_to_pdf_bytes(message_obj, message)
 
             subdirectory = directory or parse_doctype_from_workflow(workflow)
+            document_name = f"{message.get('subject', 'email')}.pdf"
+            origin = {
+                "message_id": message.get("message_id"),
+                "subject": message.get("subject"),
+                "from": message.get("from"),
+                "to": message.get("to"),
+                "date": message.get("date"),
+                "converted_from_email": True,
+            }
             document_id, content_path, metadata_path = writer.write_document(
                 workflow=workflow,
                 content=pdf_bytes,
                 mimetype="application/pdf",
-                origin={
-                    "message_id": message.get("message_id"),
-                    "subject": message.get("subject"),
-                    "from": message.get("from"),
-                    "to": message.get("to"),
-                    "date": message.get("date"),
-                    "converted_from_email": True,
-                },
+                origin=origin,
                 created_at=created_at,
                 document_type="email",
-                original_filename=f"{message.get('subject', 'email')}.pdf",
+                original_filename=document_name,
                 subdirectory=subdirectory
             )
             logger.info(f"Converted email to PDF at {content_path}")
+
+            # Index to llmemory (fail-fast if not configured)
+            run_indexing(
+                config=config,
+                entity=entity,
+                document_id=document_id,
+                content_path=content_path,
+                metadata_path=metadata_path,
+            )
 
             return {
                 "success": True,

@@ -2,7 +2,7 @@
 # ABOUTME: Provides dataclasses with validation for workflow definitions
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from mailflow.exceptions import DataError, ValidationError
@@ -17,9 +17,11 @@ class WorkflowDefinition:
 
     name: str
     description: str
-    action_type: str  # e.g., "save_attachment", "flag", "copy_to_folder"
+    # Connector-local action used to produce canonical archived output.
+    # If missing in workflows.json (SOT), mailflow defaults to save_pdf.
+    action_type: str = "save_pdf"
     action_params: dict[str, Any] = field(default_factory=dict)
-    created_at: datetime = field(default_factory=datetime.now)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Valid action types
     VALID_ACTION_TYPES = {
@@ -61,9 +63,34 @@ class WorkflowDefinition:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "WorkflowDefinition":
+        """Parse workflow entries from workflows.json.
+
+        Supports both:
+        - SOT format entries (minimal): {name, description, postprocessors?}
+        - Legacy mailflow entries: {name, description, action_type, action_params, created_at}
+        """
         try:
-            data["created_at"] = datetime.fromisoformat(data["created_at"])
-            return cls(**data)
+            parsed: dict[str, Any] = dict(data)
+
+            if not parsed.get("action_type"):
+                parsed["action_type"] = "save_pdf"
+            if parsed.get("action_params") is None:
+                parsed["action_params"] = {}
+
+            created_at_raw = parsed.get("created_at")
+            if created_at_raw:
+                dt = datetime.fromisoformat(created_at_raw)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                parsed["created_at"] = dt
+            else:
+                parsed["created_at"] = datetime.now(timezone.utc)
+
+            # Ignore non-mailflow keys (e.g. postprocessors, tags)
+            allowed_keys = {"name", "description", "action_type", "action_params", "created_at"}
+            parsed = {k: v for k, v in parsed.items() if k in allowed_keys}
+
+            return cls(**parsed)
         except (KeyError, ValueError, TypeError) as e:
             raise ValidationError(f"Invalid workflow data: {e}")
 
@@ -85,11 +112,41 @@ class DataStore:
         try:
             workflows_data = safe_json_load(self.workflows_file, default={})
             self.workflows = {}
-            for name, data in workflows_data.items():
+            migrated = False
+
+            # SOT format: {"workflows": [ {name, description, ...}, ... ]}
+            if isinstance(workflows_data, dict) and isinstance(workflows_data.get("workflows"), list):
+                for entry in workflows_data["workflows"]:
+                    if not isinstance(entry, dict):
+                        continue
+                    name = entry.get("name")
+                    if not name:
+                        continue
+                    try:
+                        self.workflows[name] = WorkflowDefinition.from_dict(entry)
+                    except ValidationError as e:
+                        logger.error(f"Skipping invalid workflow '{name}': {e}")
+
+            # Legacy format: { "<name>": {...workflow...}, ... }
+            elif isinstance(workflows_data, dict):
+                for name, data in workflows_data.items():
+                    if not isinstance(data, dict):
+                        continue
+                    try:
+                        self.workflows[name] = WorkflowDefinition.from_dict(data)
+                    except ValidationError as e:
+                        logger.error(f"Skipping invalid workflow '{name}': {e}")
+                migrated = bool(self.workflows)
+
+            if migrated:
+                logger.warning(
+                    "Detected legacy workflows.json format at %s; migrating to SOT format",
+                    self.workflows_file,
+                )
                 try:
-                    self.workflows[name] = WorkflowDefinition.from_dict(data)
-                except ValidationError as e:
-                    logger.error(f"Skipping invalid workflow '{name}': {e}")
+                    self.save_workflows()
+                except Exception as e:
+                    logger.error(f"Failed to migrate workflows.json: {e}")
         except Exception as e:
             logger.error(f"Failed to load workflows: {e}")
             self.workflows = {}
@@ -119,17 +176,17 @@ class DataStore:
             )
 
         with file_lock(self.workflows_file):
-            # Prepare data
-            workflows_data = {}
+            # Prepare SOT-shaped data
+            entries: list[dict[str, Any]] = []
             for name, workflow in self.workflows.items():
                 try:
-                    workflows_data[name] = workflow.to_dict()
+                    entries.append(workflow.to_dict())
                 except Exception as e:
                     logger.error(f"Failed to serialize workflow '{name}': {e}")
 
             # Atomic write
-            atomic_json_write(self.workflows_file, workflows_data)
-            logger.info(f"Saved {len(workflows_data)} workflows")
+            atomic_json_write(self.workflows_file, {"workflows": entries})
+            logger.info(f"Saved {len(entries)} workflows")
 
     def add_workflow(self, workflow: WorkflowDefinition):
         """Add workflow with validation"""
