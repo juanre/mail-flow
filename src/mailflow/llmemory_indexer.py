@@ -98,7 +98,8 @@ async def index_to_llmemory(
         sidecar = json.load(f)
 
     # Import llmemory components
-    from llmemory import ArchiveIndexer, ArchiveItem
+    from llmemory.archive import ArchiveItem
+    from llmemory.indexer import ArchiveIndexer
     from llmemory.manager import MemoryManager
 
     # Create ArchiveItem from the archive paths
