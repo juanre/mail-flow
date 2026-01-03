@@ -43,6 +43,11 @@ async def process(
         if config is None:
             config = Config()
 
+        # Ensure llm-archivist client sees docflow config (database_url, db_schema).
+        # mailflow.archivist_client uses this for classifier initialization.
+        from mailflow.archivist_client import set_config as set_archivist_config
+        set_archivist_config(config)
+
         # Initialize processed emails tracker
         tracker = ProcessedEmailsTracker(config)
 
