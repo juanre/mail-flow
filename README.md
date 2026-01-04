@@ -66,17 +66,15 @@ make lint          # Run linter
 
 ## Environment Variables
 
-The `.env` file controls all configuration. Key variables:
+mailflow reads core configuration from `~/.config/docflow/config.toml` (or
+`$XDG_CONFIG_HOME/docflow/config.toml`). Environment variables are only for
+LLM provider credentials and optional limits:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DATABASE_URL` | **Yes** | PostgreSQL connection string |
-| `ARCHIVIST_DB_SCHEMA` | **Yes** | Schema name (e.g., `archivist_mailflow`) |
 | `ANTHROPIC_API_KEY` | For LLM | Anthropic API key (Claude models) |
 | `OPENAI_API_KEY` | For LLM | OpenAI API key (embeddings + GPT) |
 | `ARCHIVIST_LLM_BUDGET_USD` | Optional | Daily spending cap for LLM |
-
-See `.env.example` for full documentation of all variables.
 
 ## Learning Architecture
 
@@ -197,7 +195,7 @@ make train DIR=~/Mail/folder
 
 **Notes**:
 - Migrations are applied automatically on first run
-- `DATABASE_URL` must be set for persistent learning
+- [archivist] database configuration is required for persistent learning
 - The UI records your selection as training and sends feedback to llm-archivist
 
 ## Optional Features
@@ -225,18 +223,18 @@ Indexing and search:
 
 ## Configuration
 
-mailflow follows the XDG Base Directory specification:
+mailflow follows the docflow XDG Base Directory specification:
 
-**Config** (`~/.config/mailflow/` or `$XDG_CONFIG_HOME/mailflow/`):
-- `config.json`: Feature weights, UI settings, LLM configuration
+**Config** (`~/.config/docflow/` or `$XDG_CONFIG_HOME/docflow/`):
+- `config.toml`: Docflow configuration
 - `workflows.json`: Workflow definitions
 - `processed_emails.db`: Deduplication tracking
 - `gmail_client_secret.json`: OAuth credentials (if using Gmail API)
 
-**Data** (`~/.local/share/mailflow/` or `$XDG_DATA_HOME/mailflow/`):
+**Data** (`~/.local/share/docflow/` or `$XDG_DATA_HOME/docflow/`):
 - `criteria_instances.json`: Learning history (training data)
 
-**State/Logs** (`~/.local/state/mailflow/` or `$XDG_STATE_HOME/mailflow/`):
+**State/Logs** (`~/.local/state/docflow/` or `$XDG_STATE_HOME/docflow/`):
 - `logs/`: Application logs
 - `history/`: Command history
 

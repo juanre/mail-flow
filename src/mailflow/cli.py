@@ -328,9 +328,9 @@ def init(reset):
     click.echo("  1. Add to your .muttrc:")
     click.echo('     macro index,pager \\cp "<pipe-message>mailflow<enter>" "Process with mailflow"')
     click.echo("\n  2. Press Ctrl-P in mutt to process emails")
-    click.echo("\n  3. Set up your environment:")
-    click.echo("     export ANTHROPIC_API_KEY=sk-ant-...")
-    click.echo("     export DATABASE_URL=postgresql://...")
+    click.echo("\n  3. Configure docflow:")
+    click.echo("     - Ensure ~/.config/docflow/config.toml has [archivist] database_url/db_schema")
+    click.echo("     - Set ANTHROPIC_API_KEY=sk-ant-...")
     click.echo(f"\n💡 Tip: Run 'mailflow setup-workflows' anytime to add more workflows")
 
 
@@ -503,12 +503,15 @@ def reset_training(yes):
         click.echo(f"  - {processed_db} (not found)")
 
     # 3. Truncate PostgreSQL tables
-    db_url = os.getenv("DATABASE_URL")
-    schema = os.getenv("ARCHIVIST_DB_SCHEMA", "archivist")
+    try:
+        db_url = config.get_archivist_database_url()
+        schema = config.get_archivist_db_schema()
+    except ConfigurationError as e:
+        click.echo(f"  ⚠ {e}")
+        db_url = None
+        schema = None
 
-    if not db_url:
-        click.echo("  ⚠ DATABASE_URL not set, skipping PostgreSQL tables")
-    else:
+    if db_url and schema:
         try:
 
             async def _truncate_tables():
@@ -529,6 +532,8 @@ def reset_training(yes):
             click.echo(f"  ✓ Truncated PostgreSQL tables in schema '{schema}'")
         except Exception as e:
             click.echo(f"  ✗ PostgreSQL error: {e}", err=True)
+    else:
+        click.echo("  ⚠ Skipping PostgreSQL tables (archivist config missing)")
 
     click.echo("\n✓ Training data reset complete.")
     click.echo("  Run 'mailflow batch ... --train-only' to retrain.")
