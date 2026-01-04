@@ -68,6 +68,8 @@ class TestWorkflowIntegration:
             message=email_data,
             workflow="test-invoice",
             config=config,
+            entity="acme",
+            directory="invoice",
             pattern="*.pdf"
         )
 
@@ -97,7 +99,9 @@ class TestWorkflowIntegration:
             result = save_email_pdf(
                 message=email_data,
                 workflow="test-receipt",
-                config=config
+                config=config,
+                entity="acme",
+                directory="receipts",
             )
 
         # Check PDF was created
@@ -147,7 +151,9 @@ class TestWorkflowIntegration:
             result = save_email_pdf(
                 message=email_data,
                 workflow="test-order",
-                config=config
+                config=config,
+                entity="acme",
+                directory="orders",
             )
 
         # Check PDF was created
@@ -192,6 +198,8 @@ class TestWorkflowIntegration:
             message=email_data,
             workflow="test-docs",
             config=config,
+            entity="acme",
+            directory="docs",
             pattern="*.pdf"
         )
 

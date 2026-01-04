@@ -35,6 +35,8 @@ def test_attachment_original_filename_and_size(temp_config_with_llmemory):
         message=email_data,
         workflow="test-report",
         config=config,
+        entity="acme",
+        directory="reports",
         pattern="*.pdf"
     )
 

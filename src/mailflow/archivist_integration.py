@@ -141,14 +141,20 @@ def _build_meta(email_data: dict) -> dict:
 def _build_workflows(data_store) -> List[Workflow]:
     """Convert mailflow workflows into archivist workflow definitions."""
     workflows: List[Workflow] = []
-    for name, wf in (data_store.workflows or {}).items():
-        workflows.append(
-            {
-                "name": name,
-                "description": getattr(wf, "description", name) or name,
-                "tags": [],
-            }
-        )
+    for _, wf in (data_store.workflows or {}).items():
+        entry: dict[str, Any] = {
+            "name": wf.name,
+            "kind": wf.kind,
+            "criteria": wf.criteria,
+            "handling": wf.handling,
+            "description": wf.criteria.get("summary", ""),
+            "tags": [],
+        }
+        if wf.constraints is not None:
+            entry["constraints"] = wf.constraints
+        if wf.postprocessors:
+            entry["postprocessors"] = wf.postprocessors
+        workflows.append(entry)
     return workflows
 
 

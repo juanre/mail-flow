@@ -42,7 +42,9 @@ class TestSaveReceiptWorkflow:
         result = save_pdf(
             message=email_data,
             workflow="test-invoice",
-            config=config
+            config=config,
+            entity="acme",
+            directory="invoice",
         )
 
         # Should have saved the PDF attachment
@@ -90,7 +92,9 @@ class TestSaveReceiptWorkflow:
         result = save_pdf(
             message=email_data,
             workflow="test-order",
-            config=config
+            config=config,
+            entity="acme",
+            directory="orders",
         )
 
         # Should have created a PDF from the email
@@ -135,7 +139,9 @@ class TestSaveReceiptWorkflow:
         result = save_pdf(
             message=email_data,
             workflow="test-docs",
-            config=config
+            config=config,
+            entity="acme",
+            directory="docs",
         )
 
         # Should have saved all PDF attachments
@@ -176,7 +182,9 @@ class TestSaveReceiptWorkflow:
         result = save_pdf(
             message=email_data,
             workflow="test-receipt",
-            config=config
+            config=config,
+            entity="acme",
+            directory="receipts",
         )
 
         # Should have created PDF from email (not saved the JPG)

@@ -16,8 +16,12 @@ async def test_noninteractive_accepts_label_without_candidates(temp_config_dir):
     data_store.add_workflow(
         WorkflowDefinition(
             name="tsm-expense",
-            description="TheStarMaps expenses",
-            action_type="save_pdf",
+            kind="document",
+            criteria={"summary": "TheStarMaps expenses"},
+            handling={
+                "archive": {"target": "document", "entity": "tsm", "doctype": "expense"},
+                "index": {"llmemory": True},
+            },
         )
     )
 
@@ -46,4 +50,3 @@ async def test_noninteractive_accepts_label_without_candidates(temp_config_dir):
         selected = await selector.select_workflow(email)
 
     assert selected == "tsm-expense"
-

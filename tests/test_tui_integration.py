@@ -1,8 +1,7 @@
 # ABOUTME: Integration tests for TUI workflow selection.
 """Integration tests for TUI workflow selection."""
 
-from unittest.mock import patch, MagicMock
-from io import StringIO
+from unittest.mock import patch
 
 import pytest
 
@@ -44,8 +43,12 @@ class TestWorkflowSelectorTUI:
         from mailflow.models import WorkflowDefinition
         data_store.add_workflow(WorkflowDefinition(
             name="gsk-invoice",
-            description="GreaterSkies invoices",
-            action_type="save_pdf",
+            kind="document",
+            criteria={"summary": "GreaterSkies invoices"},
+            handling={
+                "archive": {"target": "document", "entity": "gsk", "doctype": "invoice"},
+                "index": {"llmemory": True},
+            },
         ))
 
         selector = WorkflowSelector(config, data_store, interactive=True)

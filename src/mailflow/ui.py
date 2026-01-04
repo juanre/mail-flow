@@ -230,15 +230,6 @@ class WorkflowSelector:
         """Interactive workflow creation"""
         print("\n--- Create New Workflow ---")
 
-        name_input = LineInput("Workflow name", with_history=True)
-        name = name_input.ask()
-
-        if not name:
-            return None
-
-        desc_input = LineInput("Description", with_history=False)
-        description = desc_input.ask()
-
         # Check if user wants to use a template
         use_template = LineInput("Use a workflow template?", typical=["no", "yes"])
         if use_template.ask(default="no") == "yes":
@@ -246,105 +237,61 @@ class WorkflowSelector:
 
             print("\nAvailable templates:")
             for key, template in WORKFLOW_TEMPLATES.items():
-                print(f"  - {key}: {template['description']}")
+                print(f"  - {key}: {template['summary']}")
 
             template_input = LineInput("Template name", typical=list(WORKFLOW_TEMPLATES.keys()))
             template_key = template_input.ask()
 
             if template_key in WORKFLOW_TEMPLATES:
                 template = WORKFLOW_TEMPLATES[template_key]
-                name = template["name"]
-                description = template["description"]
-                action_type = template["action_type"]
-                action_params = template["action_params"].copy()
-                print(f"\n✓ Using template: {description}")
+                summary = template["summary"]
+                constraints = template.get("constraints")
+                doctype_default = template.get("doctype", "")
+                print(f"\n✓ Using template: {summary}")
             else:
                 print("Template not found, creating custom workflow...")
-                action_types = [
-                    "save_attachment",
-                    "save_email_as_pdf",
-                    "save_pdf",
-                    "create_todo",
-                ]
-                action_input = LineInput("Action type", typical=action_types, only_typical=True)
-                action_type = action_input.ask()
-                action_params = {}
+                summary = ""
+                constraints = None
+                doctype_default = ""
         else:
-            action_types = [
-                "save_attachment",
-                "save_email_as_pdf",
-                "save_pdf",
-                "create_todo",
-            ]
-            action_input = LineInput("Action type", typical=action_types, only_typical=True)
-            action_type = action_input.ask()
-            action_params = {}
+            summary = ""
+            constraints = None
+            doctype_default = ""
 
-        # Configure action parameters if not using template
-        if action_type == "save_attachment" and not action_params:
-            dir_input = LineInput(
-                "Directory",
-                typical=[
-                    "~/Documents/mailflow/jro/expense",
-                    "~/Documents/mailflow/tsm/expense",
-                    "~/Documents/mailflow/gsk/expense",
-                    "~/Documents/mailflow/jro/invoice",
-                    "~/receipts",
-                ],
-            )
-            action_params["directory"] = dir_input.ask()
-            pattern_input = LineInput("File pattern", typical=["*.pdf", "*.*", "*.jpg", "*.png"])
-            action_params["pattern"] = pattern_input.ask(default="*.*")
+        entity_input = LineInput("Entity (archive identifier)", with_history=True)
+        entity = entity_input.ask()
+        if not entity:
+            return None
 
-        elif action_type == "save_email_as_pdf" and not action_params:
-            dir_input = LineInput(
-                "Directory",
-                typical=[
-                    "~/Documents/mailflow/jro/doc",
-                    "~/Documents/mailflow/tsm/doc",
-                    "~/Documents/mailflow/gsk/doc",
-                    "~/invoices",
-                ],
-            )
-            action_params["directory"] = dir_input.ask(default="~/receipts")
-            template_input = LineInput(
-                "Filename template", typical=["{date}_{from}_{subject}.pdf"]
-            )
-            action_params["filename_template"] = template_input.ask(
-                default="{date}_{from}_{subject}.pdf"
-            )
+        doctype_input = LineInput(
+            "Document type (doctype)",
+            typical=[doctype_default] if doctype_default else None,
+        )
+        doctype = doctype_input.ask(default=doctype_default or None)
+        if not doctype:
+            return None
 
-        elif action_type == "save_pdf" and not action_params:
-            dir_input = LineInput(
-                "Directory",
-                typical=[
-                    "~/Documents/mailflow/jro/expense",
-                    "~/Documents/mailflow/tsm/expense",
-                    "~/Documents/mailflow/gsk/expense",
-                    "~/Documents/mailflow/jro/invoice",
-                    "~/Documents/mailflow/tsm/invoice",
-                    "~/receipts",
-                ],
-            )
-            action_params["directory"] = dir_input.ask()
-            template_input = LineInput(
-                "Filename template (for emails without PDF)",
-                typical=["{date}_{from}_{subject}"],
-            )
-            action_params["filename_template"] = template_input.ask(
-                default="{date}_{from}_{subject}"
-            )
+        name_default = f"{entity}-{doctype}"
+        name_input = LineInput("Workflow name", with_history=True)
+        name = name_input.ask(default=name_default)
+        if not name:
+            return None
 
-        elif action_type == "create_todo" and not action_params:
-            file_input = LineInput("Todo file", typical=["~/todos.txt"])
-            action_params["todo_file"] = file_input.ask(default="~/todos.txt")
+        desc_input = LineInput("Summary", with_history=False)
+        summary = summary or desc_input.ask()
+        if not summary:
+            return None
 
         # Create and save the workflow
         workflow = WorkflowDefinition(
             name=name,
-            description=description,
-            action_type=action_type,
-            action_params=action_params,
+            kind="document",
+            criteria={"summary": summary},
+            constraints=constraints,
+            handling={
+                "archive": {"target": "document", "entity": entity, "doctype": doctype},
+                "index": {"llmemory": True},
+            },
         )
 
         self.data_store.add_workflow(workflow)

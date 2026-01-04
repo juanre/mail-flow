@@ -2,9 +2,8 @@
 Integration test simulating the complete user workflow
 """
 
-from datetime import datetime
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -46,19 +45,18 @@ class TestIntegration:
                 with patch("mailflow.linein.LineInput.ask") as mock_ask:
                     # LineInput is used in _create_new_workflow
                     mock_ask.side_effect = [
-                        "save-invoices",  # Workflow name
-                        "Save invoice attachments",  # Description
                         "no",  # Use a workflow template? No
-                        "save_attachment",  # Action type
-                        "~/invoices",  # Directory
-                        "*.pdf",  # Pattern
+                        "acme",  # Entity
+                        "invoice",  # Document type
+                        "acme-invoice",  # Workflow name
+                        "Save invoice attachments",  # Summary
                     ]
 
                     selected = await ui.select_workflow(email_data)
-                    assert selected == "save-invoices"
+                    assert selected == "acme-invoice"
 
             # Verify workflow was created
-            assert "save-invoices" in data_store.workflows
+            assert "acme-invoice" in data_store.workflows
 
     async def test_workflow_selection(self, temp_config_dir, sample_emails):
         """Test workflow selection from existing workflows"""
@@ -70,21 +68,30 @@ class TestIntegration:
         workflows = {
             "save-invoices": WorkflowDefinition(
                 name="save-invoices",
-                description="Save invoice PDFs",
-                action_type="save_attachment",
-                action_params={"directory": "~/invoices", "pattern": "*.pdf"},
+                kind="document",
+                criteria={"summary": "Save invoice PDFs"},
+                handling={
+                    "archive": {"target": "document", "entity": "acme", "doctype": "invoice"},
+                    "index": {"llmemory": True},
+                },
             ),
             "save-errors": WorkflowDefinition(
                 name="save-errors",
-                description="Save error emails as PDF",
-                action_type="save_email_as_pdf",
-                action_params={"directory": "~/errors"},
+                kind="document",
+                criteria={"summary": "Save error emails as PDF"},
+                handling={
+                    "archive": {"target": "document", "entity": "acme", "doctype": "errors"},
+                    "index": {"llmemory": True},
+                },
             ),
             "create-todos": WorkflowDefinition(
                 name="create-todos",
-                description="Create todo items from emails",
-                action_type="create_todo",
-                action_params={"todo_file": "~/todos.txt"},
+                kind="document",
+                criteria={"summary": "Create todo items from emails"},
+                handling={
+                    "archive": {"target": "document", "entity": "acme", "doctype": "todos"},
+                    "index": {"llmemory": True},
+                },
             ),
         }
 
@@ -108,13 +115,17 @@ class TestIntegration:
         """Test that workflows can be executed"""
         from mailflow.process import process
 
+        config = Config(config_dir=temp_config_dir)
+
         # Mock the workflow execution
-        with patch("mailflow.workflow.save_attachment") as mock_save:
+        with patch("mailflow.process.Workflows") as mock_workflows:
+            mock_action = MagicMock()
+            mock_workflows.get.return_value = mock_action
             # select_workflow now uses builtins.input; 's' is skip
             with patch("builtins.input", return_value="s"):
                 if "amazon_invoice" in sample_emails:
                     # Run the process
-                    await process(sample_emails["amazon_invoice"])
+                    await process(sample_emails["amazon_invoice"], config=config)
 
                     # Should not execute any workflow when skipped
-                    mock_save.assert_not_called()
+                    mock_action.assert_not_called()

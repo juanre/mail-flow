@@ -11,7 +11,7 @@ from mailflow.exceptions import WorkflowError
 from mailflow.llmemory_indexer import run_indexing
 from mailflow.pdf_converter import email_to_pdf_bytes
 from mailflow.security import validate_path
-from mailflow.utils import write_original_file, parse_doctype_from_workflow
+from mailflow.utils import write_original_file
 from mailflow.attachment_conversion import convert_attachment
 
 logger = logging.getLogger(__name__)
@@ -21,8 +21,10 @@ def save_attachment(
     message: dict[str, Any],
     workflow: str,
     config,
+    entity: str | None = None,
     pattern: str = "*.*",
-    directory: str | None = None
+    directory: str | None = None,
+    index_llmemory: bool = True,
 ) -> dict:
     """Save attachments matching pattern using archive-protocol
 
@@ -31,8 +33,8 @@ def save_attachment(
         workflow: Workflow name (e.g., "jro-invoice")
         config: Config object
         pattern: Pattern for attachment matching (default: "*.*")
-        directory: Subdirectory within entity (e.g., "invoice"). Defaults to
-                  the doc-type extracted from workflow name.
+        directory: Subdirectory within entity (e.g., "invoice"). Typically
+                  derived from workflow.handling.archive.doctype.
 
     Returns:
         dict with success status and saved documents
@@ -41,9 +43,9 @@ def save_attachment(
         from email.utils import parsedate_to_datetime
 
         from archive_protocol import RepositoryWriter, RepositoryConfig
-        from mailflow.utils import parse_entity_from_workflow
 
-        entity = parse_entity_from_workflow(workflow)
+        if not entity:
+            raise WorkflowError("Workflow handling missing archive.entity")
 
         # Parse created_at from email Date header (source timestamp)
         # Must be timezone-aware and UTC-normalized
@@ -94,7 +96,9 @@ def save_attachment(
                     mimetype, content, filename = convert_attachment(filename, mimetype, content)
                 except Exception as e:
                     logger.warning(f"Attachment conversion failed for {filename}: {e}")
-            subdirectory = directory or parse_doctype_from_workflow(workflow)
+            subdirectory = directory
+            if not subdirectory:
+                raise WorkflowError("Workflow handling missing archive.doctype")
             origin = {
                 "message_id": message.get("message_id"),
                 "subject": message.get("subject"),
@@ -115,14 +119,15 @@ def save_attachment(
             )
             logger.info(f"Saved attachment {filename} to {content_path}")
 
-            # Index to llmemory (fail-fast if not configured)
-            run_indexing(
-                config=config,
-                entity=entity,
-                document_id=document_id,
-                content_path=content_path,
-                metadata_path=metadata_path,
-            )
+            if index_llmemory:
+                # Index to llmemory (fail-fast if not configured)
+                run_indexing(
+                    config=config,
+                    entity=entity,
+                    document_id=document_id,
+                    content_path=content_path,
+                    metadata_path=metadata_path,
+                )
 
             results.append({
                 "document_id": document_id,
@@ -201,7 +206,9 @@ def save_email_pdf(
     message: dict[str, Any],
     workflow: str,
     config,
-    directory: str | None = None
+    entity: str | None = None,
+    directory: str | None = None,
+    index_llmemory: bool = True,
 ) -> dict:
     """Save the entire email as a PDF file using archive-protocol
 
@@ -211,8 +218,8 @@ def save_email_pdf(
         message: Email data
         workflow: Workflow name (e.g., "jro-receipt")
         config: Config object
-        directory: Subdirectory within entity (e.g., "receipt"). Defaults to
-                  the doc-type extracted from workflow name.
+        directory: Subdirectory within entity (e.g., "receipt"). Typically
+                  derived from workflow.handling.archive.doctype.
 
     Returns:
         dict with document_id, content_path, success status
@@ -221,9 +228,9 @@ def save_email_pdf(
         from email.utils import parsedate_to_datetime
 
         from archive_protocol import RepositoryWriter, RepositoryConfig
-        from mailflow.utils import parse_entity_from_workflow
 
-        entity = parse_entity_from_workflow(workflow)
+        if not entity:
+            raise WorkflowError("Workflow handling missing archive.entity")
 
         # Parse created_at from email Date header (source timestamp)
         # Must be timezone-aware and UTC-normalized
@@ -257,7 +264,9 @@ def save_email_pdf(
         # Convert email to PDF
         pdf_bytes = email_to_pdf_bytes(message_obj, message)
 
-        subdirectory = directory or parse_doctype_from_workflow(workflow)
+        subdirectory = directory
+        if not subdirectory:
+            raise WorkflowError("Workflow handling missing archive.doctype")
         document_name = f"{message.get('subject', 'email')}.pdf"
         origin = {
             "message_id": message.get("message_id"),
@@ -279,14 +288,15 @@ def save_email_pdf(
         )
         logger.info(f"Converted email to PDF at {content_path}")
 
-        # Index to llmemory (fail-fast if not configured)
-        run_indexing(
-            config=config,
-            entity=entity,
-            document_id=document_id,
-            content_path=content_path,
-            metadata_path=metadata_path,
-        )
+        if index_llmemory:
+            # Index to llmemory (fail-fast if not configured)
+            run_indexing(
+                config=config,
+                entity=entity,
+                document_id=document_id,
+                content_path=content_path,
+                metadata_path=metadata_path,
+            )
 
         return {
             "success": True,
@@ -306,8 +316,10 @@ def save_pdf(
     message: dict[str, Any],
     workflow: str,
     config,
+    entity: str | None = None,
     pattern: str = "*.pdf",
-    directory: str | None = None
+    directory: str | None = None,
+    index_llmemory: bool = True,
 ) -> dict:
     """Save PDF: extracts PDF attachment if exists, otherwise converts email to PDF
 
@@ -321,8 +333,8 @@ def save_pdf(
         workflow: Workflow name (e.g., "jro-expense")
         config: Config object
         pattern: Pattern for attachment matching (default: "*.pdf")
-        directory: Subdirectory within entity (e.g., "expense"). Defaults to
-                  the doc-type extracted from workflow name.
+        directory: Subdirectory within entity (e.g., "expense"). Typically
+                  derived from workflow.handling.archive.doctype.
 
     Returns:
         dict with document_id, content_path, success status
@@ -331,9 +343,9 @@ def save_pdf(
         from email.utils import parsedate_to_datetime
 
         from archive_protocol import RepositoryWriter, RepositoryConfig
-        from mailflow.utils import parse_entity_from_workflow
 
-        entity = parse_entity_from_workflow(workflow)
+        if not entity:
+            raise WorkflowError("Workflow handling missing archive.entity")
 
         # Parse created_at from email Date header (source timestamp)
         # Must be timezone-aware and UTC-normalized
@@ -372,7 +384,9 @@ def save_pdf(
             logger.info(f"Found {len(pdf_attachments)} PDF attachment(s)")
             results = []
             for filename, content, mimetype in pdf_attachments:
-                subdirectory = directory or parse_doctype_from_workflow(workflow)
+                subdirectory = directory
+                if not subdirectory:
+                    raise WorkflowError("Workflow handling missing archive.doctype")
                 origin = {
                     "message_id": message.get("message_id"),
                     "subject": message.get("subject"),
@@ -393,14 +407,15 @@ def save_pdf(
                 )
                 logger.info(f"Saved PDF attachment to {content_path}")
 
-                # Index to llmemory (fail-fast if not configured)
-                run_indexing(
-                    config=config,
-                    entity=entity,
-                    document_id=document_id,
-                    content_path=content_path,
-                    metadata_path=metadata_path,
-                )
+                if index_llmemory:
+                    # Index to llmemory (fail-fast if not configured)
+                    run_indexing(
+                        config=config,
+                        entity=entity,
+                        document_id=document_id,
+                        content_path=content_path,
+                        metadata_path=metadata_path,
+                    )
 
                 results.append({
                     "document_id": document_id,
@@ -433,7 +448,9 @@ def save_pdf(
             logger.info("No PDF attachments found, converting email to PDF")
             pdf_bytes = email_to_pdf_bytes(message_obj, message)
 
-            subdirectory = directory or parse_doctype_from_workflow(workflow)
+            subdirectory = directory
+            if not subdirectory:
+                raise WorkflowError("Workflow handling missing archive.doctype")
             document_name = f"{message.get('subject', 'email')}.pdf"
             origin = {
                 "message_id": message.get("message_id"),
@@ -455,14 +472,15 @@ def save_pdf(
             )
             logger.info(f"Converted email to PDF at {content_path}")
 
-            # Index to llmemory (fail-fast if not configured)
-            run_indexing(
-                config=config,
-                entity=entity,
-                document_id=document_id,
-                content_path=content_path,
-                metadata_path=metadata_path,
-            )
+            if index_llmemory:
+                # Index to llmemory (fail-fast if not configured)
+                run_indexing(
+                    config=config,
+                    entity=entity,
+                    document_id=document_id,
+                    content_path=content_path,
+                    metadata_path=metadata_path,
+                )
 
             return {
                 "success": True,
