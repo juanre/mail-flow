@@ -84,18 +84,24 @@ def _maildir_epoch_from_filename(name: str) -> datetime | None:
 def _fast_date_from_file(path: Path) -> datetime:
     """Best-effort, low-cost date extraction for early filtering.
 
-    Prefers Maildir filename epoch when available; otherwise reads headers only.
+    Prefers the email Date header (source timestamp); falls back to Maildir filename epoch.
     Always returns a timezone-aware datetime (UTC).
     """
-    dt = _maildir_epoch_from_filename(path.name)
-    if dt is not None:
-        return dt
     try:
         with open(path, "rb") as f:
             head = f.read(64 * 1024)
         msg = BytesHeaderParser(policy=email_default_policy).parsebytes(head)
-        return _parse_email_date(msg.get("date", ""))
+        dt = _parse_email_date(msg.get("date", ""))
+        # If Date header is missing/unparseable, dt will be epoch; fall back to Maildir filename.
+        if dt.timestamp() <= 0:
+            fallback = _maildir_epoch_from_filename(path.name)
+            if fallback is not None:
+                return fallback
+        return dt
     except Exception:
+        dt = _maildir_epoch_from_filename(path.name)
+        if dt is not None:
+            return dt
         return datetime.fromtimestamp(0, tz=timezone.utc)
 
 
