@@ -2,20 +2,16 @@
 
 Always uses database mode for persistent learning.
 Requires archivist.database_url and archivist.db_schema in config.toml.
-
-Security Note: Database credentials are passed via environment variables
-to llm-archivist, as required by its API. These credentials will be
-visible to child processes spawned by this application.
 """
 
 from __future__ import annotations
 
 import asyncio
-import os
 from typing import Any, Dict, List, Optional
 
 from llm_archivist import Classifier as ArchivistClassifier
 from llm_archivist import ClassifyOpts, Decision, Workflow
+from llm_archivist.config import ArchivistConfig
 
 from mailflow.config import Config, ConfigurationError
 
@@ -57,46 +53,39 @@ async def _get_classifier() -> ArchivistClassifier:
 
 
 async def _initialize_classifier() -> ArchivistClassifier:
-    """Initialize the classifier with config or env vars."""
-    database_url = None
-    db_schema = None
+    """Initialize the classifier with config."""
+    if _config is None:
+        raise ConfigurationError("Archivist client config not set (call set_config).")
 
-    if _config is not None:
-        archivist = _config.settings.get("archivist", {})
-        database_url = archivist.get("database_url")
-        db_schema = archivist.get("db_schema")
+    archivist = _config.settings.get("archivist", {})
+    database_url = archivist.get("database_url")
+    db_schema = archivist.get("db_schema")
+    similarity_threshold = archivist.get("similarity_threshold")
 
-    # Fall back to DOCFLOW_* env vars for dev overrides (1:1 mapping)
-    if not database_url:
-        database_url = os.getenv("DOCFLOW_ARCHIVIST_DATABASE_URL")
-    if not db_schema:
-        db_schema = os.getenv("DOCFLOW_ARCHIVIST_DB_SCHEMA")
-
-    if not database_url:
+    if not database_url or not db_schema:
+        config_path = _config.config_dir / "config.toml"
         raise ConfigurationError(
-            "Archivist database_url not configured.\n\n"
-            "Add to ~/.config/docflow/config.toml:\n"
+            "Archivist database_url/db_schema not configured.\n\n"
+            f"Add to {config_path}:\n"
             "[archivist]\n"
             'database_url = "postgresql://user:pass@localhost:5432/docflow"\n'
-            'db_schema = "archivist"\n\n'
-            "Dev override (optional):\n"
-            "  export DOCFLOW_ARCHIVIST_DATABASE_URL='postgresql://...'\n"
-            "  export DOCFLOW_ARCHIVIST_DB_SCHEMA='archivist'\n"
+            'db_schema = "archivist"\n'
         )
 
-    # Validate URL format
-    if not database_url.startswith(('postgresql://', 'postgres://')):
+    if similarity_threshold is None:
+        raise ConfigurationError("archivist.similarity_threshold is required in config.toml")
+
+    if not database_url.startswith(("postgresql://", "postgres://")):
         raise ConfigurationError(
-            f"Invalid database URL format.\n"
-            f"Expected postgresql:// or postgres:// URL"
+            "Invalid database URL format. Expected postgresql:// or postgres:// URL."
         )
 
-    # Set env var for llm-archivist to pick up (required by its API)
-    os.environ["DATABASE_URL"] = database_url
-    if db_schema:
-        os.environ["ARCHIVIST_DB_SCHEMA"] = db_schema
-
-    return await ArchivistClassifier.from_env_async()
+    cfg = ArchivistConfig(
+        database_url=database_url,
+        db_schema=db_schema,
+        similarity_threshold=float(similarity_threshold),
+    )
+    return await ArchivistClassifier.from_config_async(cfg)
 
 
 async def classify(
