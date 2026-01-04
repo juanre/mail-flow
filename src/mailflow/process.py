@@ -95,58 +95,65 @@ async def process(
             # Execute the workflow
             workflow_def = data_store.workflows.get(selected_workflow)
             if workflow_def:
-                # Get the action function
-                if workflow_def.action_type in Workflows:
-                    action_func = Workflows[workflow_def.action_type]
-                    # Execute with email data and parameters
-                    try:
-                        logger.info(
-                            f"Executing {workflow_def.action_type} for {selected_workflow}"
-                        )
-                        # Add workflow metadata to email_data for storage
-                        email_data["_workflow_name"] = selected_workflow
-                        # Get confidence score from rankings if available
-                        confidence = 0.0
-                        for wf_name, score, _ in email_data.get("_rankings", []):
-                            if wf_name == selected_workflow:
-                                confidence = score
-                                break
-                        email_data["_confidence_score"] = confidence
-
-                        if dry_run:
-                            print("(dry-run) Skipping action execution and processed marker")
-                            logger.info("dry-run: not executing action or marking processed")
-                        else:
-                            # Execute the workflow
-                            if workflow_def.action_type in ["save_attachment", "save_pdf", "save_email_as_pdf"]:
-                                # Archive-protocol actions (document storage)
-                                action_func(
-                                    message=email_data,
-                                    workflow=selected_workflow,
-                                    config=config,
-                                    **workflow_def.action_params
-                                )
-                            else:
-                                # Non-archive actions (e.g., create_todo)
-                                action_func(email_data, **workflow_def.action_params)
-
-                            print(f"\n✓ Workflow '{selected_workflow}' completed!")
-                            logger.info(f"Workflow '{selected_workflow}' completed successfully")
-
-                            # Mark as processed
-                            tracker.mark_as_processed(message, message_id, selected_workflow)
-                    except WorkflowError as e:
-                        print(f"\n✗ Workflow error: {e}")
-                        logger.error(f"Workflow execution failed: {e}")
-                        sys.exit(2)
-                    except Exception as e:
-                        print(f"\n✗ Unexpected error: {e}")
-                        logger.exception("Unexpected error in workflow execution")
-                        sys.exit(3)
-                else:
-                    print(f"\n✗ Action type '{workflow_def.action_type}' not implemented.")
-                    logger.error(f"Unknown action type: {workflow_def.action_type}")
+                archive = workflow_def.handling.get("archive")
+                if not archive:
+                    print("\n✗ Workflow handling missing archive target.")
+                    logger.error(f"Workflow missing handling.archive: {selected_workflow}")
                     sys.exit(4)
+
+                target = archive.get("target")
+                if target != "document":
+                    print(f"\n✗ Unsupported archive target '{target}'.")
+                    logger.error(f"Unsupported archive target: {target}")
+                    sys.exit(4)
+
+                action_name = "save_pdf"
+                action_func = Workflows.get(action_name)
+                if not action_func:
+                    print(f"\n✗ Action '{action_name}' not implemented.")
+                    logger.error(f"Unknown action: {action_name}")
+                    sys.exit(4)
+
+                try:
+                    logger.info(
+                        f"Executing {action_name} for {selected_workflow}"
+                    )
+                    # Add workflow metadata to email_data for storage
+                    email_data["_workflow_name"] = selected_workflow
+                    # Get confidence score from rankings if available
+                    confidence = 0.0
+                    for wf_name, score, _ in email_data.get("_rankings", []):
+                        if wf_name == selected_workflow:
+                            confidence = score
+                            break
+                    email_data["_confidence_score"] = confidence
+
+                    if dry_run:
+                        print("(dry-run) Skipping action execution and processed marker")
+                        logger.info("dry-run: not executing action or marking processed")
+                    else:
+                        action_func(
+                            message=email_data,
+                            workflow=selected_workflow,
+                            config=config,
+                            entity=workflow_def.archive_entity,
+                            directory=workflow_def.archive_doctype,
+                            index_llmemory=workflow_def.index_llmemory,
+                        )
+
+                        print(f"\n✓ Workflow '{selected_workflow}' completed!")
+                        logger.info(f"Workflow '{selected_workflow}' completed successfully")
+
+                        # Mark as processed
+                        tracker.mark_as_processed(message, message_id, selected_workflow)
+                except WorkflowError as e:
+                    print(f"\n✗ Workflow error: {e}")
+                    logger.error(f"Workflow execution failed: {e}")
+                    sys.exit(2)
+                except Exception as e:
+                    print(f"\n✗ Unexpected error: {e}")
+                    logger.exception("Unexpected error in workflow execution")
+                    sys.exit(3)
             else:
                 print(f"\n✗ Workflow '{selected_workflow}' not found.")
                 logger.error(f"Workflow not found: {selected_workflow}")

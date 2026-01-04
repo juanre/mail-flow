@@ -7,9 +7,16 @@ from mailflow.archivist_integration import classify_with_archivist, _build_workf
 
 
 class _WF:
-    def __init__(self, name: str, description: str):
+    def __init__(self, name: str, summary: str):
         self.name = name
-        self.description = description
+        self.kind = "document"
+        self.criteria = {"summary": summary}
+        self.constraints = None
+        self.handling = {
+            "archive": {"target": "document", "entity": "demo", "doctype": "doc"},
+            "index": {"llmemory": True},
+        }
+        self.postprocessors = []
 
 
 class _DS:

@@ -294,13 +294,9 @@ def register(cli):
                 click.echo(f"... and {remaining} more")
                 break
             click.echo(f"{name}:")
-            click.echo(f"  {workflow.description}")
-            click.echo(f"  Type: {workflow.action_type}")
-            params = workflow.action_params
-            if "directory" in params:
-                click.echo(f"  Directory: {params['directory']}")
-            if "pattern" in params:
-                click.echo(f"  Pattern: {params['pattern']}")
-            if "filename_template" in params:
-                click.echo(f"  Filename: {params['filename_template']}")
+            click.echo(f"  {workflow.criteria['summary']}")
+            click.echo(f"  Kind: {workflow.kind}")
+            click.echo(
+                f"  Archive: {workflow.archive_entity}/{workflow.archive_doctype}"
+            )
             click.echo("")

@@ -34,7 +34,13 @@ def test_layout_v2_docs_and_originals(temp_config_with_llmemory):
     cfg["save_originals"] = True
     cfg["originals_prefix_date"] = True
 
-    result = save_pdf(message=email_data, workflow="acme-invoice", config=config)
+    result = save_pdf(
+        message=email_data,
+        workflow="acme-invoice",
+        config=config,
+        entity="acme",
+        directory="invoice",
+    )
     assert result["success"]
 
     # Check saved doc path uses {doctype}/{YYYY}/ and normalized name

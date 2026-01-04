@@ -17,6 +17,8 @@ from llmemory.testing import *
 def temp_config_dir():
     """Create a temporary config directory for tests"""
     temp_dir = tempfile.mkdtemp()
+    workflows_file = Path(temp_dir) / "workflows.json"
+    workflows_file.write_text('{"schema_version": 1, "workflows": []}')
     yield temp_dir
     shutil.rmtree(temp_dir)
 

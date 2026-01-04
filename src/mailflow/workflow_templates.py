@@ -5,43 +5,35 @@ from typing import Any
 
 WORKFLOW_TEMPLATES = {
     "receipts": {
-        "name": "receipts",
-        "description": "Save receipts and invoices (PDF attachments or convert email)",
-        "action_type": "save_pdf",
-        "action_params": {
-            "pattern": "*.pdf",
+        "summary": "Expense receipts and invoices",
+        "doctype": "expense",
+        "constraints": {
+            "requires_evidence": ["invoice", "receipt"],
+            "evidence_sources": ["attachment_pdf", "body_pdf"],
         },
     },
     "bank_statements": {
-        "name": "bank_statements",
-        "description": "Save bank statements and financial documents",
-        "action_type": "save_attachment",
-        "action_params": {
-            "pattern": "*.pdf",
+        "summary": "Bank statements and financial documents",
+        "doctype": "statement",
+        "constraints": {
+            "requires_evidence": ["statement"],
+            "evidence_sources": ["attachment_pdf", "body_pdf"],
         },
     },
     "tax_documents": {
-        "name": "tax_documents",
-        "description": "Save tax-related documents",
-        "action_type": "save_pdf",
-        "action_params": {
-            "pattern": "*.pdf",
+        "summary": "Tax-related documents",
+        "doctype": "tax-doc",
+        "constraints": {
+            "requires_evidence": ["tax-doc"],
+            "evidence_sources": ["attachment_pdf", "body_pdf"],
         },
     },
     "contracts": {
-        "name": "contracts",
-        "description": "Save contracts and legal documents",
-        "action_type": "save_attachment",
-        "action_params": {
-            "pattern": "*.pdf",
-        },
-    },
-    "action_required": {
-        "name": "action_required",
-        "description": "Create todo for emails requiring action",
-        "action_type": "create_todo",
-        "action_params": {
-            "todo_file": "~/todos.txt",
+        "summary": "Contracts and legal documents",
+        "doctype": "contract",
+        "constraints": {
+            "requires_evidence": ["contract"],
+            "evidence_sources": ["attachment_pdf", "body_pdf"],
         },
     },
 }

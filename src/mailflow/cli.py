@@ -17,10 +17,15 @@ from mailflow.config import Config
 from mailflow.commands.index_search import register as register_index_commands
 from mailflow.commands.gmail_batch_workflows import register as register_gmail_batch
 from mailflow.logging_config import setup_logging
-from mailflow.models import DataStore, WorkflowDefinition
+from mailflow.models import DataStore, WorkflowDefinition, WORKFLOWS_SCHEMA_VERSION
 from mailflow.process import process as process_email
 
 logger = logging.getLogger(__name__)
+
+def _write_empty_workflows(workflows_file: Path) -> None:
+    workflows_file.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"schema_version": WORKFLOWS_SCHEMA_VERSION, "workflows": []}
+    workflows_file.write_text(json.dumps(payload, indent=2) + "\n")
 
 
 @click.group(invoke_without_command=True)
@@ -116,7 +121,7 @@ def archivist_metrics() -> None:
 def _interactive_workflow_setup(config: Config, data_store: DataStore) -> tuple[int, int]:
     """Shared interactive workflow setup logic.
 
-    Prompts user for entities and document types, creates workflows and directories.
+    Prompts user for entities and document types, creates workflows.
 
     Args:
         config: Config instance
@@ -214,7 +219,7 @@ def _interactive_workflow_setup(config: Config, data_store: DataStore) -> tuple[
     # Confirmation for large batches
     workflow_count = len(entities) * len(doc_types)
     if workflow_count > 10:
-        click.echo(f"\n⚠️  This will create {workflow_count} workflows and directories.")
+        click.echo(f"\n⚠️  This will create {workflow_count} workflows.")
         if not click.confirm("Continue?", default=True):
             click.echo("Cancelled")
             return (0, len(data_store.workflows))
@@ -228,49 +233,27 @@ def _interactive_workflow_setup(config: Config, data_store: DataStore) -> tuple[
             workflow_name = f"{entity_code}-{doc_code}"
             workflow = WorkflowDefinition(
                 name=workflow_name,
-                description=f"Save {entity_name} {doc_desc}",
-                action_type="save_pdf",
-                action_params={
-                    "directory": f"~/Documents/mailflow/{entity_code}/{doc_code}",
-                    "filename_template": "{date}-{from}-{subject}",
+                kind="document",
+                criteria={"summary": f"{entity_name} {doc_desc}"},
+                handling={
+                    "archive": {
+                        "target": "document",
+                        "entity": entity_code,
+                        "doctype": doc_code,
+                    },
+                    "index": {"llmemory": True},
                 },
             )
 
             try:
                 if workflow.name not in data_store.workflows:
                     data_store.add_workflow(workflow)
-                    click.echo(f"  ✓ {workflow_name}: {workflow.description}")
+                    click.echo(f"  ✓ {workflow_name}: {workflow.criteria['summary']}")
                     created_count += 1
                 else:
                     click.echo(f"  ⊘ {workflow_name}: Already exists")
             except Exception as e:
                 click.echo(f"  ✗ {workflow_name}: Failed - {e}", err=True)
-
-    # Create directories
-    click.echo(f"\nCreating directories...")
-    failed_dirs = []
-    for entity_code, _ in entities:
-        for doc_code, _ in doc_types:
-            dir_path = Path(f"~/Documents/mailflow/{entity_code}/{doc_code}").expanduser()
-            try:
-                dir_path.mkdir(parents=True, exist_ok=True)
-                # Test that it's writable
-                test_file = dir_path / ".mailflow_test"
-                test_file.touch()
-                test_file.unlink()
-                click.echo(f"  ✓ {dir_path}")
-            except PermissionError:
-                click.echo(f"  ✗ Permission denied: {dir_path}", err=True)
-                failed_dirs.append(str(dir_path))
-            except Exception as e:
-                click.echo(f"  ✗ Failed to create {dir_path}: {e}", err=True)
-                failed_dirs.append(str(dir_path))
-
-    if failed_dirs:
-        click.echo(f"\n⚠️  Warning: {len(failed_dirs)} director(ies) could not be created")
-        click.echo("These workflows may fail at runtime. Check permissions:")
-        for d in failed_dirs:
-            click.echo(f"  - {d}")
 
     return (created_count, len(data_store.workflows))
 
@@ -295,14 +278,19 @@ def init(reset):
         click.echo("Check that you have write permissions to ~/.config/")
         sys.exit(1)
 
+    workflows_file = config.get_workflows_file()
+
     # Handle existing configuration
-    if config.get_workflows_file().exists() and reset:
-        backup_path = config.backup_file(config.get_workflows_file())
+    if workflows_file.exists() and reset:
+        backup_path = config.backup_file(workflows_file)
         click.echo(f"✓ Backed up existing workflows to {backup_path}")
-    elif config.get_workflows_file().exists() and not reset:
+        _write_empty_workflows(workflows_file)
+    elif workflows_file.exists() and not reset:
         click.echo(f"Configuration already exists at {config.config_dir}")
         click.echo("Use --reset to backup and create fresh configuration")
         return
+    else:
+        _write_empty_workflows(workflows_file)
 
     click.echo(f"✓ Configuration directory: {config.config_dir}")
     data_store = DataStore(config)
@@ -347,7 +335,7 @@ def stats():
     if data_store.workflows:
         click.echo("\nConfigured workflows:")
         for name, wf in sorted(data_store.workflows.items()):
-            click.echo(f"  {name}: {wf.action_type}")
+            click.echo(f"  {name}: {wf.kind} ({wf.archive_entity}/{wf.archive_doctype})")
 
     # Get learning metrics from llm-archivist
     try:
@@ -441,6 +429,9 @@ def setup_workflows():
     Use this after 'mailflow init' to create additional entity/document workflows.
     """
     config = Config()
+    workflows_file = config.get_workflows_file()
+    if not workflows_file.exists():
+        _write_empty_workflows(workflows_file)
     data_store = DataStore(config)
 
     click.echo("\n📋 Workflow Setup Assistant")

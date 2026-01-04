@@ -50,6 +50,8 @@ class TestPDFExtractionIntegration:
             message=email_data,
             workflow="cloudflare-invoice",
             config=config,
+            entity="acme",
+            directory="invoice",
             pattern="*.pdf"
         )
 
@@ -90,7 +92,9 @@ class TestPDFExtractionIntegration:
         result = save_email_pdf(
             message=email_data,
             workflow="amazon-receipt",
-            config=config
+            config=config,
+            entity="acme",
+            directory="receipt",
         )
 
         assert result["success"]
@@ -145,6 +149,8 @@ class TestPDFExtractionIntegration:
             message=email_data,
             workflow="multi-invoice",
             config=config,
+            entity="acme",
+            directory="invoice",
             pattern="*.pdf"
         )
 
@@ -196,6 +202,8 @@ class TestPDFExtractionIntegration:
             message=email_data,
             workflow="pdf-only",
             config=config,
+            entity="acme",
+            directory="docs",
             pattern="*.pdf"
         )
 

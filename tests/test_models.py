@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from mailflow.models import DataStore, WorkflowDefinition
 
 
@@ -7,34 +5,43 @@ class TestWorkflowDefinition:
     def test_workflow_creation(self):
         workflow = WorkflowDefinition(
             name="save-invoices",
-            description="Save invoice PDFs",
-            action_type="save_attachment",
-            action_params={"directory": "~/invoices", "pattern": "*.pdf"},
+            kind="document",
+            criteria={"summary": "Save invoice PDFs"},
+            constraints={"requires_evidence": ["invoice"]},
+            handling={
+                "archive": {"target": "document", "entity": "acme", "doctype": "invoice"},
+                "index": {"llmemory": False},
+            },
+            postprocessors=["pdf-ocr"],
         )
 
         assert workflow.name == "save-invoices"
-        assert workflow.description == "Save invoice PDFs"
-        assert workflow.action_type == "save_attachment"
-        assert workflow.action_params["directory"] == "~/invoices"
-        assert workflow.action_params["pattern"] == "*.pdf"
+        assert workflow.kind == "document"
+        assert workflow.criteria["summary"] == "Save invoice PDFs"
+        assert workflow.archive_entity == "acme"
+        assert workflow.archive_doctype == "invoice"
+        assert workflow.index_llmemory is False
 
     def test_workflow_serialization(self):
         workflow = WorkflowDefinition(
             name="test-workflow",
-            description="Test",
-            action_type="save_pdf",
-            action_params={"directory": "~/pdfs"},
+            kind="document",
+            criteria={"summary": "Test"},
+            handling={
+                "archive": {"target": "document", "entity": "demo", "doctype": "pdfs"},
+                "index": {"llmemory": True},
+            },
         )
 
         # Convert to dict
         data = workflow.to_dict()
         assert data["name"] == "test-workflow"
-        assert data["action_type"] == "save_pdf"
+        assert data["handling"]["archive"]["doctype"] == "pdfs"
 
         # Convert back from dict
         workflow2 = WorkflowDefinition.from_dict(data)
         assert workflow2.name == workflow.name
-        assert workflow2.action_type == workflow.action_type
+        assert workflow2.handling == workflow.handling
 
 
 class TestDataStore:
@@ -49,16 +56,19 @@ class TestDataStore:
 
         workflow = WorkflowDefinition(
             name="custom-workflow",
-            description="Custom test workflow",
-            action_type="create_todo",
-            action_params={"todo_file": "~/todos.txt"},
+            kind="document",
+            criteria={"summary": "Custom test workflow"},
+            handling={
+                "archive": {"target": "document", "entity": "acme", "doctype": "docs"},
+                "index": {"llmemory": True},
+            },
         )
 
         store.add_workflow(workflow)
 
         # Check it was added
         assert "custom-workflow" in store.workflows
-        assert store.workflows["custom-workflow"].description == "Custom test workflow"
+        assert store.workflows["custom-workflow"].criteria["summary"] == "Custom test workflow"
 
         # Check persistence
         store2 = DataStore(test_config)

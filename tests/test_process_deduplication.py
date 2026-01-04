@@ -1,7 +1,7 @@
 """Test email deduplication in process.py"""
 
-import asyncio
 import tempfile
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -14,6 +14,8 @@ from mailflow.process import process
 def temp_config():
     """Create temporary config for testing"""
     temp_dir = tempfile.mkdtemp()
+    workflows_file = Path(temp_dir) / "workflows.json"
+    workflows_file.write_text('{"schema_version": 1, "workflows": []}')
     return Config(config_dir=temp_dir)
 
 
@@ -40,9 +42,12 @@ class TestProcessDeduplication:
         data_store = DataStore(temp_config)
         workflow = WorkflowDefinition(
             name="test-workflow",
-            description="Test workflow",
-            action_type="save_pdf",
-            action_params={},
+            kind="document",
+            criteria={"summary": "Test workflow"},
+            handling={
+                "archive": {"target": "document", "entity": "acme", "doctype": "docs"},
+                "index": {"llmemory": True},
+            },
         )
         data_store.add_workflow(workflow)
 
@@ -52,8 +57,7 @@ class TestProcessDeduplication:
 
             with patch("mailflow.process.Workflows") as mock_workflows:
                 mock_action = MagicMock()
-                mock_workflows.__getitem__.return_value = mock_action
-                mock_workflows.__contains__.return_value = True
+                mock_workflows.get.return_value = mock_action
 
                 # Process the email
                 await process(sample_email, config=temp_config)
@@ -72,9 +76,12 @@ class TestProcessDeduplication:
         data_store = DataStore(temp_config)
         workflow = WorkflowDefinition(
             name="test-workflow",
-            description="Test workflow",
-            action_type="save_pdf",
-            action_params={},
+            kind="document",
+            criteria={"summary": "Test workflow"},
+            handling={
+                "archive": {"target": "document", "entity": "acme", "doctype": "docs"},
+                "index": {"llmemory": True},
+            },
         )
         data_store.add_workflow(workflow)
 
@@ -84,8 +91,7 @@ class TestProcessDeduplication:
 
             with patch("mailflow.process.Workflows") as mock_workflows:
                 mock_action = MagicMock()
-                mock_workflows.__getitem__.return_value = mock_action
-                mock_workflows.__contains__.return_value = True
+                mock_workflows.get.return_value = mock_action
 
                 # Process the email once
                 await process(sample_email, config=temp_config)
@@ -105,9 +111,12 @@ class TestProcessDeduplication:
         data_store = DataStore(temp_config)
         workflow = WorkflowDefinition(
             name="test-workflow",
-            description="Test workflow",
-            action_type="save_pdf",
-            action_params={},
+            kind="document",
+            criteria={"summary": "Test workflow"},
+            handling={
+                "archive": {"target": "document", "entity": "acme", "doctype": "docs"},
+                "index": {"llmemory": True},
+            },
         )
         data_store.add_workflow(workflow)
 
@@ -117,8 +126,7 @@ class TestProcessDeduplication:
 
             with patch("mailflow.process.Workflows") as mock_workflows:
                 mock_action = MagicMock()
-                mock_workflows.__getitem__.return_value = mock_action
-                mock_workflows.__contains__.return_value = True
+                mock_workflows.get.return_value = mock_action
 
                 # Track how many times select_workflow was called
                 # If the email is skipped, select_workflow won't be called on second pass

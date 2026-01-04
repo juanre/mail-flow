@@ -29,7 +29,13 @@ def test_convert_text_attachment_to_pdf(temp_config_with_llmemory):
     cfg["layout"] = "v2"
     cfg["convert_attachments"] = True
 
-    result = save_attachment(message=email_data, workflow="acme-notes", config=config)
+    result = save_attachment(
+        message=email_data,
+        workflow="acme-notes",
+        config=config,
+        entity="acme",
+        directory="notes",
+    )
     assert result["success"] and result["count"] == 1
     path = Path(result["documents"][0]["content_path"])
     assert path.suffix == ".pdf"
@@ -58,7 +64,13 @@ def test_keep_csv_as_csv(temp_config_with_llmemory):
     cfg["layout"] = "v2"
     cfg["convert_attachments"] = True
 
-    result = save_attachment(message=email_data, workflow="acme-data", config=config)
+    result = save_attachment(
+        message=email_data,
+        workflow="acme-data",
+        config=config,
+        entity="acme",
+        directory="data",
+    )
     assert result["success"] and result["count"] == 1
     path = Path(result["documents"][0]["content_path"])
     assert path.suffix == ".csv"
@@ -86,7 +98,13 @@ def test_convert_tsv_to_csv(temp_config_with_llmemory):
     cfg["layout"] = "v2"
     cfg["convert_attachments"] = True
 
-    result = save_attachment(message=email_data, workflow="acme-data", config=config)
+    result = save_attachment(
+        message=email_data,
+        workflow="acme-data",
+        config=config,
+        entity="acme",
+        directory="data",
+    )
     assert result["success"] and result["count"] == 1
     path = Path(result["documents"][0]["content_path"])
     assert path.suffix == ".csv"
