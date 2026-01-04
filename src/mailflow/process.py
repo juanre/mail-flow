@@ -4,6 +4,7 @@
 
 import logging
 import sys
+import asyncio
 
 from mailflow.config import Config
 from mailflow.email_extractor import EmailExtractor
@@ -132,7 +133,11 @@ async def process(
                         print("(dry-run) Skipping action execution and processed marker")
                         logger.info("dry-run: not executing action or marking processed")
                     else:
-                        action_func(
+                        # Run sync workflow execution in a worker thread so any
+                        # sync-only libraries (e.g., Playwright sync API) don't
+                        # crash inside the asyncio event loop.
+                        await asyncio.to_thread(
+                            action_func,
                             message=email_data,
                             workflow=selected_workflow,
                             config=config,

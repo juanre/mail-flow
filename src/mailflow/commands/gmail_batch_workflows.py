@@ -290,6 +290,9 @@ def register(cli):
                     interactive=interactive
                 )
                 stats["processed"] += 1
+            except SystemExit as e:
+                click.echo(f"[{i}/{total}] ERROR {email_file.name}: exited {e.code}", err=True)
+                stats["errors"] += 1
             except Exception as e:
                 click.echo(f"[{i}/{total}] ERROR {email_file.name}: {e}", err=True)
                 stats["errors"] += 1

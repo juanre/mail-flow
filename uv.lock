@@ -158,7 +158,7 @@ wheels = [
 [[package]]
 name = "archive-protocol"
 version = "0.1.0"
-source = { directory = "../docflow-archive" }
+source = { editable = "../docflow-archive" }
 dependencies = [
     { name = "pydantic" },
     { name = "python-dateutil" },
@@ -1055,7 +1055,7 @@ wheels = [
 [[package]]
 name = "llm-archivist"
 version = "0.1.0"
-source = { directory = "../llm-archivist" }
+source = { editable = "../llm-archivist" }
 dependencies = [
     { name = "click" },
     { name = "llmring" },
@@ -1082,7 +1082,7 @@ dev = [
 [[package]]
 name = "llmemory"
 version = "0.4.0"
-source = { directory = "../llmemory" }
+source = { editable = "../llmemory" }
 dependencies = [
     { name = "asyncpg" },
     { name = "click" },
@@ -1235,7 +1235,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "archive-protocol", directory = "../docflow-archive" },
+    { name = "archive-protocol", editable = "../docflow-archive" },
     { name = "beautifulsoup4", specifier = ">=4.13.4" },
     { name = "click", specifier = ">=8.2.1" },
     { name = "gnureadline", specifier = ">=8.2.13" },
@@ -1243,8 +1243,8 @@ requires-dist = [
     { name = "google-auth", specifier = ">=2.40.3" },
     { name = "google-auth-oauthlib", specifier = ">=1.2.2" },
     { name = "html2text", specifier = ">=2025.4.15" },
-    { name = "llm-archivist", directory = "../llm-archivist" },
-    { name = "llmemory", directory = "../llmemory" },
+    { name = "llm-archivist", editable = "../llm-archivist" },
+    { name = "llmemory", editable = "../llmemory" },
     { name = "llmring", editable = "../../llmring-all/llmring" },
     { name = "playwright", specifier = ">=1.54.0" },
     { name = "python-dateutil", specifier = ">=2.9.0.post0" },

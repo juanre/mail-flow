@@ -79,7 +79,7 @@ asyncio_mode = "auto"
 norecursedirs = ["llmring"]
 
 [tool.uv.sources]
-archive-protocol = { path = "../docflow-archive" }
-llm-archivist = { path = "../llm-archivist" }
+archive-protocol = { path = "../docflow-archive", editable = true }
+llm-archivist = { path = "../llm-archivist", editable = true }
 llmring = { path = "../../llmring-all/llmring", editable = true }
-llmemory = { path = "../llmemory" }
+llmemory = { path = "../llmemory", editable = true }
