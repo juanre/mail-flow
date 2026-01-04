@@ -3,7 +3,10 @@ from __future__ import annotations
 import asyncio
 import sys
 from datetime import datetime
+from datetime import timezone
+from email.parser import BytesHeaderParser
 from email.utils import parsedate_to_datetime
+from email.policy import default as email_default_policy
 from pathlib import Path
 import click
 
@@ -58,6 +61,42 @@ def _discover_email_files(base: Path) -> list[Path]:
                 files.append(f)
                 seen.add(f)
     return sorted(files)
+
+
+def _maildir_epoch_from_filename(name: str) -> datetime | None:
+    """Parse Maildir filename timestamps when present.
+
+    mbsync-style Maildir filenames often start with an epoch seconds prefix:
+      1739875401.1604_105.host,U=...
+    """
+    try:
+        prefix = name.split(".", 1)[0]
+        if not prefix.isdigit():
+            return None
+        epoch = int(prefix)
+        if epoch < 946684800:  # 2000-01-01 (avoid false positives)
+            return None
+        return datetime.fromtimestamp(epoch, tz=timezone.utc)
+    except Exception:
+        return None
+
+
+def _fast_date_from_file(path: Path) -> datetime:
+    """Best-effort, low-cost date extraction for early filtering.
+
+    Prefers Maildir filename epoch when available; otherwise reads headers only.
+    Always returns a timezone-aware datetime (UTC).
+    """
+    dt = _maildir_epoch_from_filename(path.name)
+    if dt is not None:
+        return dt
+    try:
+        with open(path, "rb") as f:
+            head = f.read(64 * 1024)
+        msg = BytesHeaderParser(policy=email_default_policy).parsebytes(head)
+        return _parse_email_date(msg.get("date", ""))
+    except Exception:
+        return datetime.fromtimestamp(0, tz=timezone.utc)
 
 
 def register(cli):
@@ -154,13 +193,33 @@ def register(cli):
 
         directory_path = Path(directory).expanduser()
         email_files = _discover_email_files(directory_path)
-        if max_emails:
-            email_files = email_files[:max_emails]
         if not email_files:
-            click.echo(f"No .eml files found in {directory}")
+            click.echo(f"No email files found in {directory}")
             return
 
         click.echo(f"Found {len(email_files)} emails to process")
+
+        # Early filter by date range BEFORE reading/parsing all messages.
+        if after or before:
+            after_dt = datetime.strptime(after, "%Y-%m-%d").date() if after else None
+            before_dt = datetime.strptime(before, "%Y-%m-%d").date() if before else None
+            original_count = len(email_files)
+            filtered_files: list[Path] = []
+            for f in email_files:
+                msg_date = _fast_date_from_file(f).astimezone(timezone.utc).date()
+                if after_dt and msg_date < after_dt:
+                    continue
+                if before_dt and msg_date > before_dt:
+                    continue
+                filtered_files.append(f)
+            email_files = filtered_files
+            click.echo(f"Date filter: {len(email_files)} of {original_count} emails in range")
+            if not email_files:
+                return
+
+        if max_emails:
+            email_files = email_files[:max_emails]
+            click.echo(f"Limiting to first {len(email_files)} emails (--max-emails)")
 
         if dry_run:
             click.echo("DRY RUN MODE - no workflows will be executed")
@@ -187,26 +246,6 @@ def register(cli):
             [x[1] for x in combined],
             [x[2] for x in combined],
         )
-
-        # Filter by date range
-        if after or before:
-            after_dt = datetime.strptime(after, "%Y-%m-%d") if after else None
-            before_dt = datetime.strptime(before, "%Y-%m-%d") if before else None
-            filtered = []
-            for f, c, d in zip(email_files, email_contents, email_data_list):
-                email_dt = _parse_email_date(d.get("date", ""))
-                if after_dt and email_dt.replace(tzinfo=None) < after_dt:
-                    continue
-                if before_dt and email_dt.replace(tzinfo=None) > before_dt:
-                    continue
-                filtered.append((f, c, d))
-            original_count = len(email_files)
-            email_files, email_contents, email_data_list = (
-                [x[0] for x in filtered],
-                [x[1] for x in filtered],
-                [x[2] for x in filtered],
-            )
-            click.echo(f"Date filter: {len(email_files)} of {original_count} emails in range")
 
         # Detect threads
         threads = detect_threads(email_data_list)
