@@ -152,6 +152,9 @@ def _build_workflows(data_store) -> List[Workflow]:
         }
         if wf.constraints is not None:
             entry["constraints"] = wf.constraints
+        classifier = getattr(wf, "classifier", None)
+        if classifier is not None:
+            entry["classifier"] = classifier
         if wf.postprocessors:
             entry["postprocessors"] = wf.postprocessors
         workflows.append(entry)

@@ -34,6 +34,7 @@ class WorkflowDefinition:
     criteria: dict[str, Any]
     handling: dict[str, Any]
     constraints: dict[str, Any] | None = None
+    classifier: dict[str, Any] | None = None
     postprocessors: list[Any] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -60,9 +61,20 @@ class WorkflowDefinition:
                 "constraints.requires_evidence",
             )
             _validate_str_list(
+                self.constraints.get("forbidden_evidence"),
+                "constraints.forbidden_evidence",
+            )
+            _validate_str_list(
                 self.constraints.get("evidence_sources"),
                 "constraints.evidence_sources",
             )
+
+        if self.classifier is not None and not isinstance(self.classifier, dict):
+            raise ValidationError("Workflow classifier must be an object if provided")
+        if isinstance(self.classifier, dict):
+            appendix = self.classifier.get("appendix")
+            if appendix is not None and not isinstance(appendix, str):
+                raise ValidationError("Workflow classifier.appendix must be a string if provided")
 
         if not isinstance(self.handling, dict) or not self.handling:
             raise ValidationError("Workflow handling is required")
@@ -119,6 +131,8 @@ class WorkflowDefinition:
         }
         if self.constraints:
             data["constraints"] = self.constraints
+        if self.classifier:
+            data["classifier"] = self.classifier
         if self.postprocessors:
             data["postprocessors"] = self.postprocessors
         return data
@@ -134,6 +148,7 @@ class WorkflowDefinition:
                 kind=data.get("kind"),
                 criteria=data.get("criteria"),
                 constraints=data.get("constraints"),
+                classifier=data.get("classifier"),
                 handling=data.get("handling"),
                 postprocessors=data.get("postprocessors") or [],
             )

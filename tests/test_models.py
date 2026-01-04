@@ -43,6 +43,25 @@ class TestWorkflowDefinition:
         assert workflow2.name == workflow.name
         assert workflow2.handling == workflow.handling
 
+    def test_workflow_classifier_appendix_round_trip(self):
+        workflow = WorkflowDefinition(
+            name="tsm-expense",
+            kind="document",
+            criteria={"summary": "Expense receipts"},
+            handling={
+                "archive": {"target": "document", "entity": "tsm", "doctype": "expense"},
+                "index": {"llmemory": True},
+            },
+            classifier={"appendix": "Expense workflow policy (TheStarMaps):\n- Example\n"},
+        )
+
+        data = workflow.to_dict()
+        assert data["classifier"]["appendix"].startswith("Expense workflow policy")
+
+        workflow2 = WorkflowDefinition.from_dict(data)
+        assert workflow2.classifier is not None
+        assert workflow2.classifier["appendix"].startswith("Expense workflow policy")
+
 
 class TestDataStore:
     def test_datastore_initialization(self, test_config):

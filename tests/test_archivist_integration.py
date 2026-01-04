@@ -7,11 +7,12 @@ from mailflow.archivist_integration import classify_with_archivist, _build_workf
 
 
 class _WF:
-    def __init__(self, name: str, summary: str):
+    def __init__(self, name: str, summary: str, *, classifier: dict | None = None):
         self.name = name
         self.kind = "document"
         self.criteria = {"summary": summary}
         self.constraints = None
+        self.classifier = classifier
         self.handling = {
             "archive": {"target": "document", "entity": "demo", "doctype": "doc"},
             "index": {"llmemory": True},
@@ -22,7 +23,11 @@ class _WF:
 class _DS:
     def __init__(self):
         self.workflows = {
-            "invoices": _WF("invoices", "Save invoices and receipts"),
+            "invoices": _WF(
+                "invoices",
+                "Save invoices and receipts",
+                classifier={"appendix": "Expense workflow policy (TheStarMaps):\n\nReturn null for payment confirmations.\n"},
+            ),
             "hr": _WF("hr", "Recruiting documents"),
         }
 
@@ -32,6 +37,18 @@ def test_build_workflows_from_datastore():
     wfs = _build_workflows(ds)
     names = {w["name"] for w in wfs}
     assert names == {"invoices", "hr"}
+
+def test_build_workflows_preserves_classifier_appendix_in_system_prompt():
+    from llm_archivist.llm_advisor import _build_system_prompt, _normalize_workflows
+
+    ds = _DS()
+    workflow_payload = _build_workflows(ds)
+    normalized = _normalize_workflows(workflow_payload)
+    system = _build_system_prompt(normalized)
+
+    assert "Workflow: invoices" in system
+    assert "Expense workflow policy (TheStarMaps):" in system
+    assert "Workflow: hr" not in system
 
 
 class _FakeClassifier:
