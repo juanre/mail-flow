@@ -26,7 +26,7 @@ def save_attachment(
     directory: str | None = None,
     index_llmemory: bool = True,
 ) -> dict:
-    """Save attachments matching pattern using archive-protocol
+    """Save attachments matching pattern using docflow-archive
 
     Args:
         message: Email data
@@ -42,7 +42,7 @@ def save_attachment(
     try:
         from email.utils import parsedate_to_datetime
 
-        from archive_protocol import RepositoryWriter, RepositoryConfig
+        from docflow_archive import RepositoryWriter, RepositoryConfig
 
         if not entity:
             raise WorkflowError("Workflow handling missing archive.entity")
@@ -210,7 +210,7 @@ def save_email_pdf(
     directory: str | None = None,
     index_llmemory: bool = True,
 ) -> dict:
-    """Save the entire email as a PDF file using archive-protocol
+    """Save the entire email as a PDF file using docflow-archive
 
     Note: Requires Playwright browsers: playwright install chromium
 
@@ -227,7 +227,7 @@ def save_email_pdf(
     try:
         from email.utils import parsedate_to_datetime
 
-        from archive_protocol import RepositoryWriter, RepositoryConfig
+        from docflow_archive import RepositoryWriter, RepositoryConfig
 
         if not entity:
             raise WorkflowError("Workflow handling missing archive.entity")
@@ -342,7 +342,7 @@ def save_pdf(
     try:
         from email.utils import parsedate_to_datetime
 
-        from archive_protocol import RepositoryWriter, RepositoryConfig
+        from docflow_archive import RepositoryWriter, RepositoryConfig
 
         if not entity:
             raise WorkflowError("Workflow handling missing archive.entity")

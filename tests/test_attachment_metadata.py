@@ -30,7 +30,7 @@ def test_attachment_original_filename_and_size(temp_config_with_llmemory):
     # Use config with archive and llmemory configured
     config = temp_config_with_llmemory
 
-    # Save using archive-protocol workflow
+    # Save using docflow-archive workflow
     result = save_attachment(
         message=email_data,
         workflow="test-report",
@@ -49,7 +49,7 @@ def test_attachment_original_filename_and_size(temp_config_with_llmemory):
     with open(metadata_path, "r") as f:
         metadata = json.load(f)
 
-    # Archive-protocol stores original filename in origin.attachment_filename
+    # Docflow-archive stores original filename in origin.attachment_filename
     assert "origin" in metadata
     assert metadata["origin"]["attachment_filename"] == "Report Final.pdf"
     assert metadata["type"] == "attachment"

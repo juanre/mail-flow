@@ -33,7 +33,7 @@ def run_indexing(
     Args:
         config: Mailflow Config object
         entity: Entity identifier (e.g., 'jro')
-        document_id: Archive-protocol document_id (id_at_origin for llmemory)
+        document_id: Docflow-archive document_id (id_at_origin for llmemory)
         content_path: Path to the content file in the archive
         metadata_path: Path to the sidecar metadata JSON file
 
@@ -78,7 +78,7 @@ async def index_to_llmemory(
     Args:
         config: Mailflow Config object
         entity: Entity identifier (e.g., 'jro')
-        document_id: Archive-protocol document_id (id_at_origin for llmemory)
+        document_id: Docflow-archive document_id (id_at_origin for llmemory)
         content_path: Path to the content file in the archive
         metadata_path: Path to the sidecar metadata JSON file
 

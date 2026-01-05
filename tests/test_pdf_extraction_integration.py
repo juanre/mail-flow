@@ -1,4 +1,4 @@
-"""Integration tests for PDF extraction from real emails using archive-protocol workflows."""
+"""Integration tests for PDF extraction from real emails using docflow-archive workflows."""
 
 from pathlib import Path
 
@@ -24,7 +24,7 @@ class TestPDFExtractionIntegration:
             return f.read()
 
     def test_extract_pdf_from_cloudflare_email(self, temp_config_with_llmemory, cloudflare_email):
-        """Test extracting and saving PDF attachment from real Cloudflare email using archive-protocol."""
+        """Test extracting and saving PDF attachment from real Cloudflare email using docflow-archive."""
         # Extract email data
         extractor = EmailExtractor()
         email_data = extractor.extract(cloudflare_email)
@@ -45,7 +45,7 @@ class TestPDFExtractionIntegration:
         # Use config with archive and llmemory configured
         config = temp_config_with_llmemory
 
-        # Save the PDF attachment using archive-protocol workflow
+        # Save the PDF attachment using docflow-archive workflow
         result = save_attachment(
             message=email_data,
             workflow="cloudflare-invoice",
@@ -74,7 +74,7 @@ class TestPDFExtractionIntegration:
         assert metadata_path.exists()
 
     def test_save_email_without_pdf_attachment_as_pdf(self, temp_config_with_llmemory, amazon_email):
-        """Test converting email without PDF attachment to PDF using archive-protocol."""
+        """Test converting email without PDF attachment to PDF using docflow-archive."""
         # Extract email
         extractor = EmailExtractor()
         email_data = extractor.extract(amazon_email)
@@ -88,7 +88,7 @@ class TestPDFExtractionIntegration:
         # Use config with archive and llmemory configured
         config = temp_config_with_llmemory
 
-        # Convert email to PDF using archive-protocol workflow
+        # Convert email to PDF using docflow-archive workflow
         result = save_email_pdf(
             message=email_data,
             workflow="amazon-receipt",
@@ -165,7 +165,7 @@ class TestPDFExtractionIntegration:
             assert content_path.suffix == ".pdf"
 
     def test_workflow_with_pattern_filtering(self, temp_config_with_llmemory):
-        """Test that pattern filtering works with archive-protocol workflows."""
+        """Test that pattern filtering works with docflow-archive workflows."""
         from email.mime.base import MIMEBase
         from email.mime.multipart import MIMEMultipart
         from email.mime.text import MIMEText

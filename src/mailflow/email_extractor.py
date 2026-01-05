@@ -49,7 +49,7 @@ from mailflow.security import (
     MAX_SUBJECT_LENGTH,
     validate_message_id,
 )
-from archive_protocol.utils import sanitize_filename
+from docflow_archive.utils import sanitize_filename
 from mailflow.utils import truncate_string
 
 logger = logging.getLogger(__name__)

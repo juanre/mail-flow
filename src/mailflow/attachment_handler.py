@@ -1,4 +1,4 @@
-# ABOUTME: Handles extraction of email attachments as bytes for archive-protocol workflows.
+# ABOUTME: Handles extraction of email attachments as bytes for docflow-archive workflows.
 # ABOUTME: Supports pattern matching and returns attachment data in-memory without filesystem operations.
 """Attachment extraction handler for mailflow"""
 
@@ -49,5 +49,4 @@ def extract_attachments(message_obj: Message, pattern: str = "*") -> list[tuple[
         attachments.append((filename, payload, mimetype))
 
     return attachments
-
 

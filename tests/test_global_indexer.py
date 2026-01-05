@@ -1,7 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 
-from archive_protocol import RepositoryConfig, RepositoryWriter
+from docflow_archive import RepositoryConfig, RepositoryWriter
 from mailflow.indexer import run_indexer
 from mailflow.global_index import GlobalIndex
 

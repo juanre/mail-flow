@@ -15,7 +15,7 @@ from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 
 from mailflow.exceptions import WorkflowError
-from archive_protocol.utils import sanitize_filename
+from docflow_archive.utils import sanitize_filename
 from mailflow.security import validate_path
 
 logger = logging.getLogger(__name__)

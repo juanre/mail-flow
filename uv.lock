@@ -156,27 +156,6 @@ wheels = [
 ]
 
 [[package]]
-name = "archive-protocol"
-version = "0.1.0"
-source = { editable = "../docflow-archive" }
-dependencies = [
-    { name = "pydantic" },
-    { name = "python-dateutil" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "pydantic", specifier = ">=2.0" },
-    { name = "python-dateutil", specifier = ">=2.9.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest", specifier = ">=8.0" },
-    { name = "pytest-asyncio", specifier = ">=0.23.0" },
-]
-
-[[package]]
 name = "asyncpg"
 version = "0.31.0"
 source = { registry = "https://pypi.org/simple" }
@@ -475,6 +454,27 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/fc/f8/98eea607f65de6527f8a2e8885fc8015d3e6f5775df186e443e0964a11c3/distro-1.9.0.tar.gz", hash = "sha256:2fa77c6fd8940f116ee1d6b94a2f90b13b5ea8d019b98bc8bafdcabcdd9bdbed", size = 60722, upload-time = "2023-12-24T09:54:32.31Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/12/b3/231ffd4ab1fc9d679809f356cebee130ac7daa00d6d6f3206dd4fd137e9e/distro-1.9.0-py3-none-any.whl", hash = "sha256:7bffd925d65168f85027d8da9af6bddab658135b840670a223589bc0c8ef02b2", size = 20277, upload-time = "2023-12-24T09:54:30.421Z" },
+]
+
+[[package]]
+name = "docflow-archive"
+version = "0.1.0"
+source = { editable = "../docflow-archive" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "python-dateutil" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2.0" },
+    { name = "python-dateutil", specifier = ">=2.9.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "pytest-asyncio", specifier = ">=0.23.0" },
 ]
 
 [[package]]
@@ -1207,9 +1207,9 @@ name = "mailflow"
 version = "0.3.0"
 source = { editable = "." }
 dependencies = [
-    { name = "archive-protocol" },
     { name = "beautifulsoup4" },
     { name = "click" },
+    { name = "docflow-archive" },
     { name = "gnureadline" },
     { name = "google-api-python-client" },
     { name = "google-auth" },
@@ -1235,9 +1235,9 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "archive-protocol", editable = "../docflow-archive" },
     { name = "beautifulsoup4", specifier = ">=4.13.4" },
     { name = "click", specifier = ">=8.2.1" },
+    { name = "docflow-archive", editable = "../docflow-archive" },
     { name = "gnureadline", specifier = ">=8.2.13" },
     { name = "google-api-python-client", specifier = ">=2.178.0" },
     { name = "google-auth", specifier = ">=2.40.3" },
