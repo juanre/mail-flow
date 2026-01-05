@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from docflow_archive import RepositoryConfig, RepositoryWriter
@@ -11,7 +11,7 @@ def test_indexer_builds_global_indexes(tmp_path):
     cfg = RepositoryConfig(base_path=str(base))
     writer = RepositoryWriter(cfg, entity="acme", source="mail", connector_version="1.0.0")
 
-    created_at = datetime(2025, 11, 5, 12, 0, 0)
+    created_at = datetime(2025, 11, 5, 12, 0, 0, tzinfo=timezone.utc)
     _, content_path, meta_path = writer.write_document(
         workflow="invoices",
         content=b"%PDF-1.4\n...",
